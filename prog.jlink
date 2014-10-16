@@ -1,0 +1,12 @@
+exec device = ATSAM4LC8C
+speed 1200
+r
+r
+r
+h
+loadbin main.bin, 0x10000
+verifybin main.bin, 0x10000
+exec device
+r
+g
+q
