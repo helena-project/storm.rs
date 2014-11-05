@@ -125,3 +125,15 @@ pub fn toggle(pin: Pin) {
     gpio.ovrt = p;
 }
 
+pub fn set(pin: Pin) {
+    let gpio = gpio_port!(pin.bus);
+    let p = 1 << pin.pin;
+    gpio.ovrs = p;
+}
+
+pub fn clear(pin: Pin) {
+    let gpio = gpio_port!(pin.bus);
+    let p = 1 << pin.pin;
+    gpio.ovrc = p;
+}
+
