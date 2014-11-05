@@ -5,25 +5,25 @@
 #![feature(lang_items)]
 
 mod gpio;
+mod ast;
 
 #[lang="sized"]
 pub trait Sized {}
 
+const LED0 : gpio::Pin = gpio::Pin {bus: gpio::PORT0, pin: 10};
+
+#[no_mangle]
+pub fn AST_OVF_Handler() {
+    gpio::toggle(LED0);
+}
+
 #[no_mangle]
 pub extern fn main() -> int {
-    let led0 = gpio::Pin {bus: gpio::PORT0, pin: 10};
+    gpio::make_output(LED0);
+    ast::setup();
+    ast::start_periodic();
 
-    gpio::make_output(led0);
-  
     loop {
-        gpio::toggle(led0);
-        let mut i = 0i;
-        loop {
-            i = i + 1;
-            if i > 5000000 {
-                break;  
-            }
-        }
     }
 }
 

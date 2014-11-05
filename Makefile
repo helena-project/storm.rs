@@ -12,12 +12,18 @@ LDFLAGS += -Tstormpayload.ld
 C_SOURCES=stormcrt1.c
 C_OBJECTS=$(C_SOURCES:.c=.o)
 
-RUST_SOURCES=main.rs
+RUST_SOURCES=$(shell ls *.rs)
 RUST_OBJECTS=$(RUST_SOURCES:%.rs=%.o)
 
-EXECUTABLE=main.bin
+SLOAD=sload
+SDB=main.sdb
 
-all: main.bin
+SDB_MAINTAINER=$(shell whoami)
+SDB_VERSION=$(shell git show-ref -s HEAD)
+SDB_NAME=storm.rs
+SDB_DESCRIPTION="An OS for the storm"
+
+all: $(SDB)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $^
@@ -25,18 +31,21 @@ all: main.bin
 %.o: %.s
 	$(CC) $(CFLAGS) -c -o $@ $^
 
-%.ll: %.rs
-	$(RUSTC) $(RUSTC_FLAGS) --emit ir -o $@ $^
+main.ll: $(RUST_SOURCES)
+	$(RUSTC) $(RUSTC_FLAGS) --emit ir -o main.ll main.rs
 	sed -i 's/"split-stack"/""/g' $@
 
 %.s: %.ll
 	$(LLC) $(LLC_FLAGS) $^ -o=$@
 
-main.elf: $(RUST_OBJECTS) $(C_OBJECTS)
+main.elf: main.o $(C_OBJECTS)
 	$(LD) $(LDFLAGS) $^ -o main.elf
 
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
+
+%.sdb: %.elf
+	$(SLOAD) pack -m "$(SDB_MAINTAINER)" -v "$(SDB_VERSION)" -n "$(SDB_NAME)" -d $(SDB_DESCRIPTION) -o $@ $<
     
 .PHONY: prog
 program: main.bin
