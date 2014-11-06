@@ -115,7 +115,7 @@ pub struct Pin {
 
 impl Pin {
     pub fn new(port : Port, pin: uint) -> Pin {
-        return Pin {bus : port, pin: pin};
+        Pin {bus : port, pin: pin}
     }
 
     pub fn make_output(&self) {

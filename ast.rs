@@ -43,12 +43,12 @@ struct Nvic {
 impl Ast {
 
     pub fn clock_busy(&self) -> bool {
-        return self.sr & (1 << 28) != 0;
+        self.sr & (1 << 28) != 0
     }
 
 
     pub fn busy(&self) -> bool {
-        return self.sr & (1 << 24) != 0;
+        self.sr & (1 << 24) != 0
     }
 
     pub fn select_clock(&mut self, clock : Clock) {
