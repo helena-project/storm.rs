@@ -180,7 +180,7 @@ pub fn select_clock(ast : &mut Ast, clock : Clock) {
 
     // Select clock
     ast.clock = (clock as i32) << 8;
-    while busy(ast) {}
+    while clock_busy(ast) {}
 
     // Re-enable clock
     ast.clock |= 1;
@@ -195,11 +195,14 @@ pub fn setup() {
 
 pub fn start_periodic() {
     let ast = unsafe { &mut *(AST_BASE as int as *mut Ast) };
-    ast.ier = 1;
+
+    ast.pir0 = 4;
+
+    ast.ier = 1 << 16;
 }
 
 pub fn stop_periodic() {
     let ast = unsafe { &mut *(AST_BASE as int as *mut Ast) };
-    ast.idr = 1;
+    ast.idr = 1 << 16;
 }
 
