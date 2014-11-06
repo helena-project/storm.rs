@@ -111,29 +111,31 @@ pub struct Pin {
     pub pin: uint,
 }
 
-pub fn make_output(pin : Pin) {
-    let gpio = gpio_port!(pin.bus);
-    let p = 1 << pin.pin;
-    gpio.gpers = p;
-    gpio.oders = p;
-    gpio.sterc = p;
-}
+impl Pin {
+    pub fn make_output(&self) {
+        let gpio = gpio_port!(self.bus);
+        let p = 1 << self.pin;
+        gpio.gpers = p;
+        gpio.oders = p;
+        gpio.sterc = p;
+    }
 
-pub fn toggle(pin: Pin) {
-    let gpio = gpio_port!(pin.bus);
-    let p = 1 << pin.pin;
-    gpio.ovrt = p;
-}
+    pub fn toggle(&self) {
+        let gpio = gpio_port!(self.bus);
+        let p = 1 << self.pin;
+        gpio.ovrt = p;
+    }
 
-pub fn set(pin: Pin) {
-    let gpio = gpio_port!(pin.bus);
-    let p = 1 << pin.pin;
-    gpio.ovrs = p;
-}
+    pub fn set(&self) {
+        let gpio = gpio_port!(self.bus);
+        let p = 1 << self.pin;
+        gpio.ovrs = p;
+    }
 
-pub fn clear(pin: Pin) {
-    let gpio = gpio_port!(pin.bus);
-    let p = 1 << pin.pin;
-    gpio.ovrc = p;
+    pub fn clear(&self) {
+        let gpio = gpio_port!(self.bus);
+        let p = 1 << self.pin;
+        gpio.ovrc = p;
+    }
 }
 
