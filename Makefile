@@ -1,6 +1,6 @@
 RUSTC ?= rustc
+RUSTC_FLAGS = -g -A non_camel_case_types -A dead_code
 LLC ?= llc
-RUSTC_FLAGS = -A non_camel_case_types -A dead_code
 LLC_FLAGS = -mtriple arm-none-eabi -march=thumb -mcpu=cortex-m4 --asm-verbose=false
 
 OBJCOPY ?= arm-none-eabi-objcopy
@@ -35,8 +35,8 @@ main.ll: $(RUST_SOURCES)
 	$(RUSTC) $(RUSTC_FLAGS) --emit ir -o main.ll main.rs
 	sed -i 's/"split-stack"/""/g' $@
 
-%.s: %.ll
-	$(LLC) $(LLC_FLAGS) $^ -o=$@
+%.o: %.ll
+	$(LLC) $(LLC_FLAGS) -filetype=obj -o $@ $^
 
 main.elf: main.o $(C_OBJECTS)
 	$(LD) $(LDFLAGS) $^ -o main.elf
