@@ -10,17 +10,18 @@ mod ast;
 #[lang="sized"]
 pub trait Sized {}
 
-const LED0 : gpio::Pin = gpio::Pin {bus: gpio::PORT2, pin: 10};
 
 #[no_mangle]
 pub extern fn AST_OVF_Handler() {
-    LED0.toggle();
+    let led = gpio::Pin::new(gpio::PORT2, 10);
+    led.toggle();
 }
 
 #[no_mangle]
 pub extern fn main() -> int {
-    LED0.make_output();
-    LED0.toggle();
+    let led = gpio::Pin::new(gpio::PORT2, 10);
+    led.make_output();
+    led.toggle();
 
     ast::setup();
     ast::start_periodic();

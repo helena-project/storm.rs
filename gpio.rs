@@ -94,9 +94,11 @@ struct GpioPort {
     //0x200 end
 }
 
-pub const PORT0 : int = 0x400E1000;
-pub const PORT1 : int = 0x400E1200;
-pub const PORT2 : int = 0x400E1400;
+pub enum Port {
+    PORT0 = 0x400E1000,
+    PORT1 = 0x400E1200,
+    PORT2 = 0x400E1400
+}
 
 macro_rules! gpio_port(
     ($addr : expr) => (
@@ -107,11 +109,15 @@ macro_rules! gpio_port(
 )
 
 pub struct Pin {
-    pub bus: int,
-    pub pin: uint,
+    bus: Port,
+    pin: uint,
 }
 
 impl Pin {
+    pub fn new(port : Port, pin: uint) -> Pin {
+        return Pin {bus : port, pin: pin};
+    }
+
     pub fn make_output(&self) {
         let gpio = gpio_port!(self.bus);
         let p = 1 << self.pin;
