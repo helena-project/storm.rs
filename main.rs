@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 #![allow(non_snake_case)]
+#![allow(dead_code)]
 #![feature(macro_rules)]
 #![feature(globs)]
 #![feature(lang_items)]
@@ -11,16 +12,20 @@ mod ast;
 #[lang="sized"]
 pub trait Sized {}
 
-#[lang="fail_bounds_check"]
+#[lang="panic_bounds_check"]
 fn fail_bounds_check(_: &(&'static str, uint),
                          _: uint, _: uint) -> ! {
     loop {}
 }
 
+#[lang="sync"]
+pub trait Sync {}
+
+static LED : gpio::Pin = gpio::Pin { bus : gpio::PORT2, pin: 10 };
+
 #[no_mangle]
 pub extern fn AST_PER_Handler() {
-    let led = gpio::Pin::new(gpio::PORT2, 10);
-    led.toggle();
+    LED.toggle();
     let ast = unsafe { &mut *(ast::AST_BASE as u32 as *mut ast::Ast) };
     while ast.busy() {}
     ast.scr = 1 << 16;
@@ -28,8 +33,7 @@ pub extern fn AST_PER_Handler() {
 
 #[no_mangle]
 pub extern fn main() -> int {
-    let led = gpio::Pin::new(gpio::PORT2, 10);
-    led.make_output();
+    LED.make_output();
 
     let ast = unsafe { &mut *(ast::AST_BASE as u32 as *mut ast::Ast) };
     ast.setup();

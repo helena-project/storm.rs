@@ -28,11 +28,11 @@ pub struct Ast {
 pub const AST_BASE : int = 0x400F0800;
 
 enum Clock {
-    CSSEL_RCSYS = 0,
-    CSSEL_OSC32 = 1,
-    CSSEL_APB = 2,
-    CSSEL_GCLK2 = 3,
-    CSSEL_CLK1K = 4
+    ClockRCSys = 0,
+    ClockOsc32 = 1,
+    ClockAPB = 2,
+    ClockGclk2 = 3,
+    Clock1K = 4
 }
 
 #[repr(C, packed)]
@@ -66,7 +66,7 @@ impl Ast {
 
     pub fn setup(&mut self) {
         // Select clock
-        self.select_clock(CSSEL_RCSYS);
+        self.select_clock(ClockRCSys);
 
         while self.busy() {}
         self.cr = 0b1 | 1 << 16;

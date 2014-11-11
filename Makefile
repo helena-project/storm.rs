@@ -1,5 +1,5 @@
 RUSTC ?= rustc
-RUSTC_FLAGS = -g -A non_camel_case_types -A dead_code
+RUSTC_FLAGS += -g -A non_camel_case_types -A dead_code
 LLC ?= llc
 LLC_FLAGS = -mtriple arm-none-eabi -march=thumb -mcpu=cortex-m4 --asm-verbose=false
 
@@ -22,6 +22,8 @@ SDB_MAINTAINER=$(shell whoami)
 SDB_VERSION=$(shell git show-ref -s HEAD)
 SDB_NAME=storm.rs
 SDB_DESCRIPTION="An OS for the storm"
+
+JLINK_EXE=JLinkExe
 
 all: $(SDB)
 
@@ -49,7 +51,7 @@ main.elf: main.o $(C_OBJECTS)
     
 .PHONY: prog
 program: main.bin
-	JLinkExe prog.jlink || true
+	$(JLINK_EXE) prog.jlink || true
 
 .PHONY: clean
 clean:

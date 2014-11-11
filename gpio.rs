@@ -109,12 +109,12 @@ macro_rules! gpio_port(
 )
 
 pub struct Pin {
-    bus: Port,
-    pin: uint,
+    pub bus: Port,
+    pub pin: uint,
 }
 
 impl Pin {
-    pub fn new(port : Port, pin: uint) -> Pin {
+    fn new(port : Port, pin: uint) -> Pin {
         Pin {bus : port, pin: pin}
     }
 
