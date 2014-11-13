@@ -1,3 +1,5 @@
+use intrinsics;
+
 #[repr(C, packed)]
 struct GpioPort {
     gper : u32,
@@ -121,27 +123,35 @@ impl Pin {
     pub fn make_output(&self) {
         let gpio = gpio_port!(self.bus);
         let p = 1 << self.pin;
-        gpio.gpers = p;
-        gpio.oders = p;
-        gpio.sterc = p;
+        unsafe {
+            intrinsics::volatile_store(&mut gpio.gpers, p);
+            intrinsics::volatile_store(&mut gpio.oders, p);
+            intrinsics::volatile_store(&mut gpio.sterc, p);
+        }
     }
 
     pub fn toggle(&self) {
         let gpio = gpio_port!(self.bus);
         let p = 1 << self.pin;
-        gpio.ovrt = p;
+        unsafe {
+            intrinsics::volatile_store(&mut gpio.ovrt, p);
+        }
     }
 
     pub fn set(&self) {
         let gpio = gpio_port!(self.bus);
         let p = 1 << self.pin;
-        gpio.ovrs = p;
+        unsafe {
+            intrinsics::volatile_store(&mut gpio.ovrs, p);
+        }
     }
 
     pub fn clear(&self) {
         let gpio = gpio_port!(self.bus);
         let p = 1 << self.pin;
-        gpio.ovrc = p;
+        unsafe {
+            intrinsics::volatile_store(&mut gpio.ovrc, p);
+        }
     }
 }
 

@@ -1,7 +1,7 @@
 RUSTC ?= rustc
-RUSTC_FLAGS += -g -A non_camel_case_types -A dead_code
+RUSTC_FLAGS += -g -O -A non_camel_case_types -A dead_code
 LLC ?= llc
-LLC_FLAGS = -mtriple arm-none-eabi -march=thumb -mcpu=cortex-m4 --asm-verbose=false
+LLC_FLAGS = -O=2 -mtriple arm-none-eabi -march=thumb -mcpu=cortex-m4 --asm-verbose=false
 
 OBJCOPY ?= arm-none-eabi-objcopy
 CC = arm-none-eabi-gcc

@@ -1,4 +1,5 @@
 use nvic;
+use intrinsics;
 
 #[repr(C, packed)]
 pub struct Ast {
@@ -40,25 +41,34 @@ enum Clock {
 impl Ast {
 
     pub fn clock_busy(&self) -> bool {
-        self.sr & (1 << 28) != 0
+        unsafe {
+            intrinsics::volatile_load(&self.sr) & (1 << 28) != 0
+        }
     }
 
 
     pub fn busy(&self) -> bool {
-        self.sr & (1 << 24) != 0
+        unsafe {
+            intrinsics::volatile_load(&self.sr) & (1 << 24) != 0
+        }
     }
 
     pub fn select_clock(&mut self, clock : Clock) {
-        // Disable clock by setting first bit to zero
-        self.clock ^= 1;
-        while self.clock_busy() {}
+        unsafe {
+          // Disable clock by setting first bit to zero
+          let enb = intrinsics::volatile_load(&self.clock) ^ 1;
+          intrinsics::volatile_store(&mut (self.clock), enb);
+          while self.clock_busy() {}
 
-        // Select clock
-        self.clock = (clock as u32) << 8;
-        while self.clock_busy() {}
+          // Select clock
+          intrinsics::volatile_store(&mut (self.clock), (clock as u32) << 8);
+          while self.clock_busy() {}
 
-        // Re-enable clock
-        self.clock |= 1;
+          // Re-enable clock
+          let enb = intrinsics::volatile_load(&self.clock) | 1;
+          intrinsics::volatile_store(&mut (self.clock), enb);
+          self.clock |= 1;
+        }
     }
 
     pub fn setup(&mut self) {
@@ -66,26 +76,30 @@ impl Ast {
         self.select_clock(ClockRCSys);
 
         while self.busy() {}
-        self.cr = 0b1 | 1 << 16;
+        unsafe {
+            intrinsics::volatile_store(&mut self.cr, 1 | 1 << 16)
+        }
 
         nvic::enable(40);
     }
 
     pub fn start_periodic(&mut self) {
-        self.ier = 1 << 16;
+        unsafe {
+            intrinsics::volatile_store(&mut self.ier, 1 << 16);
 
-        while self.busy() {}
-        self.pir0 = 15;
+            while self.busy() {}
+            intrinsics::volatile_store(&mut self.pir0, 15);
 
-        while self.busy() {}
-        self.scr = 1 << 16;
+            while self.busy() {}
+            intrinsics::volatile_store(&mut self.scr, 1 << 16);
 
-        while self.busy() {}
-        self.cv = 0;
+            while self.busy() {}
+            intrinsics::volatile_store(&mut self.cv, 0);
+        }
     }
 
     pub fn stop_periodic(&mut self) {
-        self.idr = 1 << 16;
+        unsafe { intrinsics::volatile_store(&mut self.idr, 1 << 16); }
     }
 }
 

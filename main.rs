@@ -5,10 +5,12 @@
 #![feature(macro_rules)]
 #![feature(globs)]
 #![feature(lang_items)]
+#![feature(intrinsics)]
 
 mod gpio;
 mod ast;
 mod nvic;
+mod intrinsics;
 
 #[lang="sized"]
 pub trait Sized {}
@@ -33,8 +35,7 @@ static LED : gpio::Pin = gpio::Pin { bus : gpio::PORT2, pin: 10 };
 pub extern fn AST_PER_Handler() {
     LED.toggle();
     let ast = unsafe { &mut *(ast::AST_BASE as u32 as *mut ast::Ast) };
-    while ast.busy() {}
-    ast.scr = 1 << 16;
+    ast.start_periodic();
 }
 
 #[no_mangle]
