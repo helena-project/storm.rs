@@ -12,23 +12,6 @@ mod ast;
 mod nvic;
 mod intrinsics;
 
-#[lang="sized"]
-pub trait Sized {}
-
-#[lang="panic_bounds_check"]
-fn fail_bounds_check(_: &(&'static str, uint),
-                         _: uint, _: uint) -> ! {
-    loop {}
-}
-
-#[lang="panic"]
-fn panic(_: &(&'static str, &'static str, uint)) -> ! {
-    loop {}
-}
-
-#[lang="sync"]
-pub trait Sync {}
-
 static LED : gpio::Pin = gpio::Pin { bus : gpio::PORT2, pin: 10 };
 
 #[no_mangle]
