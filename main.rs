@@ -8,6 +8,7 @@
 
 mod gpio;
 mod ast;
+mod nvic;
 
 #[lang="sized"]
 pub trait Sized {}
@@ -15,6 +16,11 @@ pub trait Sized {}
 #[lang="panic_bounds_check"]
 fn fail_bounds_check(_: &(&'static str, uint),
                          _: uint, _: uint) -> ! {
+    loop {}
+}
+
+#[lang="panic"]
+fn panic(_: &(&'static str, &'static str, uint)) -> ! {
     loop {}
 }
 

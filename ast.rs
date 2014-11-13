@@ -1,3 +1,5 @@
+use nvic;
+
 #[repr(C, packed)]
 pub struct Ast {
     cr : u32,
@@ -35,11 +37,6 @@ enum Clock {
     Clock1K = 4
 }
 
-#[repr(C, packed)]
-struct Nvic {
-    iser : [u32, ..28]
-}
-
 impl Ast {
 
     pub fn clock_busy(&self) -> bool {
@@ -71,10 +68,7 @@ impl Ast {
         while self.busy() {}
         self.cr = 0b1 | 1 << 16;
 
-        let nvic_addr : u32 = 0xe000e100;
-        let nvic = unsafe {&mut *(nvic_addr as *mut Nvic) };
-
-        nvic.iser[1] = 1 << 8;
+        nvic::enable(40);
     }
 
     pub fn start_periodic(&mut self) {
