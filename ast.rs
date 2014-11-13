@@ -73,7 +73,7 @@ impl Ast {
 
         let nvic_addr : u32 = 0xe000e100;
         let nvic = unsafe {&mut *(nvic_addr as *mut Nvic) };
-        
+
         nvic.iser[1] = 1 << 8;
     }
 
