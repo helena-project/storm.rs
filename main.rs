@@ -1,16 +1,17 @@
-#![no_std]
 #![no_main]
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 #![feature(macro_rules)]
-#![feature(globs)]
 #![feature(lang_items)]
 #![feature(intrinsics)]
+#![feature(asm)]
+
+extern crate core;
 
 mod gpio;
 mod ast;
 mod nvic;
-mod intrinsics;
+mod task;
 
 static LED : gpio::Pin = gpio::Pin { bus : gpio::PORT2, pin: 10 };
 
@@ -21,15 +22,19 @@ pub extern fn AST_PER_Handler() {
     ast.start_periodic();
 }
 
-#[no_mangle]
-pub extern fn main() -> int {
+fn app_entry() {
     LED.make_output();
 
     let ast = unsafe { &mut *(ast::AST_BASE as u32 as *mut ast::Ast) };
     ast.setup();
     ast.start_periodic();
+}
 
+#[no_mangle]
+pub extern fn main() -> int {
+    app_entry();
     loop {
+      unsafe { asm!("wfi"); }; // Sleep!
     }
 }
 

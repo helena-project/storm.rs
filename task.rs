@@ -1,5 +1,5 @@
 use core::option::{Option, None, Some};
-use intrinsics;
+use std::intrinsics;
 
 struct Task(pub fn());
 

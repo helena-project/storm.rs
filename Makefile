@@ -33,15 +33,18 @@ all: $(SDB)
 %.o: %.s
 	$(CC) $(CFLAGS) -c -o $@ $^
 
-main.ll: $(RUST_SOURCES)
-	$(RUSTC) $(RUSTC_FLAGS) --emit ir -o main.ll main.rs
+%.ll: %.rs
+	$(RUSTC) $(RUSTC_FLAGS) --emit ir -o $@ $*.rs
 	sed -i 's/"split-stack"/""/g' $@
+
+main.ll: $(RUST_SOURCES)
+
 
 %.o: %.ll
 	$(LLC) $(LLC_FLAGS) -filetype=obj -o $@ $^
 
-main.elf: main.o $(C_OBJECTS)
-	$(LD) $(LDFLAGS) $^ -o main.elf
+%.elf: %.o $(C_OBJECTS)
+	$(LD) $(LDFLAGS) $^ -o $@
 
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
