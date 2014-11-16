@@ -26,13 +26,13 @@ impl TaskManager {
                 // Do not continue if we may overrung the head of the task
                 // buffer.
                 if next_tail == self.head {
-                    return false;  
+                    return false;
                 }
 
                 unsafe {
                     if next_tail != intrinsics::atomic_cxchg(&mut self.tail,
                                                              tail, next_tail) {
-                      continue;  
+                      continue;
                     }
                 }
                 self.tasks[next_tail] = Some(task);
