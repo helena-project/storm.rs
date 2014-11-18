@@ -1,4 +1,4 @@
-use std::intrinsics;
+use core::intrinsics;
 
 #[repr(C, packed)]
 struct GpioPort {

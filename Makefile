@@ -1,8 +1,10 @@
 RUSTC ?= rustc
 RUSTC_FLAGS += --opt-level 2 -Z no-landing-pads
 RUSTC_FLAGS += -C no-stack-check
-RUSTC_FLAGS += -Ctarget-cpu=cortex-m4 -C lto
-RUSTC_FLAGS += -L. --target thumbv7em-none-eabi
+RUSTC_FLAGS += -Ctarget-cpu=cortex-m4
+RUSTC_FLAGS += -g -L. --target thumbv7em-none-eabi
+
+RUST_LIB_CORE_LOC ?= $(HOME)/hack/rust/src/libcore/lib.rs
 
 OBJCOPY ?= arm-none-eabi-objcopy
 CC = arm-none-eabi-gcc
@@ -28,14 +30,17 @@ JLINK_EXE=JLinkExe
 
 all: $(SDB)
 
+libcore.rlib:
+	$(RUSTC) $(RUSTC_FLAGS) -o libcore.rlib $(RUST_LIB_CORE_LOC)
+
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $^
 
 %.o: %.s
 	$(CC) $(CFLAGS) -c -o $@ $^
 
-main.o: $(RUST_SOURCES)
-	RUST_TARGET_PATH=target-specs $(RUSTC) $(RUSTC_FLAGS) --emit obj -o main.o main.rs
+main.o: $(RUST_SOURCES) libcore.rlib
+	$(RUSTC) $(RUSTC_FLAGS) -C lto --emit obj -o main.o main.rs
 
 main.elf: main.o $(C_OBJECTS)
 	$(LD) $(LDFLAGS) $^ -o main.elf

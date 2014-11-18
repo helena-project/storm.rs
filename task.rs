@@ -1,7 +1,7 @@
 use core::option::{Option, None, Some};
-use std::intrinsics;
+use core::intrinsics;
 
-struct Task(pub fn());
+pub struct Task(pub fn());
 
 struct TaskManager {
     head: uint,
@@ -9,7 +9,8 @@ struct TaskManager {
     tasks: [Option<Task>, ..100]
 }
 
-static mut MANAGER : TaskManager = TaskManager { head: 0, tail: 0, tasks: [None,..100] };
+static mut MANAGER : TaskManager =
+  TaskManager { head: 0, tail: 0, tasks: [None,..100] };
 
 impl Task {
     pub fn post(&self) -> bool {
@@ -41,7 +42,23 @@ impl TaskManager {
         return true;
     }
 
-    pub fn dequeue(&self) -> Option<Task> {
-        return None;
+    pub unsafe fn dequeue(&mut self) -> Option<Task> {
+        match self.tasks[self.head] {
+            None => None,
+            result@Some(_) => {
+                self.tasks[self.head] = None;
+                self.head = (self.head + 1) % 100;
+                result
+            }
+        }
     }
 }
+
+pub unsafe fn dequeue() -> Option<Task> {
+    MANAGER.dequeue()
+}
+
+pub fn post(func: fn()) -> bool {
+    Task(func).post()
+}
+

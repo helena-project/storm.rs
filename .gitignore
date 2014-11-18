@@ -1,3 +1,4 @@
+libcore.rlib
 *.sdb
 *.bin
 *.elf

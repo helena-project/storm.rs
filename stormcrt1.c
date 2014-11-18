@@ -276,4 +276,3 @@ void Reset_Handler(void)
 
 }
 
-void __aeabi_unwind_cpp_pr0() {}
