@@ -1,5 +1,5 @@
 use nvic;
-use intrinsics;
+use std::intrinsics;
 
 #[repr(C, packed)]
 pub struct Ast {
