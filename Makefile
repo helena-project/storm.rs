@@ -1,13 +1,14 @@
 RUSTC ?= rustc
-RUSTC_FLAGS += -g -O -A non_camel_case_types -A dead_code
-LLC ?= llc
-LLC_FLAGS = -O=2 -mtriple arm-none-eabi -march=thumb -mcpu=cortex-m4 --asm-verbose=false
+RUSTC_FLAGS += --opt-level 2 -Z no-landing-pads
+RUSTC_FLAGS += -C no-stack-check
+RUSTC_FLAGS += -Ctarget-cpu=cortex-m4 -C lto
+RUSTC_FLAGS += -L. --target thumbv7em-none-eabi
 
 OBJCOPY ?= arm-none-eabi-objcopy
 CC = arm-none-eabi-gcc
 LD = arm-none-eabi-ld
 CFLAGS += -g -mcpu=cortex-m4 -mthumb -g -nostdlib
-LDFLAGS += -Tstormpayload.ld
+LDFLAGS += -Tstormpayload.ld --gc-sections
 
 C_SOURCES=stormcrt1.c
 C_OBJECTS=$(C_SOURCES:.c=.o)
@@ -33,12 +34,8 @@ all: $(SDB)
 %.o: %.s
 	$(CC) $(CFLAGS) -c -o $@ $^
 
-main.ll: $(RUST_SOURCES)
-	$(RUSTC) $(RUSTC_FLAGS) --emit ir -o main.ll main.rs
-	sed -i 's/"split-stack"/""/g' $@
-
-%.o: %.ll
-	$(LLC) $(LLC_FLAGS) -filetype=obj -o $@ $^
+main.o: $(RUST_SOURCES)
+	RUST_TARGET_PATH=target-specs $(RUSTC) $(RUSTC_FLAGS) --emit obj -o main.o main.rs
 
 main.elf: main.o $(C_OBJECTS)
 	$(LD) $(LDFLAGS) $^ -o main.elf
