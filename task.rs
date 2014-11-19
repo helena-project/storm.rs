@@ -1,44 +1,35 @@
 use core::option::{Option, None, Some};
-use core::intrinsics;
 
 pub struct Task(pub fn());
 
-struct TaskManager {
-    head: uint,
-    tail: uint,
-    tasks: [Option<Task>, ..100]
+const MAX_TASKS : uint = 100;
+
+pub struct TaskManager {
+    pub head: uint,
+    pub tail: uint,
+    pub tasks: [Option<Task>, ..MAX_TASKS]
 }
 
-static mut MANAGER : TaskManager =
-  TaskManager { head: 0, tail: 0, tasks: [None,..100] };
+pub static mut MANAGER : TaskManager =
+  TaskManager { head: 0, tail: 0, tasks: [None,..MAX_TASKS] };
 
 impl Task {
-    pub fn post(&self) -> bool {
-        unsafe { MANAGER.enqueue(*self) }
+    pub fn post(self) -> bool {
+        unsafe { MANAGER.enqueue(self) }
     }
 }
 
 impl TaskManager {
     pub fn enqueue(&mut self, task: Task) -> bool {
-            loop {
-                let tail = self.tail;
-                let next_tail = (tail + 1) % 100;
+        let next_tail = (self.tail + 1) % MAX_TASKS;
 
-                // Do not continue if we may overrung the head of the task
-                // buffer.
-                if next_tail == self.head {
-                    return false;
-                }
-
-                unsafe {
-                    if next_tail != intrinsics::atomic_cxchg(&mut self.tail,
-                                                             tail, next_tail) {
-                      continue;
-                    }
-                }
-                self.tasks[next_tail] = Some(task);
-                break;
-            }
+        // Do not continue if we may overrung the head of the task
+        // buffer.
+        if next_tail == self.head {
+            return false;
+        }
+        self.tasks[self.tail] = Some(task);
+        self.tail = next_tail;
         return true;
     }
 
@@ -47,7 +38,7 @@ impl TaskManager {
             None => None,
             result@Some(_) => {
                 self.tasks[self.head] = None;
-                self.head = (self.head + 1) % 100;
+                self.head = (self.head + 1) % MAX_TASKS;
                 result
             }
         }
