@@ -1,8 +1,8 @@
 RUSTC ?= rustc
 RUSTC_FLAGS += --opt-level 2 -Z no-landing-pads
-RUSTC_FLAGS += -C no-stack-check
-RUSTC_FLAGS += -Ctarget-cpu=cortex-m4
-RUSTC_FLAGS += -g -L. --target thumbv7em-none-eabi
+RUSTC_FLAGS += --target thumbv7em-none-eabi
+RUSTC_FLAGS += -Ctarget-cpu=cortex-m4 -C relocation_model=static
+RUSTC_FLAGS += -g -C no-stack-check -L.
 
 RUST_LIB_CORE_LOC ?= $(HOME)/hack/rust/src/libcore/lib.rs
 
@@ -31,7 +31,7 @@ JLINK_EXE=JLinkExe
 all: $(SDB)
 
 libcore.rlib:
-	$(RUSTC) $(RUSTC_FLAGS) -o libcore.rlib $(RUST_LIB_CORE_LOC)
+	$(RUSTC) $(RUSTC_FLAGS) $(RUST_LIB_CORE_LOC)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $^
