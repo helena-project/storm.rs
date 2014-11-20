@@ -53,7 +53,7 @@ build/%.sdb: build/%.elf
 	@$(SLOAD) pack -m "$(SDB_MAINTAINER)" -v "$(SDB_VERSION)" -n "$(SDB_NAME)" -d $(SDB_DESCRIPTION) -o $@ $<
 
 .PHONY: prog
-program: main.bin
+program: build/main.bin
 	$(JLINK_EXE) prog.jlink || true
 
 .PHONY: clean
