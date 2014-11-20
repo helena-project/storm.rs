@@ -2,7 +2,7 @@ use core::option::{Option, None, Some};
 
 pub struct Task(pub fn());
 
-const MAX_TASKS : uint = 100;
+const MAX_TASKS : uint = 10;
 
 pub struct TaskManager {
     pub head: uint,
