@@ -22,7 +22,7 @@ static LED : gpio::Pin = gpio::Pin { bus : gpio::PORT2, pin: 10 };
 pub extern fn AST_PER_Handler() {
     task::post(toggle_led);
     let ast = unsafe { &mut *(ast::AST_BASE as u32 as *mut ast::Ast) };
-    ast.start_periodic();
+    ast.clear_periodic();
 }
 
 fn toggle_led() {
@@ -32,9 +32,8 @@ fn toggle_led() {
 fn app_entry() {
     LED.make_output();
 
-    let ast = unsafe { &mut *(ast::AST_BASE as u32 as *mut ast::Ast) };
-    ast.setup();
-    ast.start_periodic();
+    ast::initialize();
+    ast::start_periodic();
 }
 
 #[no_mangle]

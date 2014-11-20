@@ -1,5 +1,5 @@
-use nvic;
 use core::intrinsics;
+use nvic;
 
 #[repr(C, packed)]
 pub struct Ast {
@@ -30,7 +30,13 @@ pub struct Ast {
 
 pub const AST_BASE : int = 0x400F0800;
 
-enum Clock {
+macro_rules! ast(
+  () => {
+    unsafe { &mut *(AST_BASE as u32 as *mut Ast) };
+  }
+)
+
+pub enum Clock {
     ClockRCSys = 0,
     ClockOsc32 = 1,
     ClockAPB = 2,
@@ -39,6 +45,12 @@ enum Clock {
 }
 
 impl Ast {
+
+    pub fn initialize(&mut self) {
+        self.select_clock(ClockRCSys);
+        self.set_prescalar(1);
+        self.clear_alarm();
+    }
 
     pub fn clock_busy(&self) -> bool {
         unsafe {
@@ -52,6 +64,25 @@ impl Ast {
             intrinsics::volatile_load(&self.sr) & (1 << 24) != 0
         }
     }
+
+    // Clears the alarm bit in the status register (indicating the alarm value
+    // has been reached).
+    pub fn clear_alarm(&mut self) {
+        while self.busy() {}
+        unsafe {
+            intrinsics::volatile_store(&mut self.scr, 1 << 8);
+        }
+    }
+
+    // Clears the per0 bit in the status register (indicating the alarm value
+    // has been reached).
+    pub fn clear_periodic(&mut self) {
+        while self.busy() {}
+        unsafe {
+            intrinsics::volatile_store(&mut self.scr, 1 << 16);
+        }
+    }
+
 
     pub fn select_clock(&mut self, clock : Clock) {
         unsafe {
@@ -67,39 +98,80 @@ impl Ast {
           // Re-enable clock
           let enb = intrinsics::volatile_load(&self.clock) | 1;
           intrinsics::volatile_store(&mut (self.clock), enb);
-          self.clock |= 1;
         }
     }
 
-    pub fn setup(&mut self) {
-        // Select clock
-        self.select_clock(ClockRCSys);
-
+    pub fn enable(&mut self) {
         while self.busy() {}
         unsafe {
-            intrinsics::volatile_store(&mut self.cr, 1 | 1 << 16)
+            let cr = intrinsics::volatile_load(&self.cr) | 1;
+            intrinsics::volatile_store(&mut self.cr, cr);
         }
+    }
 
-        nvic::enable(40);
+    pub fn disable(&mut self) {
+        while self.busy() {}
+        unsafe {
+            let cr = intrinsics::volatile_load(&self.cr) ^ 1;
+            intrinsics::volatile_store(&mut self.cr, cr);
+        }
+    }
+
+    pub fn set_prescalar(&mut self, val : u8) {
+        while self.busy() {}
+        unsafe {
+            let cr = intrinsics::volatile_load(&self.cr) | (val as u32) << 16;
+            intrinsics::volatile_store(&mut self.cr, cr);
+        }
+    }
+
+    pub fn enable_periodic_irq(&mut self) {
+        nvic::enable(nvic::ASTPER);
+        unsafe {
+            intrinsics::volatile_store(&mut self.ier, 1 << 16);
+        }
+    }
+
+    pub fn disable_periodic_irq(&mut self) {
+        unsafe {
+            intrinsics::volatile_store(&mut self.idr, 1 << 16);
+        }
+    }
+
+    pub fn set_periodic_interval(&mut self, interval : u32) {
+        while self.busy() {}
+        unsafe {
+            intrinsics::volatile_store(&mut self.pir0, interval);
+        }
+    }
+
+    pub fn set_counter(&mut self, value : u32) {
+        while self.busy() {}
+        unsafe {
+            intrinsics::volatile_store(&mut self.cv, value);
+        }
     }
 
     pub fn start_periodic(&mut self) {
-        unsafe {
-            intrinsics::volatile_store(&mut self.ier, 1 << 16);
-
-            while self.busy() {}
-            intrinsics::volatile_store(&mut self.pir0, 15);
-
-            while self.busy() {}
-            intrinsics::volatile_store(&mut self.scr, 1 << 16);
-
-            while self.busy() {}
-            intrinsics::volatile_store(&mut self.cv, 0);
-        }
+        self.disable();
+        self.enable_periodic_irq(); 
+        self.set_periodic_interval(15);
+        self.clear_periodic();
+        self.set_counter(0);
+        self.enable();
     }
 
     pub fn stop_periodic(&mut self) {
-        unsafe { intrinsics::volatile_store(&mut self.idr, 1 << 16); }
+        self.disable_periodic_irq(); 
     }
 }
 
+pub fn initialize() {
+    let ast = unsafe { &mut *(AST_BASE as u32 as *mut Ast) };
+    ast.initialize();
+}
+
+pub fn start_periodic() {
+    let ast = ast!();
+    ast.start_periodic();
+}
