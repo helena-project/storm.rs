@@ -1,25 +1,24 @@
 RUSTC ?= rustc
 RUSTC_FLAGS += --opt-level 2 -Z no-landing-pads
-RUSTC_FLAGS += --target thumbv7em-none-eabi
+RUSTC_FLAGS += --target config/thumbv7em-none-eabi
 RUSTC_FLAGS += -Ctarget-cpu=cortex-m4 -C relocation_model=static
-RUSTC_FLAGS += -g -C no-stack-check -L.
+RUSTC_FLAGS += -g -C no-stack-check -Lbuild/deps
 
-RUST_LIB_CORE_LOC ?= $(HOME)/hack/rust/src/libcore/lib.rs
+RUST_LIBS_LOC ?= lib
 
 OBJCOPY ?= arm-none-eabi-objcopy
 CC = arm-none-eabi-gcc
 LD = arm-none-eabi-ld
 CFLAGS += -g -mcpu=cortex-m4 -mthumb -g -nostdlib
-LDFLAGS += -Tstormpayload.ld --gc-sections
+LDFLAGS += -Tconfig/stormpayload.ld --gc-sections
 
-C_SOURCES=stormcrt1.c
-C_OBJECTS=$(C_SOURCES:.c=.o)
+C_SOURCES=c/stormcrt1.c
+C_OBJECTS=$(C_SOURCES:c/%.c=build/%.o)
 
-RUST_SOURCES=$(shell ls *.rs)
-RUST_OBJECTS=$(RUST_SOURCES:%.rs=%.o)
+RUST_SOURCES=$(shell ls src/*.rs)
 
 SLOAD=sload
-SDB=main.sdb
+SDB=build/main.sdb
 
 SDB_MAINTAINER=$(shell whoami)
 SDB_VERSION=$(shell git show-ref -s HEAD)
@@ -30,32 +29,34 @@ JLINK_EXE=JLinkExe
 
 all: $(SDB)
 
-libcore.rlib:
-	$(RUSTC) $(RUSTC_FLAGS) $(RUST_LIB_CORE_LOC)
+build/deps/liballoc.rlib: build/deps/libcore.rlib
 
-%.o: %.c
+build/deps/lib%.rlib:
+	@mkdir -p build/deps
+	$(RUSTC) $(RUSTC_FLAGS) --out-dir build/deps $(RUST_LIBS_LOC)/lib$*/lib.rs
+
+build/%.o: c/%.c
 	$(CC) $(CFLAGS) -c -o $@ $^
 
-%.o: %.s
-	$(CC) $(CFLAGS) -c -o $@ $^
+build/main.o: $(RUST_SOURCES) build/deps/libcore.rlib build/deps/liballoc.rlib
+	@mkdir -p build
+	$(RUSTC) $(RUSTC_FLAGS) -C lto --emit obj -o $@ src/main.rs
 
-main.o: $(RUST_SOURCES) libcore.rlib
-	$(RUSTC) $(RUSTC_FLAGS) -C lto --emit obj -o main.o main.rs
+build/main.elf: build/main.o $(C_OBJECTS)
+	$(LD) $(LDFLAGS) $^ -o $@
 
-main.elf: main.o $(C_OBJECTS)
-	$(LD) $(LDFLAGS) $^ -o main.elf
-
-%.bin: %.elf
+build/%.bin: build/%.elf
 	$(OBJCOPY) -O binary $< $@
 
-%.sdb: %.elf
-	$(SLOAD) pack -m "$(SDB_MAINTAINER)" -v "$(SDB_VERSION)" -n "$(SDB_NAME)" -d $(SDB_DESCRIPTION) -o $@ $<
-    
+build/%.sdb: build/%.elf
+	@echo "Packing SDB..."
+	@$(SLOAD) pack -m "$(SDB_MAINTAINER)" -v "$(SDB_VERSION)" -n "$(SDB_NAME)" -d $(SDB_DESCRIPTION) -o $@ $<
+
 .PHONY: prog
 program: main.bin
 	$(JLINK_EXE) prog.jlink || true
 
 .PHONY: clean
 clean:
-	rm -f main.bin main.elf $(C_OBJECTS) $(RUST_OBJECTS) *.ll *.s
+	rm -Rf build
 

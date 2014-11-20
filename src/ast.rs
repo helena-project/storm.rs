@@ -30,11 +30,7 @@ pub struct Ast {
 
 pub const AST_BASE : int = 0x400F0800;
 
-macro_rules! ast(
-  () => {
-    unsafe { &mut *(AST_BASE as u32 as *mut Ast) }
-  }
-)
+static mut GAst : *mut Ast = AST_BASE as *mut Ast;
 
 pub enum Clock {
     ClockRCSys = 0,
@@ -51,152 +47,135 @@ pub fn initialize() {
 }
 
 pub fn clock_busy() -> bool {
-    let ast = ast!();
     unsafe {
-        intrinsics::volatile_load(&ast.sr) & (1 << 28) != 0
+        intrinsics::volatile_load(&(*GAst).sr) & (1 << 28) != 0
     }
 }
 
 
 pub fn busy() -> bool {
-    let ast = ast!();
     unsafe {
-        intrinsics::volatile_load(&ast.sr) & (1 << 24) != 0
+        intrinsics::volatile_load(&(*GAst).sr) & (1 << 24) != 0
     }
 }
 
 // Clears the alarm bit in the status register (indicating the alarm value
 // has been reached).
 pub fn clear_alarm() {
-    let ast = ast!();
     while busy() {}
     unsafe {
-        intrinsics::volatile_store(&mut ast.scr, 1 << 8);
+        intrinsics::volatile_store(&mut (*GAst).scr, 1 << 8);
     }
 }
 
 // Clears the per0 bit in the status register (indicating the alarm value
 // has been reached).
 pub fn clear_periodic() {
-    let ast = ast!();
     while busy() {}
     unsafe {
-        intrinsics::volatile_store(&mut ast.scr, 1 << 16);
+        intrinsics::volatile_store(&mut (*GAst).scr, 1 << 16);
     }
 }
 
 
 pub fn select_clock(clock : Clock) {
-    let ast = ast!();
     unsafe {
       // Disable clock by setting first bit to zero
-      let enb = intrinsics::volatile_load(&ast.clock) ^ 1;
-      intrinsics::volatile_store(&mut (ast.clock), enb);
+      let enb = intrinsics::volatile_load(&(*GAst).clock) ^ 1;
+      intrinsics::volatile_store(&mut (*GAst).clock, enb);
       while clock_busy() {}
 
       // Select clock
-      intrinsics::volatile_store(&mut (ast.clock), (clock as u32) << 8);
+      intrinsics::volatile_store(&mut (*GAst).clock, (clock as u32) << 8);
       while clock_busy() {}
 
       // Re-enable clock
-      let enb = intrinsics::volatile_load(&ast.clock) | 1;
-      intrinsics::volatile_store(&mut (ast.clock), enb);
+      let enb = intrinsics::volatile_load(&(*GAst).clock) | 1;
+      intrinsics::volatile_store(&mut (*GAst).clock, enb);
     }
 }
 
 pub fn enable() {
-    let ast = ast!();
     while busy() {}
     unsafe {
-        let cr = intrinsics::volatile_load(&ast.cr) | 1;
-        intrinsics::volatile_store(&mut ast.cr, cr);
+        let cr = intrinsics::volatile_load(&(*GAst).cr) | 1;
+        intrinsics::volatile_store(&mut (*GAst).cr, cr);
     }
 }
 
 pub fn disable() {
-    let ast = ast!();
     while busy() {}
     unsafe {
-        let cr = intrinsics::volatile_load(&ast.cr) & !1;
-        intrinsics::volatile_store(&mut ast.cr, cr);
+        let cr = intrinsics::volatile_load(&(*GAst).cr) & !1;
+        intrinsics::volatile_store(&mut (*GAst).cr, cr);
     }
 }
 
 pub fn set_prescalar(val : u8) {
-    let ast = ast!();
     while busy() {}
     unsafe {
-        let cr = intrinsics::volatile_load(&ast.cr) | (val as u32) << 16;
-        intrinsics::volatile_store(&mut ast.cr, cr);
+        let cr = intrinsics::volatile_load(&(*GAst).cr) | (val as u32) << 16;
+        intrinsics::volatile_store(&mut (*GAst).cr, cr);
     }
 }
 
 pub fn enable_alarm_irq() {
-    let ast = ast!();
     nvic::enable(nvic::ASTALARM);
     unsafe {
-        intrinsics::volatile_store(&mut ast.ier, 1 << 8);
+        intrinsics::volatile_store(&mut (*GAst).ier, 1 << 8);
     }
 }
 
 pub fn disable_alarm_irq() {
-    let ast = ast!();
     unsafe {
-        intrinsics::volatile_store(&mut ast.idr, 1 << 8);
+        intrinsics::volatile_store(&mut (*GAst).idr, 1 << 8);
     }
 }
 
 pub fn enable_ovf_irq() {
-    let ast = ast!();
     nvic::enable(nvic::ASTOVF);
     unsafe {
-        intrinsics::volatile_store(&mut ast.ier, 1);
+        intrinsics::volatile_store(&mut (*GAst).ier, 1);
     }
 }
 
 pub fn disable_ovf_irq() {
-    let ast = ast!();
     unsafe {
-        intrinsics::volatile_store(&mut ast.idr, 1);
+        intrinsics::volatile_store(&mut (*GAst).idr, 1);
     }
 }
 
 pub fn enable_periodic_irq() {
-    let ast = ast!();
     nvic::enable(nvic::ASTPER);
     unsafe {
-        intrinsics::volatile_store(&mut ast.ier, 1 << 16);
+        intrinsics::volatile_store(&mut (*GAst).ier, 1 << 16);
     }
 }
 
 pub fn disable_periodic_irq() {
-    let ast = ast!();
     unsafe {
-        intrinsics::volatile_store(&mut ast.idr, 1 << 16);
+        intrinsics::volatile_store(&mut (*GAst).idr, 1 << 16);
     }
 }
 
 pub fn set_periodic_interval(interval : u32) {
-    let ast = ast!();
     while busy() {}
     unsafe {
-        intrinsics::volatile_store(&mut ast.pir0, interval);
+        intrinsics::volatile_store(&mut (*GAst).pir0, interval);
     }
 }
 
 pub fn set_counter(value : u32) {
-    let ast = ast!();
     while busy() {}
     unsafe {
-        intrinsics::volatile_store(&mut ast.cv, value);
+        intrinsics::volatile_store(&mut (*GAst).cv, value);
     }
 }
 
 pub fn set_alarm(tics : u32) {
-    let ast = ast!();
     while busy() {}
     unsafe {
-        intrinsics::volatile_store(&mut ast.ar0, tics);
+        intrinsics::volatile_store(&mut (*GAst).ar0, tics);
     }
 }
 
