@@ -32,6 +32,7 @@ pub const AST_BASE : int = 0x400F0800;
 
 static mut GAst : *mut Ast = AST_BASE as *mut Ast;
 
+#[repr(uint)]
 pub enum Clock {
     ClockRCSys = 0,
     ClockOsc32 = 1,
@@ -41,7 +42,7 @@ pub enum Clock {
 }
 
 pub fn initialize() {
-    select_clock(ClockRCSys);
+    select_clock(Clock::ClockRCSys);
     set_prescalar(0);
     clear_alarm();
 }
@@ -120,7 +121,7 @@ pub fn set_prescalar(val : u8) {
 }
 
 pub fn enable_alarm_irq() {
-    nvic::enable(nvic::ASTALARM);
+    nvic::enable(nvic::NvicIdx::ASTALARM);
     unsafe {
         intrinsics::volatile_store(&mut (*GAst).ier, 1 << 8);
     }
@@ -133,7 +134,7 @@ pub fn disable_alarm_irq() {
 }
 
 pub fn enable_ovf_irq() {
-    nvic::enable(nvic::ASTOVF);
+    nvic::enable(nvic::NvicIdx::ASTOVF);
     unsafe {
         intrinsics::volatile_store(&mut (*GAst).ier, 1);
     }
@@ -146,7 +147,7 @@ pub fn disable_ovf_irq() {
 }
 
 pub fn enable_periodic_irq() {
-    nvic::enable(nvic::ASTPER);
+    nvic::enable(nvic::NvicIdx::ASTPER);
     unsafe {
         intrinsics::volatile_store(&mut (*GAst).ier, 1 << 16);
     }

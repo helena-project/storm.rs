@@ -16,7 +16,7 @@ mod task;
 mod lang_items;
 pub mod support;
 
-static LED : gpio::Pin = gpio::Pin { bus : gpio::PORT2, pin: 10 };
+static LED : gpio::Pin = gpio::Pin { bus : gpio::Port::PORT2, pin: 10 };
 
 #[no_mangle]
 pub extern fn AST_PER_Handler() {
