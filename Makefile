@@ -1,5 +1,5 @@
 RUSTC ?= rustc
-RUSTC_FLAGS += --opt-level 2 -Z no-landing-pads
+RUSTC_FLAGS += --opt-level 0 -Z no-landing-pads
 RUSTC_FLAGS += --target config/thumbv7em-none-eabi
 RUSTC_FLAGS += -Ctarget-cpu=cortex-m4 -C relocation_model=static
 RUSTC_FLAGS += -g -C no-stack-check -Lbuild/deps
@@ -10,7 +10,7 @@ OBJCOPY ?= arm-none-eabi-objcopy
 CC = arm-none-eabi-gcc
 LD = arm-none-eabi-ld
 CFLAGS += -g -mcpu=cortex-m4 -mthumb -g -nostdlib
-LDFLAGS += -Tconfig/stormpayload.ld --gc-sections
+LDFLAGS += -Tconfig/stormpayload.ld
 
 C_SOURCES=c/stormcrt1.c
 C_OBJECTS=$(C_SOURCES:c/%.c=build/%.o)
@@ -43,7 +43,7 @@ build/main.o: $(RUST_SOURCES) build/deps/libcore.rlib
 	$(RUSTC) $(RUSTC_FLAGS) -C lto --emit obj -o $@ src/main.rs
 
 build/main.elf: build/main.o $(C_OBJECTS)
-	$(LD) $(LDFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -lgcc -o $@
 
 build/%.bin: build/%.elf
 	$(OBJCOPY) -O binary $< $@

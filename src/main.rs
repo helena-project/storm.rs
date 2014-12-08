@@ -2,6 +2,7 @@
 #![no_std]
 #![allow(non_snake_case)]
 #![allow(dead_code)]
+#![feature(globs)]
 #![feature(macro_rules)]
 #![feature(lang_items)]
 #![feature(intrinsics)]
@@ -13,44 +14,29 @@ mod gpio;
 mod ast;
 mod nvic;
 mod task;
+mod timer;
 mod lang_items;
+mod ringbuf;
 pub mod support;
 
 static LED : gpio::Pin = gpio::Pin { bus : gpio::Port::PORT2, pin: 10 };
 
-#[no_mangle]
-pub extern fn AST_PER_Handler() {
-    task::post(toggle_led);
-    ast::clear_periodic();
+fn set_led() {
+    LED.set();
+    timer::set_alarm(1 << 16, set_led);
 }
 
-#[no_mangle]
-pub extern fn AST_ALARM_Handler() {
-    LED.toggle();
-
-    ast::disable();
-    ast::clear_alarm();
-    ast::enable_alarm_irq();
-    ast::set_alarm(58000);
-    ast::set_counter(0);
-    ast::enable();
-}
-
-fn toggle_led() {
-    LED.toggle();
+fn clear_led() {
+    LED.clear();
+    timer::set_alarm(1 << 16, clear_led);
 }
 
 fn app_entry() {
     LED.make_output();
+    timer::setup();
 
-    ast::initialize();
-
-    ast::disable();
-    ast::clear_alarm();
-    ast::enable_alarm_irq();
-    ast::set_alarm(1 << 16);
-    ast::set_counter(0);
-    ast::enable();
+    timer::set_alarm(1 << 15, set_led);
+    timer::set_alarm(1 << 16, clear_led);
 }
 
 #[no_mangle]
@@ -67,3 +53,7 @@ pub extern fn main() -> int {
     }
 }
 
+#[no_mangle]
+pub extern fn AST_ALARM_Handler() {
+  timer::ast_alarm_handler();
+}

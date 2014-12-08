@@ -166,6 +166,14 @@ pub fn set_periodic_interval(interval : u32) {
     }
 }
 
+pub fn get_counter() -> u32 {
+    while busy() {}
+    unsafe {
+        intrinsics::volatile_load(&(*GAst).cv)
+    }
+}
+
+
 pub fn set_counter(value : u32) {
     while busy() {}
     unsafe {
