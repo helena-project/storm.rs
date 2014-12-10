@@ -19,6 +19,15 @@ If all the tools are in your `$PATH`, you should be good to go. Otherwise set th
 * `LD` - `arm-none-eabi-LD`
 * `OBJCOPY` - `arm-none-eabi-objcopy`
 
+If this is a fresh checkout, you'll need to initialze the rust submodule:
+
+```bash
+git submodule init
+git submodule update
+```
+
+Now you can build
+
 ```bash
 make
 ```
