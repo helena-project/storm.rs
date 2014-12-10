@@ -102,6 +102,17 @@ pub enum Port {
     PORT2 = 0x400E1400
 }
 
+pub enum PeripheralFunction {
+    A = 0b000,
+    B = 0b001,
+    C = 0b010,
+    D = 0b011,
+    E = 0b100,
+    F = 0b101,
+    G = 0b110,
+    H = 0b111
+}
+
 macro_rules! gpio_port(
     ($addr : expr) => (
         unsafe {
@@ -127,6 +138,26 @@ impl Pin {
             intrinsics::volatile_store(&mut gpio.gpers, p);
             intrinsics::volatile_store(&mut gpio.oders, p);
             intrinsics::volatile_store(&mut gpio.sterc, p);
+        }
+    }
+
+    pub fn set_peripheral_function(&self, peripheral : PeripheralFunction) {
+        let gpio = gpio_port!(self.bus);
+        let p = 1 << self.pin;
+        unsafe {
+            // clear GPIO enable for pin
+            intrinsics::volatile_store(&mut gpio.gperc, p);
+
+            // Set PMR0-2 according to passed in peripheral
+            let p = 1 << self.pin as uint;
+            let periph = peripheral as uint;
+
+            intrinsics::volatile_store(&mut gpio.pmr0,
+              ((periph & 1) << p) as u32); // First bit of peripheral
+            intrinsics::volatile_store(&mut gpio.pmr1,
+              ((periph & 2 >> 1) << p) as u32); // Second bit of peripheral
+            intrinsics::volatile_store(&mut gpio.pmr2,
+             ((periph & 4 >> 2) << p) as u32); // Third bit of peripheral
         }
     }
 

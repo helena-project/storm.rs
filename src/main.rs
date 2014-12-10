@@ -17,6 +17,7 @@ mod task;
 mod timer;
 mod lang_items;
 mod ringbuf;
+mod usart;
 pub mod support;
 
 static LED : gpio::Pin = gpio::Pin { bus : gpio::Port::PORT2, pin: 10 };
@@ -33,6 +34,21 @@ fn clear_led() {
 
 fn app_entry() {
     LED.make_output();
+    LED.set();
+
+    let uart = usart::USART::UART3;
+    uart.init_uart();
+    uart.set_baud_rate(38400);
+    uart.enable_tx();
+
+    while !uart.tx_ready() {}
+    uart.send_byte('a' as u8);
+
+    while !uart.tx_ready() {}
+    uart.send_byte('b' as u8);
+
+    LED.clear();
+
     timer::setup();
 
     timer::set_alarm(1 << 15, set_led);
