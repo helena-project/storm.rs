@@ -4,8 +4,8 @@ Rust code for the Storm
 
 ## Requirements
 
-1. Rust
-2. LLVM (a dependency of rust)
+1. [Rust](http://www.rust-lang.org/)
+2. [LLVM](http://llvm.org/) (a dependency of rust)
 3. arm-non-eabi toolchain
 4. JLinkExe (for programming the storm)
 
