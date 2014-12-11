@@ -32,6 +32,10 @@ pub const AST_BASE : int = 0x400F0800;
 
 static mut GAst : *mut Ast = AST_BASE as *mut Ast;
 
+fn noop() {}
+
+static mut AlarmCallback : fn() = noop;
+
 #[repr(uint)]
 pub enum Clock {
     ClockRCSys = 0,
@@ -181,9 +185,10 @@ pub fn set_counter(value : u32) {
     }
 }
 
-pub fn set_alarm(tics : u32) {
+pub fn set_alarm(tics : u32, func : fn()) {
     while busy() {}
     unsafe {
+        AlarmCallback = func;
         intrinsics::volatile_store(&mut (*GAst).ar0, tics);
     }
 }
@@ -199,5 +204,11 @@ pub fn start_periodic() {
 
 pub fn stop_periodic() {
     disable_periodic_irq();
+}
+
+#[no_mangle]
+#[allow(non_snake_case)]
+pub extern fn AST_ALARM_Handler() {
+    unsafe { AlarmCallback() }
 }
 

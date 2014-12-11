@@ -27,8 +27,3 @@ pub extern fn main() -> int {
     }
 }
 
-#[no_mangle]
-#[allow(non_snake_case)]
-pub extern fn AST_ALARM_Handler() {
-  timer::ast_alarm_handler();
-}

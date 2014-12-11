@@ -1,5 +1,6 @@
 use core::option::*;
 use hal::ast;
+
 use task;
 use task::Task;
 use ringbuf::RingBuf;
@@ -31,7 +32,7 @@ pub fn set_alarm(tics : u32, task : fn()) {
       ast::disable();
       ast::clear_alarm();
       ast::enable_alarm_irq();
-      ast::set_alarm(alarm.tics);
+      ast::set_alarm(alarm.tics, ast_alarm_handler);
       ast::enable();
     }
 
@@ -57,7 +58,7 @@ fn handle_alarm() {
                     None => (),
                     Some(alarm) => {
                         ast::enable_alarm_irq();
-                        ast::set_alarm(alarm.tics);
+                        ast::set_alarm(alarm.tics, ast_alarm_handler);
                         ast::enable();
                     }
                 }
@@ -67,7 +68,7 @@ fn handle_alarm() {
     }
 }
 
-pub fn ast_alarm_handler() {
+fn ast_alarm_handler() {
     task::post(handle_alarm);
     ast::disable();
     ast::clear_alarm();
