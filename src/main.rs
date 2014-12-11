@@ -1,25 +1,16 @@
 #![no_main]
 #![no_std]
-#![allow(non_snake_case)]
 #![allow(dead_code)]
-#![feature(globs)]
-#![feature(macro_rules)]
-#![feature(lang_items)]
-#![feature(intrinsics)]
-#![feature(asm)]
+#![feature(globs, lang_items, asm)]
 
 extern crate core;
+extern crate hal;
 
-mod gpio;
-mod ast;
-mod nvic;
 mod task;
 mod timer;
 mod lang_items;
 mod init;
 mod ringbuf;
-mod usart;
-mod pm;
 pub mod support;
 
 #[no_mangle]
@@ -37,6 +28,7 @@ pub extern fn main() -> int {
 }
 
 #[no_mangle]
+#[allow(non_snake_case)]
 pub extern fn AST_ALARM_Handler() {
   timer::ast_alarm_handler();
 }

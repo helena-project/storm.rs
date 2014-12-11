@@ -1,5 +1,6 @@
 use core::intrinsics::{volatile_load,volatile_store};
 
+#[allow(dead_code)]
 struct PmRegisters {
     mcctrl : u32,
     cpusel : u32,
@@ -55,7 +56,7 @@ pub const PM_BASE : int = 0x400E0000;
 
 static mut PM : *mut PmRegisters = PM_BASE as *mut PmRegisters;
 
-enum Clock {
+pub enum Clock {
     RCSYS = 0,
     OSC0,
     PLL,

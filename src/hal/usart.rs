@@ -1,6 +1,7 @@
 use core::intrinsics;
 use core::str::StrPrelude;
 
+#[allow(dead_code)]
 struct UsartRegisters {
     cr : u32,
     mr : u32,

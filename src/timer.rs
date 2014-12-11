@@ -1,5 +1,5 @@
 use core::option::*;
-use ast;
+use hal::ast;
 use task;
 use task::Task;
 use ringbuf::RingBuf;

@@ -1,8 +1,7 @@
-
-use gpio;
+use hal::gpio;
 use timer;
-use usart;
-use pm;
+use hal::usart;
+use hal::pm;
 
 static LED : gpio::Pin = gpio::Pin { bus : gpio::Port::PORT2, pin: 10 };
 
@@ -22,6 +21,8 @@ Tick tock... tick tock...
     ((-._____.-))
     _))       ((_
    '--'       '--'
+
+Welcome to Tock OS. Nothing but blinking lights for now...
 ";
 
 fn set_led() {
@@ -35,9 +36,9 @@ fn clear_led() {
 }
 
 pub fn init() {
-    use gpio::*;
-    use gpio::Port::*;
-    use gpio::PeripheralFunction::*;
+    use hal::gpio::*;
+    use hal::gpio::Port::*;
+    use hal::gpio::PeripheralFunction::*;
 
     LED.make_output();
     LED.set();

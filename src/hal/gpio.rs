@@ -127,10 +127,6 @@ pub struct Pin {
 }
 
 impl Pin {
-    fn new(port : Port, pin: uint) -> Pin {
-        Pin {bus : port, pin: pin}
-    }
-
     pub fn make_output(&self) {
         let gpio = gpio_port!(self.bus);
         let p = 1 << self.pin;
