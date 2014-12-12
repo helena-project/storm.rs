@@ -15,6 +15,16 @@
 
 //! Support functions currently required by the linker for bare-metal targets.
 
+#![crate_name = "support"]
+#![crate_type = "rlib"]
+#![feature(asm, lang_items)]
+#![no_std]
+
+extern crate core;
+
+use core::fmt::Arguments;
+use core::intrinsics::set_memory;
+
 #[doc(hidden)]
 #[cfg(test)]
 #[no_stack_check]
@@ -58,7 +68,6 @@ pub extern fn __aeabi_unwind_cpp_pr1() {
 #[no_mangle]
 pub extern fn __aeabi_memset(dest: *mut u8, size: uint, value: u32) {
   unsafe {
-    use core::intrinsics::set_memory;
     set_memory(dest, value as u8, size);
   }
 }
@@ -93,3 +102,24 @@ pub fn wfi() {
 /// WFI instruction (mock)
 pub fn wfi() {
 }
+
+#[cfg(not(test))]
+#[lang="stack_exhausted"]
+extern fn stack_exhausted() {}
+
+#[cfg(not(test))]
+#[lang="eh_personality"]
+extern fn eh_personality() {}
+
+#[cfg(not(test))]
+#[lang="begin_unwind"]
+extern fn begin_unwind() {}
+
+#[cfg(not(test))]
+#[lang="panic_fmt"]
+#[no_mangle]
+extern fn rust_begin_unwind(_fmt: &Arguments,
+    _file_line: &(&'static str, uint)) -> ! {
+  loop { }
+}
+

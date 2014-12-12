@@ -36,6 +36,7 @@ build/deps/lib%.rlib:
 	$(RUSTC) $(RUSTC_FLAGS) --out-dir build/deps $(RUST_LIBS_LOC)/lib$*/lib.rs
 
 build/libhal.rlib: build/deps/libcore.rlib
+build/libsupport.rlib: build/deps/libcore.rlib
 
 build/lib%.rlib: src/%/*.rs
 	@mkdir -p build
@@ -44,7 +45,7 @@ build/lib%.rlib: src/%/*.rs
 build/%.o: c/%.c
 	$(CC) $(CFLAGS) -c -o $@ $^
 
-build/main.o: $(RUST_SOURCES) build/deps/libcore.rlib build/libhal.rlib
+build/main.o: $(RUST_SOURCES) build/deps/libcore.rlib build/libsupport.rlib build/libhal.rlib
 	@mkdir -p build
 	$(RUSTC) $(RUSTC_FLAGS) -C lto --emit obj -o $@ src/main.rs
 

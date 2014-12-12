@@ -1,17 +1,18 @@
 #![no_main]
 #![no_std]
 #![allow(dead_code)]
-#![feature(globs, lang_items, asm)]
+#![feature(globs)]
 
 extern crate core;
 extern crate hal;
+extern crate support;
+
+use core::option::*;
 
 mod task;
 mod timer;
-mod lang_items;
 mod init;
 mod ringbuf;
-pub mod support;
 
 #[no_mangle]
 pub extern fn main() -> int {
@@ -19,7 +20,6 @@ pub extern fn main() -> int {
         task::setup();
         task::post(init::init);
         loop {
-          use core::option::{None, Some};
           match task::dequeue() {
             None => {
                 support::wfi() // Sleep!
