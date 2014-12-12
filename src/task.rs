@@ -1,48 +1,17 @@
-use core::option::{Option, None, Some};
+use core::option::{Option, None};
+use ringbuf::RingBuf;
 
 pub struct Task(pub fn());
 
 const MAX_TASKS : uint = 10;
+static mut TASK_BUF : [Option<Task>,..MAX_TASKS] = [None,..MAX_TASKS];
 
-pub struct TaskManager {
-    pub head: uint,
-    pub tail: uint,
-    pub tasks: [Option<Task>, ..MAX_TASKS]
-}
+pub static mut MANAGER : RingBuf<Task> =
+    RingBuf { head: 0, tail: 0, cap: MAX_TASKS,
+              buf: 0 as *mut Option<Task> };
 
-pub static mut MANAGER : TaskManager =
-  TaskManager { head: 0, tail: 0, tasks: [None,..MAX_TASKS] };
-
-impl Task {
-    pub fn post(self) -> bool {
-        unsafe { MANAGER.enqueue(self) }
-    }
-}
-
-impl TaskManager {
-    pub fn enqueue(&mut self, task: Task) -> bool {
-        let next_tail = (self.tail + 1) % MAX_TASKS;
-
-        // Do not continue if we may overrung the head of the task
-        // buffer.
-        if next_tail == self.head {
-            return false;
-        }
-        self.tasks[self.tail] = Some(task);
-        self.tail = next_tail;
-        return true;
-    }
-
-    pub unsafe fn dequeue(&mut self) -> Option<Task> {
-        match self.tasks[self.head] {
-            None => None,
-            result@Some(_) => {
-                self.tasks[self.head] = None;
-                self.head = (self.head + 1) % MAX_TASKS;
-                result
-            }
-        }
-    }
+pub unsafe fn setup() {
+    MANAGER.buf = &mut TASK_BUF[0] as *mut Option<Task>;
 }
 
 pub unsafe fn dequeue() -> Option<Task> {
@@ -51,5 +20,11 @@ pub unsafe fn dequeue() -> Option<Task> {
 
 pub fn post(func: fn()) -> bool {
     Task(func).post()
+}
+
+impl Task {
+    pub fn post(self) -> bool {
+        unsafe { MANAGER.enqueue(self) }
+    }
 }
 

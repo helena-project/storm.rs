@@ -15,15 +15,18 @@ pub mod support;
 
 #[no_mangle]
 pub extern fn main() -> int {
-    task::post(init::init);
-    loop {
-      use core::option::{None, Some};
-      match unsafe { task::dequeue() } {
-        None => {
-            support::wfi() // Sleep!
-        },
-        Some(task::Task(task)) => { task() }
-      }
+    unsafe {
+        task::setup();
+        task::post(init::init);
+        loop {
+          use core::option::{None, Some};
+          match task::dequeue() {
+            None => {
+                support::wfi() // Sleep!
+            },
+            Some(task::Task(task)) => { task() }
+          }
+        }
     }
 }
 
