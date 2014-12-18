@@ -19,8 +19,8 @@ mod timer;
 mod init;
 mod ringbuf;
 
-pub enum SVC {
-    Exit = 1
+mod svc {
+    pub const TEST : u16 = 72;
 }
 
 #[inline(never)]
@@ -29,7 +29,7 @@ fn app() {
     let uart = usart::USART::UART3;
     uart.print("I'm in the app!\n");
     unsafe {
-        asm!("svc 0" :::: "volatile");
+        asm!("svc $0" ::"i"(svc::TEST):: "volatile");
     }
 }
 
@@ -68,10 +68,21 @@ pub extern fn main() -> int {
 
 #[no_mangle]
 #[allow(non_snake_case)]
+#[allow(unused_assignments)]
 pub unsafe extern fn SVC_Handler() {
     use hal::usart;
     let uart = usart::USART::UART3;
     uart.print("In SVC Handler!\n");
+
+    let mut psp : uint = 0;
+    asm!("mrs $0, PSP" :"=r"(psp)::: "volatile");
+    let user_pc = core::intrinsics::volatile_load((psp + 24) as *const uint);
+    let svc = core::intrinsics::volatile_load((user_pc - 2) as *const u16) & 0xff;
+    match svc {
+        svc::TEST => uart.print("Success!\n"),
+        _ => uart.print("Ooops...\n")
+    }
+
     __ctx_to_master();
 }
 
