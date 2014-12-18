@@ -14,6 +14,10 @@ extern {
     fn __ctx_to_master();
 }
 
+mod std {
+    pub use core::*;
+}
+
 mod task;
 mod timer;
 mod init;
@@ -28,6 +32,7 @@ fn app() {
     use hal::usart;
     let uart = usart::USART::UART3;
     uart.print("I'm in the app!\n");
+
     unsafe {
         asm!("svc $0" ::"i"(svc::TEST):: "volatile");
     }

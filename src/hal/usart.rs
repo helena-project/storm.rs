@@ -1,5 +1,6 @@
+use core::fmt;
 use core::intrinsics;
-use core::str::StrPrelude;
+use core::prelude::*;
 
 #[allow(dead_code)]
 struct UsartRegisters {
@@ -126,3 +127,14 @@ impl USART {
       }
     }
 }
+
+impl fmt::FormatWriter for USART {
+    fn write(&mut self, bytes: &[u8]) -> ::core::result::Result<(), fmt::Error> {
+        for b in bytes.iter() {
+            while !self.tx_ready() {}
+            self.send_byte(*b);
+        }
+        return ::core::result::Result::Ok(());
+    }
+}
+

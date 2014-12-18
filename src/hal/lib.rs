@@ -1,7 +1,7 @@
 #![crate_name = "hal"]
 #![crate_type = "rlib"]
 #![no_std]
-#![feature(macro_rules)]
+#![feature(macro_rules, globs)]
 
 extern crate core;
 
