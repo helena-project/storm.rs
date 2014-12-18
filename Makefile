@@ -15,6 +15,9 @@ LDFLAGS += -Tconfig/stormpayload.ld
 C_SOURCES=c/stormcrt1.c
 C_OBJECTS=$(C_SOURCES:c/%.c=build/%.o)
 
+ASM_SOURCES=c/ctx_switch.S
+ASM_OBJECTS=$(ASM_SOURCES:S/%.c=build/%.o)
+
 RUST_SOURCES=$(shell ls src/*.rs)
 
 SLOAD=sload
@@ -49,7 +52,7 @@ build/main.o: $(RUST_SOURCES) build/deps/libcore.rlib build/libsupport.rlib buil
 	@mkdir -p build
 	$(RUSTC) $(RUSTC_FLAGS) -C lto --emit obj -o $@ src/main.rs
 
-build/main.elf: build/main.o $(C_OBJECTS)
+build/main.elf: build/main.o $(C_OBJECTS) $(ASM_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $^ -lgcc -o $@
 
 build/%.bin: build/%.elf
