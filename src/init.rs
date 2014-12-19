@@ -27,7 +27,7 @@ Welcome to Tock OS. Nothing but blinking lights for now...
 
 fn set_led() {
     LED.set();
-    timer::set_alarm(1 << 16, set_led);
+    timer::set_alarm(1 << 16, task::Task{f:set_led});
 }
 
 fn clear_led() {

@@ -3,7 +3,10 @@ use core::option::Option::*;
 use ringbuf::RingBuf;
 
 #[deriving(Copy)]
-pub struct Task(pub fn());
+pub struct Task {
+    pub f: fn(),
+    pub user : bool
+}
 
 const MAX_TASKS : uint = 10;
 static mut TASK_BUF : [Option<Task>,..MAX_TASKS] = [None,..MAX_TASKS];
@@ -18,10 +21,6 @@ pub unsafe fn setup() {
 
 pub unsafe fn dequeue() -> Option<Task> {
     MANAGER.dequeue()
-}
-
-pub fn post(func: fn()) -> bool {
-    Task(func).post()
 }
 
 impl Task {

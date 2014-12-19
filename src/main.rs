@@ -20,21 +20,40 @@ mod std {
 
 mod task;
 mod timer;
-mod init;
 mod ringbuf;
 
 mod svc {
     pub const TEST : u16 = 72;
+    pub const ADD_TIMER : u16 = 1;
 }
 
-#[inline(never)]
-fn app() {
+mod app {
     use hal::usart;
-    let uart = usart::USART::UART3;
-    uart.print("I'm in the app!\n");
+    use hal::gpio;
+    use svc;
 
-    unsafe {
-        asm!("svc $0" ::"i"(svc::TEST):: "volatile");
+    static LED : gpio::Pin = gpio::Pin { bus : gpio::Port::PORT2, pin: 10 };
+
+    #[inline(never)]
+    pub fn initialize() {
+        let uart = usart::USART::UART3;
+        uart.print("I'm in the app!\n");
+        LED.make_output();
+
+        unsafe {
+            asm!("svc $0" ::"i"(svc::ADD_TIMER):: "volatile");
+        }
+    }
+
+    #[inline(never)]
+    pub fn timer_fired() {
+        let uart = usart::USART::UART3;
+        uart.print("Timer fired\n");
+        LED.toggle();
+
+        unsafe {
+            asm!("svc $0" ::"i"(svc::ADD_TIMER):: "volatile");
+        }
     }
 }
 
@@ -42,6 +61,8 @@ static mut PROCESS_STACK : [uint,..256] = [0,..256];
 
 #[no_mangle]
 pub extern fn main() -> int {
+    use core::option::Option::*;
+    use core::intrinsics::*;
     use hal::gpio::*;
     use hal::usart;
     use hal::pm;
@@ -57,18 +78,36 @@ pub extern fn main() -> int {
     uart.enable_tx();
 
     uart.print("Starting tock...\n");
+    timer::setup();
 
     unsafe {
-      __prepare_user_stack(app, &mut PROCESS_STACK[255]);
-      let icsr : *mut uint = 0xE000ED04 as *mut uint;
-      core::intrinsics::volatile_store(icsr,
-        core::intrinsics::volatile_load(icsr as *const uint) | 1<<28);
+        task::setup();
     }
+    task::Task{f:app::initialize, user:true}.post();
 
     loop {
-        uart.print("Going to sleep\n");
-        support::wfi(); // Sleep!
-        uart.print("Awake!\n");
+        loop {
+            match unsafe { task::dequeue() } {
+                None => {
+                    uart.print("Going to sleep\n");
+                    support::wfi(); // Sleep!
+                    uart.print("Awake!\n");
+                },
+                Some(task::Task{f: task, user: u}) => {
+                    if u {
+                        unsafe {
+                            __prepare_user_stack(task,
+                                &mut PROCESS_STACK[255]);
+                          let icsr : *mut uint = 0xE000ED04 as *mut uint;
+                          volatile_store(icsr,
+                              volatile_load(icsr as *const uint) | 1<<28);
+                        }
+                    } else {
+                        task();
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -76,17 +115,29 @@ pub extern fn main() -> int {
 #[allow(non_snake_case)]
 #[allow(unused_assignments)]
 pub unsafe extern fn SVC_Handler() {
+    use core::intrinsics::volatile_load;
     use hal::usart;
+
     let uart = usart::USART::UART3;
     uart.print("In SVC Handler!\n");
 
     let mut psp : uint = 0;
     asm!("mrs $0, PSP" :"=r"(psp)::: "volatile");
-    let user_pc = core::intrinsics::volatile_load((psp + 24) as *const uint);
-    let svc = core::intrinsics::volatile_load((user_pc - 2) as *const u16) & 0xff;
+
+    /* Find process PC on stack */
+    let user_pc = volatile_load((psp + 24) as *const uint);
+
+    /* SVC is one instruction before current PC. The low byte is the opcode */
+    let svc = volatile_load((user_pc - 2) as *const u16) & 0xff;
     match svc {
         svc::TEST => uart.print("Success!\n"),
-        _ => uart.print("Ooops...\n")
+        svc::ADD_TIMER => {
+            let alarm_task = task::Task{f:app::timer_fired, user: true};
+            timer::set_alarm(1 << 16, alarm_task);
+            uart.print("Add timer\n");
+
+        },
+        _ => uart.print("Bad SVC\n")
     }
 
     __ctx_to_master();

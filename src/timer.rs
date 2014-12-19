@@ -23,9 +23,9 @@ pub static mut ALARMS : RingBuf<Alarm> =
           , buf: 0 as *mut Option<Alarm>
           };
 
-pub fn set_alarm(tics : u32, task : fn()) {
+pub fn set_alarm(tics : u32, task : Task) {
     let cur_time = ast::get_counter();
-    let alarm = Alarm { task: Task(task), tics: tics + cur_time};
+    let alarm = Alarm { task: task, tics: tics + cur_time};
     unsafe {
         ALARMS.enqueue(alarm);
     }
@@ -71,7 +71,7 @@ fn handle_alarm() {
 }
 
 fn ast_alarm_handler() {
-    task::post(handle_alarm);
+    task::Task{f:handle_alarm, user: false}.post();
     ast::disable();
     ast::clear_alarm();
 }
