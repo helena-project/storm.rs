@@ -1,4 +1,5 @@
-use core::option::{Option, None, Some};
+use core::option::Option;
+use core::option::Option::*;
 use core::intrinsics::*;
 use core::ptr;
 

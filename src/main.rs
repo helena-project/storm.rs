@@ -45,10 +45,11 @@ pub extern fn main() -> int {
     use hal::gpio::*;
     use hal::usart;
     use hal::pm;
+    use hal::pm::*;
 
     let uart = usart::USART::UART3;
-    Pin {bus : PORT1, pin : 9}.set_peripheral_function(A);
-    Pin {bus : PORT1, pin : 10}.set_peripheral_function(A);
+    Pin {bus : Port::PORT1, pin : 9}.set_peripheral_function(PeripheralFunction::A);
+    Pin {bus : Port::PORT1, pin : 10}.set_peripheral_function(PeripheralFunction::A);
 
     pm::enable_pba_clock(11);
     uart.init_uart();

@@ -5,6 +5,10 @@
 
 extern crate core;
 
+mod std {
+    pub use core::*;
+}
+
 pub mod ast;
 pub mod gpio;
 pub mod nvic;

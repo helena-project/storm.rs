@@ -1,10 +1,12 @@
-use core::option::*;
+use core::option::Option;
+use core::option::Option::*;
 use hal::ast;
 
 use task;
 use task::Task;
 use ringbuf::RingBuf;
 
+#[deriving(Copy)]
 pub struct Alarm {
     pub task : Task,
     pub tics : u32

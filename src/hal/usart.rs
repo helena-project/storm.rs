@@ -34,6 +34,7 @@ struct UsartRegisters {
 const USART_SIZE : int = 0x4000;
 const USART_BASE_ADDRESS : int = 0x40024000;
 
+#[deriving(Copy)]
 pub enum USART {
     UART0 = USART_BASE_ADDRESS,
     UART1 = USART_BASE_ADDRESS + USART_SIZE * 1,

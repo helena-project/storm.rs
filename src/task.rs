@@ -1,6 +1,8 @@
-use core::option::{Option, None};
+use core::option::Option;
+use core::option::Option::*;
 use ringbuf::RingBuf;
 
+#[deriving(Copy)]
 pub struct Task(pub fn());
 
 const MAX_TASKS : uint = 10;

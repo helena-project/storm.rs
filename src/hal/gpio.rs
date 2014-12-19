@@ -96,6 +96,7 @@ struct GpioPort {
     //0x200 end
 }
 
+#[deriving(Copy)]
 pub enum Port {
     PORT0 = 0x400E1000,
     PORT1 = 0x400E1200,
@@ -121,6 +122,7 @@ macro_rules! gpio_port(
     );
 )
 
+#[deriving(Copy)]
 pub struct Pin {
     pub bus: Port,
     pub pin: uint,
