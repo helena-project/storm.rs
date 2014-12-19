@@ -3,9 +3,9 @@ use core::option::Option::*;
 use ringbuf::RingBuf;
 
 #[deriving(Copy)]
-pub struct Task {
-    pub f: fn(),
-    pub user : bool
+pub enum Task {
+    UserTask(uint),
+    KernelTask(fn())
 }
 
 const MAX_TASKS : uint = 10;

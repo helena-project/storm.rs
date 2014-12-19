@@ -71,7 +71,7 @@ fn handle_alarm() {
 }
 
 fn ast_alarm_handler() {
-    task::Task{f:handle_alarm, user: false}.post();
+    task::Task::KernelTask(handle_alarm).post();
     ast::disable();
     ast::clear_alarm();
 }

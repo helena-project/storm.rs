@@ -9,7 +9,7 @@ extern crate support;
 
 #[allow(improper_ctypes)]
 extern {
-    fn __prepare_user_stack(start : fn(), user_stack : *mut uint);
+    fn __prepare_user_stack(start : uint, user_stack : *mut uint);
     fn __ctx_to_user();
     fn __ctx_to_master();
 }
@@ -23,7 +23,7 @@ mod timer;
 mod ringbuf;
 
 mod svc {
-    pub const TEST : u16 = 72;
+    pub const YIELD : u16 = 0;
     pub const ADD_TIMER : u16 = 1;
 }
 
@@ -40,8 +40,16 @@ mod app {
         uart.print("I'm in the app!\n");
         LED.make_output();
 
+        let ts : u32 = 1 << 15;
         unsafe {
-            asm!("svc $0" ::"i"(svc::ADD_TIMER):: "volatile");
+            asm!("mov r0, $0; mov r1, $1; svc $2"
+                    :
+                    :"r"(ts),"r"(timer_fired),"i"(svc::ADD_TIMER)
+                    :"r0"
+                    : "volatile");
+        }
+        unsafe {
+            asm!("svc $0" ::"i"(svc::YIELD):: "volatile");
         }
     }
 
@@ -51,8 +59,16 @@ mod app {
         uart.print("Timer fired\n");
         LED.toggle();
 
+        let ts : u32 = 1 << 15;
         unsafe {
-            asm!("svc $0" ::"i"(svc::ADD_TIMER):: "volatile");
+            asm!("mov r0, $0; mov r1, $1; svc $2"
+                    :
+                    :"r"(ts),"r"(timer_fired),"i"(svc::ADD_TIMER)
+                    :"r0"
+                    : "volatile");
+        }
+        unsafe {
+            asm!("svc $0" ::"i"(svc::YIELD):: "volatile");
         }
     }
 }
@@ -67,6 +83,8 @@ pub extern fn main() -> int {
     use hal::usart;
     use hal::pm;
     use hal::pm::*;
+    use task;
+    use task::Task::*;
 
     let uart = usart::USART::UART3;
     Pin {bus : Port::PORT1, pin : 9}.set_peripheral_function(PeripheralFunction::A);
@@ -83,7 +101,7 @@ pub extern fn main() -> int {
     unsafe {
         task::setup();
     }
-    task::Task{f:app::initialize, user:true}.post();
+    task::Task::UserTask(app::initialize as uint).post();
 
     loop {
         loop {
@@ -93,17 +111,18 @@ pub extern fn main() -> int {
                     support::wfi(); // Sleep!
                     uart.print("Awake!\n");
                 },
-                Some(task::Task{f: task, user: u}) => {
-                    if u {
-                        unsafe {
-                            __prepare_user_stack(task,
+                Some(task) => {
+                    match task {
+                        UserTask(task_addr) => unsafe {
+                            __prepare_user_stack(task_addr,
                                 &mut PROCESS_STACK[255]);
-                          let icsr : *mut uint = 0xE000ED04 as *mut uint;
-                          volatile_store(icsr,
-                              volatile_load(icsr as *const uint) | 1<<28);
+                            let icsr : *mut uint = 0xE000ED04 as *mut uint;
+                            volatile_store(icsr,
+                                volatile_load(icsr as *const uint) | 1<<28);
+                        },
+                        KernelTask(task) => {
+                            task();
                         }
-                    } else {
-                        task();
                     }
                 }
             }
@@ -114,7 +133,7 @@ pub extern fn main() -> int {
 #[no_mangle]
 #[allow(non_snake_case)]
 #[allow(unused_assignments)]
-pub unsafe extern fn SVC_Handler() {
+pub unsafe extern fn SVC_Handler(r0 : uint, r1 : uint) {
     use core::intrinsics::volatile_load;
     use hal::usart;
 
@@ -130,12 +149,12 @@ pub unsafe extern fn SVC_Handler() {
     /* SVC is one instruction before current PC. The low byte is the opcode */
     let svc = volatile_load((user_pc - 2) as *const u16) & 0xff;
     match svc {
-        svc::TEST => uart.print("Success!\n"),
+        svc::YIELD => uart.print("Yielding\n"),
         svc::ADD_TIMER => {
-            let alarm_task = task::Task{f:app::timer_fired, user: true};
-            timer::set_alarm(1 << 16, alarm_task);
+            let alarm_task = task::Task::UserTask(r1);
+            timer::set_alarm(r0 as u32, alarm_task);
             uart.print("Add timer\n");
-
+            return ();
         },
         _ => uart.print("Bad SVC\n")
     }
