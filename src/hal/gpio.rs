@@ -103,6 +103,7 @@ pub enum Port {
     PORT2 = 0x400E1400
 }
 
+#[deriving(Copy)]
 pub enum PeripheralFunction {
     A = 0b000,
     B = 0b001,

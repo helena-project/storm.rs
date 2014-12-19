@@ -2,6 +2,7 @@ use core::intrinsics;
 use nvic;
 
 #[repr(C, packed)]
+#[deriving(Copy)]
 pub struct Ast {
     cr : u32,
     cv : u32,
@@ -37,6 +38,7 @@ fn noop() {}
 static mut AlarmCallback : fn() = noop;
 
 #[repr(uint)]
+#[deriving(Copy)]
 pub enum Clock {
     ClockRCSys = 0,
     ClockOsc32 = 1,

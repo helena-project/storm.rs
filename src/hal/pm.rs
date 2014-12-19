@@ -56,6 +56,7 @@ pub const PM_BASE : int = 0x400E0000;
 
 static mut PM : *mut PmRegisters = PM_BASE as *mut PmRegisters;
 
+#[deriving(Copy)]
 pub enum Clock {
     RCSYS = 0,
     OSC0,

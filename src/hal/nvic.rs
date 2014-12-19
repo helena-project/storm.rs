@@ -5,6 +5,7 @@ struct Nvic {
     iser : [u32, ..28]
 }
 
+#[deriving(Copy)]
 pub enum NvicIdx {
     HFLASHC = 0,
     PDCA0,
