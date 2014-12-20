@@ -34,6 +34,8 @@ mod app {
 
     static LED : gpio::Pin = gpio::Pin { bus : gpio::Port::PORT2, pin: 10 };
 
+    static mut count : uint = 0;
+
     #[inline(never)]
     pub fn initialize() {
         let uart = usart::USART::UART3;
@@ -55,9 +57,15 @@ mod app {
 
     #[inline(never)]
     pub fn timer_fired() {
-        let uart = usart::USART::UART3;
-        uart.print("Timer fired\n");
         LED.toggle();
+
+        unsafe {
+            count = count + 1;
+            if count % 10 == 0 {
+                let uart = usart::USART::UART3;
+                uart.print("Timer fired 10 times\n");
+            }
+        }
 
         let ts : u32 = 1 << 15;
         unsafe {
@@ -107,9 +115,7 @@ pub extern fn main() -> int {
         loop {
             match unsafe { task::dequeue() } {
                 None => {
-                    uart.print("Going to sleep\n");
                     support::wfi(); // Sleep!
-                    uart.print("Awake!\n");
                 },
                 Some(task) => {
                     match task {
@@ -135,10 +141,6 @@ pub extern fn main() -> int {
 #[allow(unused_assignments)]
 pub unsafe extern fn SVC_Handler(r0 : uint, r1 : uint) {
     use core::intrinsics::volatile_load;
-    use hal::usart;
-
-    let uart = usart::USART::UART3;
-    uart.print("In SVC Handler!\n");
 
     let mut psp : uint = 0;
     asm!("mrs $0, PSP" :"=r"(psp)::: "volatile");
@@ -149,14 +151,13 @@ pub unsafe extern fn SVC_Handler(r0 : uint, r1 : uint) {
     /* SVC is one instruction before current PC. The low byte is the opcode */
     let svc = volatile_load((user_pc - 2) as *const u16) & 0xff;
     match svc {
-        svc::YIELD => uart.print("Yielding\n"),
+        svc::YIELD => {},
         svc::ADD_TIMER => {
             let alarm_task = task::Task::UserTask(r1);
             timer::set_alarm(r0 as u32, alarm_task);
-            uart.print("Add timer\n");
             return ();
         },
-        _ => uart.print("Bad SVC\n")
+        _ => {}
     }
 
     __ctx_to_master();
@@ -165,9 +166,6 @@ pub unsafe extern fn SVC_Handler(r0 : uint, r1 : uint) {
 #[no_mangle]
 #[allow(non_snake_case)]
 pub unsafe extern fn PendSV_Handler() {
-    use hal::usart;
-    let uart = usart::USART::UART3;
-    uart.print("In PendSV Handler!\n");
     __ctx_to_user();
 }
 
