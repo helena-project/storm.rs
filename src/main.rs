@@ -112,23 +112,21 @@ pub extern fn main() -> int {
     task::Task::UserTask(app::initialize as uint).post();
 
     loop {
-        loop {
-            match unsafe { task::dequeue() } {
-                None => {
-                    support::wfi(); // Sleep!
-                },
-                Some(task) => {
-                    match task {
-                        UserTask(task_addr) => unsafe {
-                            __prepare_user_stack(task_addr,
-                                &mut PROCESS_STACK[255]);
-                            let icsr : *mut uint = 0xE000ED04 as *mut uint;
-                            volatile_store(icsr,
-                                volatile_load(icsr as *const uint) | 1<<28);
-                        },
-                        KernelTask(task) => {
-                            task();
-                        }
+        match unsafe { task::dequeue() } {
+            None => {
+                support::wfi(); // Sleep!
+            },
+            Some(task) => {
+                match task {
+                    UserTask(task_addr) => unsafe {
+                        __prepare_user_stack(task_addr,
+                            &mut PROCESS_STACK[255]);
+                        let icsr : *mut uint = 0xE000ED04 as *mut uint;
+                        volatile_store(icsr,
+                            volatile_load(icsr as *const uint) | 1<<28);
+                    },
+                    KernelTask(task) => {
+                        task();
                     }
                 }
             }
