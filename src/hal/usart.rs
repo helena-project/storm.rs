@@ -2,6 +2,7 @@ use core::fmt;
 use core::intrinsics;
 use core::prelude::*;
 
+#[repr(C, packed)]
 #[allow(dead_code)]
 struct UsartRegisters {
     cr : u32,

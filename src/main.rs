@@ -98,7 +98,7 @@ pub extern fn main() -> int {
     Pin {bus : Port::PORT1, pin : 9}.set_peripheral_function(PeripheralFunction::A);
     Pin {bus : Port::PORT1, pin : 10}.set_peripheral_function(PeripheralFunction::A);
 
-    pm::enable_pba_clock(11);
+    pm::enable_pba_clock(11); // USART3 clock
     uart.init_uart();
     uart.set_baud_rate(115200);
     uart.enable_tx();
