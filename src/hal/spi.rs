@@ -32,13 +32,13 @@ pub struct SPI {
 
 #[deriving(Copy)]
 pub enum MSTR {
-    Master = 0,
-    Slave = 1
+    Master = 1,
+    Slave = 0
 }
 
 #[deriving(Copy)]
 pub enum PS {
-    FIXED = 0,
+    Fixed = 0,
     Variable = 1
 }
 
@@ -94,7 +94,7 @@ impl SPI {
     pub fn set_mode(self, mode : Mode) {
         unsafe {
             let mut csr = volatile_load(&(*GSPI).csr[self.cs]);
-            csr = (mode as uint << 2) | (csr & 0xfffffffc);
+            csr = (mode as uint) | (csr & 0xfffffffc);
             volatile_store(&mut(*GSPI).csr[self.cs], csr);
         }
     }
