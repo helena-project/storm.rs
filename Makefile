@@ -39,12 +39,15 @@ build/deps/lib%.rlib:
 	$(RUSTC) $(RUSTC_FLAGS) --out-dir build/deps $(RUST_LIBS_LOC)/lib$*/lib.rs
 
 build/libhal.rlib: build/deps/libcore.rlib
-build/libdrivers.rlib: build/deps/libcore.rlib build/libhal.rlib
 build/libsupport.rlib: build/deps/libcore.rlib
 
 build/lib%.rlib: src/%/*.rs
 	@mkdir -p build
 	$(RUSTC) $(RUSTC_FLAGS) --out-dir build src/$*/lib.rs
+
+build/libdrivers.rlib: src/drivers/*.rs build/deps/libcore.rlib build/libhal.rlib
+	@mkdir -p build
+	$(RUSTC) $(RUSTC_FLAGS) -F unsafe-blocks --out-dir build src/drivers/lib.rs
 
 build/%.o: c/%.c
 	$(CC) $(CFLAGS) -c -o $@ $^
