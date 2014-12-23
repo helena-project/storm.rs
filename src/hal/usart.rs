@@ -110,13 +110,13 @@ impl USART {
     pub fn send_byte(self, b : u8) {
         let dev = usart!(self);
         unsafe {
+            while !self.tx_ready() {}
             intrinsics::volatile_store(&mut dev.thr, b as u32);
         }
     }
 
     pub fn print(self, s : &str) {
         for b in s.bytes() {
-            while !self.tx_ready() {}
             self.send_byte(b);
         }
     }
@@ -133,7 +133,6 @@ impl USART {
 impl fmt::FormatWriter for USART {
     fn write(&mut self, bytes: &[u8]) -> ::core::result::Result<(), fmt::Error> {
         for b in bytes.iter() {
-            while !self.tx_ready() {}
             self.send_byte(*b);
         }
         return ::core::result::Result::Ok(());
