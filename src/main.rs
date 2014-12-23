@@ -1,9 +1,10 @@
 #![no_main]
 #![no_std]
 #![allow(dead_code)]
-#![feature(globs, asm)]
+#![feature(globs, asm, slicing_syntax)]
 
 extern crate core;
+extern crate drivers;
 extern crate hal;
 extern crate support;
 
@@ -85,16 +86,20 @@ static mut PROCESS_STACK : [uint,..256] = [0,..256];
 
 #[no_mangle]
 pub extern fn main() -> int {
+    use core::slice::*;
     use core::option::Option::*;
     use core::intrinsics::*;
     use hal::gpio::*;
     use hal::usart;
     use hal::pm;
     use hal::pm::*;
+    use hal::spi;
     use task;
     use task::Task::*;
 
-    let uart = usart::USART::UART3;
+    use drivers::flash_attr::FlashAttr;
+
+    let mut uart = usart::USART::UART3;
     Pin {bus : Port::PORT1, pin : 9}.set_peripheral_function(PeripheralFunction::A);
     Pin {bus : Port::PORT1, pin : 10}.set_peripheral_function(PeripheralFunction::A);
 
@@ -104,6 +109,31 @@ pub extern fn main() -> int {
     uart.enable_tx();
 
     uart.print("Starting tock...\n");
+
+    {
+        use core::fmt::*;
+        pm::enable_pba_clock(1); // SPI clock
+        spi::set_mode(spi::MSTR::Master, spi::PS::Variable,
+                      spi::RXFIFO::Disable, spi::MODFAULT::Disable);
+        spi::enable();
+        let mut flash_spi = spi::SPI {cs: 0};
+        let mut flash_cs = Pin {bus: Port::PORT2, pin: 3};
+        let mut miso = Pin {bus: Port::PORT2, pin: 4};
+        let mut mosi = Pin {bus: Port::PORT2, pin: 5};
+        let mut sclk = Pin {bus: Port::PORT2, pin: 6};
+        let flash_attr = FlashAttr::initialize(&mut flash_spi, &mut flash_cs,
+                                               &mut miso, &mut mosi, &mut sclk);
+
+        let mut key = [0,..8];
+        flash_attr.get_attr(0, &mut key);
+        for b in key[0..].iter() {
+            uart.send_byte(*b);
+        }
+        uart.send_byte('\n' as u8);
+
+
+    }
+
     timer::setup();
 
     unsafe {
