@@ -39,6 +39,7 @@ build/deps/lib%.rlib:
 	$(RUSTC) $(RUSTC_FLAGS) --out-dir build/deps $(RUST_LIBS_LOC)/lib$*/lib.rs
 
 build/libhal.rlib: build/deps/libcore.rlib
+build/libdrivers.rlib: build/deps/libcore.rlib build/libhal.rlib
 build/libsupport.rlib: build/deps/libcore.rlib
 
 build/lib%.rlib: src/%/*.rs
