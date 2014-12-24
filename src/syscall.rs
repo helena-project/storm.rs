@@ -1,14 +1,22 @@
+use core::intrinsics::*;
 use task;
 use timer;
 
 #[allow(improper_ctypes)]
 extern {
+    fn __prepare_user_stack(start : uint, user_stack : *mut uint);
     fn __ctx_to_user();
     fn __ctx_to_master();
 }
 
 pub const YIELD : u16 = 0;
 pub const ADD_TIMER : u16 = 1;
+
+pub unsafe fn switch_to_user(pc: uint, sp: *mut uint) {
+    __prepare_user_stack(pc, sp);
+    let icsr : *mut uint = 0xE000ED04 as *mut uint;
+    volatile_store(icsr, volatile_load(icsr as *const uint) | 1<<28);
+}
 
 #[no_mangle]
 #[allow(non_snake_case)]

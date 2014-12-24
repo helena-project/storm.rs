@@ -8,11 +8,6 @@ extern crate drivers;
 extern crate hal;
 extern crate support;
 
-#[allow(improper_ctypes)]
-extern {
-    fn __prepare_user_stack(start : uint, user_stack : *mut uint);
-}
-
 mod std {
     pub use core::*;
 }
@@ -80,7 +75,6 @@ static mut PROCESS_STACK : [uint,..4096] = [0,..4096];
 #[no_mangle]
 pub extern fn main() -> int {
     use core::option::Option::*;
-    use core::intrinsics::*;
     use hal::gpio::*;
     use hal::usart::kstdio::*;
     use hal::pm;
@@ -128,11 +122,8 @@ pub extern fn main() -> int {
             Some(task) => {
                 match task {
                     UserTask(task_addr) => unsafe {
-                        __prepare_user_stack(task_addr,
-                            &mut PROCESS_STACK[255]);
-                        let icsr : *mut uint = 0xE000ED04 as *mut uint;
-                        volatile_store(icsr,
-                            volatile_load(icsr as *const uint) | 1<<28);
+                        syscall::switch_to_user(
+                            task_addr, &mut PROCESS_STACK[255]);
                     },
                     KernelTask(task) => {
                         task();
