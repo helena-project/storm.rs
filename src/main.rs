@@ -29,7 +29,7 @@ mod svc {
 }
 
 mod app {
-    use hal::usart;
+    use hal::usart::kstdio::*;
     use hal::gpio;
     use svc;
 
@@ -39,8 +39,7 @@ mod app {
 
     #[inline(never)]
     pub fn initialize() {
-        let uart = usart::USART::UART3;
-        uart.print("I'm in the app!\n");
+        kprint("I'm in the app!\n");
         LED.make_output();
 
         let ts : u32 = 1 << 15;
@@ -63,8 +62,7 @@ mod app {
         unsafe {
             count = count + 1;
             if count % 10 == 0 {
-                let uart = usart::USART::UART3;
-                uart.print("Timer fired 10 times\n");
+                kprint("Timer fired 10 times\n");
             }
         }
 
@@ -82,7 +80,7 @@ mod app {
     }
 }
 
-static mut PROCESS_STACK : [uint,..256] = [0,..256];
+static mut PROCESS_STACK : [uint,..4096] = [0,..4096];
 
 #[no_mangle]
 pub extern fn main() -> int {
@@ -90,7 +88,7 @@ pub extern fn main() -> int {
     use core::option::Option::*;
     use core::intrinsics::*;
     use hal::gpio::*;
-    use hal::usart;
+    use hal::usart::kstdio::*;
     use hal::pm;
     use hal::pm::*;
     use hal::spi;
@@ -99,19 +97,9 @@ pub extern fn main() -> int {
 
     use drivers::flash_attr::FlashAttr;
 
-    let mut uart = usart::USART::UART3;
-    Pin {bus : Port::PORT1, pin : 9}.set_peripheral_function(PeripheralFunction::A);
-    Pin {bus : Port::PORT1, pin : 10}.set_peripheral_function(PeripheralFunction::A);
-
-    pm::enable_pba_clock(11); // USART3 clock
-    uart.init_uart();
-    uart.set_baud_rate(115200);
-    uart.enable_tx();
-
-    uart.print("Starting tock...\n");
+    kstdio_init();
 
     {
-        use core::fmt::*;
         pm::enable_pba_clock(1); // SPI clock
         spi::set_mode(spi::MSTR::Master, spi::PS::Variable,
                       spi::RXFIFO::Disable, spi::MODFAULT::Disable);
@@ -123,15 +111,16 @@ pub extern fn main() -> int {
         let mut sclk = Pin {bus: Port::PORT2, pin: 6};
         let flash_attr = FlashAttr::initialize(&mut flash_spi, &mut flash_cs,
                                                &mut miso, &mut mosi, &mut sclk);
-
-        let mut key = [0,..8];
-        flash_attr.get_attr(0, &mut key);
-        for b in key[0..].iter() {
-            uart.send_byte(*b);
+        let mut value = [0,..256];
+        match flash_attr.get_attr("welcome", &mut value) {
+            None => kprint("Welcome to the Tock OS!\n"),
+            Some(len) => {
+                for b in value[0..len].iter() {
+                    kputc(*b as char);
+                }
+                kputc('\n');
+            }
         }
-        uart.send_byte('\n' as u8);
-
-
     }
 
     timer::setup();

@@ -1,10 +1,13 @@
+use core::prelude::*;
 use core::slice::*;
+use core::iter::*;
 use hal::spi::*;
 use hal::gpio::*;
 
 pub struct FlashAttr<'a> {
     spi: &'a mut SPI,
-    cs: &'a mut Pin
+    cs: &'a mut Pin,
+    pub keys: [[u8,..8],..16]
 }
 
 fn sleep() {
@@ -17,10 +20,36 @@ fn sleep() {
     }
 }
 
+fn get_key(spi: &SPI, cs: &Pin, idx : u8, key : &mut [u8,..8]) {
+    let addr = idx as uint * 64;
+
+    cs.set();
+    sleep();
+    cs.clear();
+    sleep();
+
+    spi.write_read(0x1B, false);
+    spi.write_read((addr >> 16 & 0xff) as u16, false);
+    spi.write_read((addr >> 8 & 0xff) as u16, false);
+    spi.write_read((addr & 0xff) as u16, false);
+    spi.write_read(0, false);
+    spi.write_read(0, false);
+
+    for b in key.iter_mut() {
+        *b = spi.write_read(0, false) as u8;
+    }
+
+    sleep();
+    cs.set();
+}
+
 impl <'a> FlashAttr<'a> {
+    #[inline(never)]
     pub fn initialize(spi: &'a mut SPI, cs: &'a mut Pin,
                       mosi: &'a mut Pin, miso: &'a mut Pin,
                       sclk: &'a mut Pin) -> FlashAttr<'a> {
+        let mut keys = [[0,..8],..16];
+
         cs.make_output();
 
         mosi.set_peripheral_function(PeripheralFunction::A);
@@ -30,11 +59,34 @@ impl <'a> FlashAttr<'a> {
         spi.set_mode(Mode::Mode0);
         spi.set_baud_rate(8);
 
-        FlashAttr{spi: spi, cs: cs}
+
+        for i in range(0,16) {
+            get_key(spi, cs, i, &mut keys[i as uint]);
+        }
+
+        FlashAttr{spi: spi, cs: cs, keys: keys}
     }
 
-    pub fn get_attr(&self, idx : u8, key : &mut [u8,..8]) {
-        let addr = idx as uint * 64;
+    pub fn get_attr(&self, key : &str, value: &mut [u8,..256])
+            -> Option<uint> {
+        let mut idx : uint = 0;
+        let mut res_idx = None;
+        for k in self.keys.iter() {
+            if cmp_keys(key, *k) {
+                res_idx = Some(idx);
+                break;
+            }
+            idx += 1;
+        }
+
+        match res_idx {
+            None => None,
+            Some(ridx) => Some(self.get_attr_at_idx(ridx, value))
+        }
+    }
+
+    pub fn get_attr_at_idx(&self, idx: uint, value: &mut [u8,..256]) -> uint {
+        let addr = idx * 64;
 
         self.cs.set();
         sleep();
@@ -48,12 +100,40 @@ impl <'a> FlashAttr<'a> {
         self.spi.write_read(0, false);
         self.spi.write_read(0, false);
 
-        for b in key.iter_mut() {
-            *b = self.spi.write_read(0, false) as u8;
+        for _i in range(0,8) {
+            let _x : uint = _i;
+            self.spi.write_read(0, false);
+        }
+
+        let len = self.spi.write_read(0, false) as uint;
+
+        for i in range(0, len) {
+            value[i] = self.spi.write_read(0, false) as u8;
         }
 
         sleep();
         self.cs.set();
+        len
     }
+}
+
+fn cmp_keys(key1 : &str, key2: [u8,..8]) -> bool {
+    use core::prelude::*;
+
+    if key1.len() > 8 {
+        return false;
+    }
+
+    let mut idx = 0;
+    for b in key1.bytes() {
+        if b != key2[idx] {
+            return false;
+        }
+        idx += 1;
+    }
+    if idx < 8 {
+        return key2[idx] == 0;
+    }
+    return true;
 }
 
