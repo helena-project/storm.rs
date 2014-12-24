@@ -1,82 +1,193 @@
-// Zinc, the bare metal stack for rust.
-// Copyright 2014 Vladimir "farcaller" Pouzanov <farcaller@gmail.com>
+// Copyright 2014 The Rust Project Developers. See the COPYRIGHT
+// file at the top-level directory of this distribution and at
+// http://rust-lang.org/COPYRIGHT.
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
 
-//! Support functions currently required by the linker for bare-metal targets.
+//! A bare-metal library supplying functions rustc may lower code to
+//!
+//! This library is not intended for general use, and is superseded by a system
+//! libc if one is available. In a freestanding context, however, common
+//! functions such as memset, memcpy, etc are not implemented. This library
+//! provides an implementation of these functions which are either required by
+//! libcore or called by rustc implicitly.
+//!
+//! This library is never included by default, and must be manually included if
+//! necessary. It is an error to include this library when also linking with
+//! the system libc library.
 
 #![crate_name = "support"]
 #![crate_type = "rlib"]
-#![feature(asm, lang_items)]
+#![feature(asm, lang_items, globs)]
+#![feature(phase)]
 #![no_std]
+
+
+// This library defines the builtin functions, so it would be a shame for
+// LLVM to optimize these function calls to themselves!
+#![no_builtins]
 
 extern crate core;
 
+#[phase(plugin, link)]
+#[cfg(test)] extern crate std;
+#[cfg(test)] extern crate native;
+
 use core::fmt::Arguments;
-use core::intrinsics::set_memory;
+use core::intrinsics::*;
+use core::ptr::RawPtr;
 
-#[doc(hidden)]
+#[no_mangle]
+pub unsafe extern fn memcpy(dest: *mut u8, src: *const u8,
+                            n: uint) -> *mut u8 {
+    let mut i = 0;
+    while i < n {
+        *dest.offset(i as int) = *src.offset(i as int);
+        i += 1;
+    }
+    return dest;
+}
+
+#[no_mangle]
+pub unsafe extern fn memmove(dest: *mut u8, src: *const u8,
+                             n: uint) -> *mut u8 {
+    if src < dest as *const u8 { // copy from end
+        let mut i = n;
+        while i != 0 {
+            i -= 1;
+            *dest.offset(i as int) = *src.offset(i as int);
+        }
+    } else { // copy from beginning
+        let mut i = 0;
+        while i < n {
+            *dest.offset(i as int) = *src.offset(i as int);
+            i += 1;
+        }
+    }
+    return dest;
+}
+
+#[no_mangle]
+pub unsafe extern fn memset(s: *mut u8, c: i32, n: uint) -> *mut u8 {
+    let mut i = 0;
+    while i < n {
+        *s.offset(i as int) = c as u8;
+        i += 1;
+    }
+    return s;
+}
+
+#[no_mangle]
+pub unsafe extern fn memcmp(s1: *const u8, s2: *const u8, n: uint) -> i32 {
+    let mut i = 0;
+    while i < n {
+        let a = *s1.offset(i as int);
+        let b = *s2.offset(i as int);
+        if a != b {
+            return a as i32 - b as i32
+        }
+        i += 1;
+    }
+    return 0;
+}
+
 #[cfg(test)]
-#[no_stack_check]
-#[no_mangle]
-pub extern fn breakpoint() { unimplemented!() }
+mod test {
+    use core::str::StrSlice;
+    use core::slice::{MutableSlice, ImmutableSlice};
 
-/// Call the debugger.
-#[cfg(not(test))]
-#[no_stack_check]
-#[no_mangle]
-pub extern fn breakpoint() {
-  unsafe { asm!("bkpt") }
-}
+    use super::{memcmp, memset, memcpy, memmove};
 
-/// Call the debugger and halts execution.
-#[no_stack_check]
-#[no_mangle]
-pub extern fn abort() -> ! {
-  breakpoint();
-  loop {}
-}
+    #[test]
+    fn memcmp_single_byte_pointers() {
+        unsafe {
+            assert_eq!(memcmp(&0xFAu8, &0xFAu8, 1), 0x00);
+            assert!(memcmp(&0xEFu8, &0xFEu8, 1) < 0x00);
+        }
+    }
 
-#[doc(hidden)]
-#[no_stack_check]
-#[no_mangle]
-pub extern fn __aeabi_unwind_cpp_pr0() {
-  abort();
-}
+    #[test]
+    fn memcmp_strings() {
+        {
+            let (x, z) = ("Hello!", "Good Bye.");
+            let l = x.len();
+            unsafe {
+                assert_eq!(memcmp(x.as_ptr(), x.as_ptr(), l), 0);
+                assert!(memcmp(x.as_ptr(), z.as_ptr(), l) > 0);
+                assert!(memcmp(z.as_ptr(), x.as_ptr(), l) < 0);
+            }
+        }
+        {
+            let (x, z) = ("hey!", "hey.");
+            let l = x.len();
+            unsafe {
+                assert!(memcmp(x.as_ptr(), z.as_ptr(), l) < 0);
+            }
+        }
+    }
 
-#[doc(hidden)]
-#[no_stack_check]
-#[no_mangle]
-pub extern fn __aeabi_unwind_cpp_pr1() {
-  abort();
-}
+    #[test]
+    fn memset_single_byte_pointers() {
+        let mut x: u8 = 0xFF;
+        unsafe {
+            memset(&mut x, 0xAA, 1);
+            assert_eq!(x, 0xAA);
+            memset(&mut x, 0x00, 1);
+            assert_eq!(x, 0x00);
+            x = 0x01;
+            memset(&mut x, 0x12, 0);
+            assert_eq!(x, 0x01);
+        }
+    }
 
-// TODO(bgamari): This is only necessary for exception handling and
-// can be removed when we have this issue resolved.
-#[doc(hidden)]
-#[no_stack_check]
-#[no_mangle]
-pub extern fn __aeabi_memset(dest: *mut u8, size: uint, value: u32) {
-  unsafe {
-    set_memory(dest, value as u8, size);
-  }
-}
+    #[test]
+    fn memset_array() {
+        let mut buffer = [b'X', .. 100];
+        unsafe {
+            memset(buffer.as_mut_ptr(), b'#' as i32, buffer.len());
+        }
+        for byte in buffer.iter() { assert_eq!(*byte, b'#'); }
+    }
 
-#[doc(hidden)]
-#[no_stack_check]
-#[no_mangle]
-pub extern fn get_eit_entry() {
-  abort();
+    #[test]
+    fn memcpy_and_memcmp_arrays() {
+        let (src, mut dst) = ([b'X', .. 100], [b'Y', .. 100]);
+        unsafe {
+            assert!(memcmp(src.as_ptr(), dst.as_ptr(), 100) != 0);
+            let _ = memcpy(dst.as_mut_ptr(), src.as_ptr(), 100);
+            assert_eq!(memcmp(src.as_ptr(), dst.as_ptr(), 100), 0);
+        }
+    }
+
+    #[test]
+    fn memmove_overlapping() {
+        {
+            let mut buffer = [ b'0', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9' ];
+            unsafe {
+                memmove(&mut buffer[4], &buffer[0], 6);
+                let mut i = 0;
+                for byte in b"0123012345".iter() {
+                    assert_eq!(buffer[i], *byte);
+                    i += 1;
+                }
+            }
+        }
+        {
+            let mut buffer = [ b'0', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9' ];
+            unsafe {
+                memmove(&mut buffer[0], &buffer[4], 6);
+                let mut i = 0;
+                for byte in b"4567896789".iter() {
+                    assert_eq!(buffer[i], *byte);
+                    i += 1;
+                }
+            }
+        }
+    }
 }
 
 #[cfg(not(test))]
@@ -121,5 +232,26 @@ extern fn begin_unwind() {}
 extern fn rust_begin_unwind(_fmt: &Arguments,
     _file_line: &(&'static str, uint)) -> ! {
   loop { }
+}
+
+#[doc(hidden)]
+#[no_stack_check]
+#[no_mangle]
+pub unsafe extern fn __aeabi_unwind_cpp_pr0() {
+  abort();
+}
+
+#[doc(hidden)]
+#[no_stack_check]
+#[no_mangle]
+pub unsafe extern fn __aeabi_unwind_cpp_pr1() {
+  abort();
+}
+
+#[doc(hidden)]
+#[no_stack_check]
+#[no_mangle]
+pub unsafe extern fn __aeabi_memset(dest: *mut u8, count: uint, value: i32) {
+    memset(dest, value, count);
 }
 
