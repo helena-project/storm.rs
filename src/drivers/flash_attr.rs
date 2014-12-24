@@ -67,8 +67,7 @@ impl <'a> FlashAttr<'a> {
         FlashAttr{spi: spi, cs: cs, keys: keys}
     }
 
-    pub fn get_attr(&self, key : &str, value: &mut [u8,..256])
-            -> Option<uint> {
+    pub fn do_attr(&self, key : &str, f: |u8|) -> bool {
         let mut idx : uint = 0;
         let mut res_idx = None;
         for k in self.keys.iter() {
@@ -80,12 +79,15 @@ impl <'a> FlashAttr<'a> {
         }
 
         match res_idx {
-            None => None,
-            Some(ridx) => Some(self.get_attr_at_idx(ridx, value))
+            None => false,
+            Some(ridx) => {
+                self.do_attr_at_idx(ridx, f);
+                true
+            }
         }
     }
 
-    pub fn get_attr_at_idx(&self, idx: uint, value: &mut [u8,..256]) -> uint {
+    pub fn do_attr_at_idx(&self, idx: uint, f: |u8|) {
         let addr = idx * 64;
 
         self.cs.set();
@@ -107,13 +109,21 @@ impl <'a> FlashAttr<'a> {
 
         let len = self.spi.write_read(0, false) as uint;
 
-        for i in range(0, len) {
-            value[i] = self.spi.write_read(0, false) as u8;
+        for _i in range(0, len) {
+            f(self.spi.write_read(0, false) as u8);
         }
 
         sleep();
         self.cs.set();
-        len
+    }
+
+    pub fn get_attr(&self, key : &str, value: &mut [u8,..256]) -> uint {
+        let mut len = -1;
+        self.do_attr(key, |c| {
+            len += 1;
+            value[len] = c;
+        });
+        return len;
     }
 }
 

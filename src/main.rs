@@ -84,7 +84,6 @@ static mut PROCESS_STACK : [uint,..4096] = [0,..4096];
 
 #[no_mangle]
 pub extern fn main() -> int {
-    use core::slice::*;
     use core::option::Option::*;
     use core::intrinsics::*;
     use hal::gpio::*;
@@ -111,15 +110,11 @@ pub extern fn main() -> int {
         let mut sclk = Pin {bus: Port::PORT2, pin: 6};
         let flash_attr = FlashAttr::initialize(&mut flash_spi, &mut flash_cs,
                                                &mut miso, &mut mosi, &mut sclk);
-        let mut value = [0,..256];
-        match flash_attr.get_attr("welcome", &mut value) {
-            None => kprint("Welcome to the Tock OS!\n"),
-            Some(len) => {
-                for b in value[0..len].iter() {
-                    kputc(*b as char);
-                }
-                kputc('\n');
-            }
+
+        if flash_attr.do_attr("welcome", |c| { kputc(c as char)}) {
+            kputc('\n');
+        } else {
+            kprint("Welcome to the Tock OS!\n");
         }
     }
 
