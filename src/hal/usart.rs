@@ -37,10 +37,10 @@ const USART_BASE_ADDRESS : int = 0x40024000;
 
 #[deriving(Copy)]
 pub enum USART {
-    UART0 = USART_BASE_ADDRESS,
-    UART1 = USART_BASE_ADDRESS + USART_SIZE * 1,
-    UART2 = USART_BASE_ADDRESS + USART_SIZE * 2,
-    UART3 = USART_BASE_ADDRESS + USART_SIZE * 3,
+    USART0 = USART_BASE_ADDRESS,
+    USART1 = USART_BASE_ADDRESS + USART_SIZE * 1,
+    USART2 = USART_BASE_ADDRESS + USART_SIZE * 2,
+    USART3 = USART_BASE_ADDRESS + USART_SIZE * 3,
 }
 
 macro_rules! usart (
@@ -136,6 +136,32 @@ impl fmt::FormatWriter for USART {
             self.send_byte(*b);
         }
         return ::core::result::Result::Ok(());
+    }
+}
+
+pub mod kstdio {
+    pub fn kstdio_init() {
+        use gpio::*;
+        use pm;
+
+        let uart = super::USART::USART3;
+        Pin {bus : Port::PORT1, pin : 9}.set_peripheral_function(
+            PeripheralFunction::A);
+        Pin {bus : Port::PORT1, pin : 10}.set_peripheral_function(
+            PeripheralFunction::A);
+
+        pm::enable_pba_clock(11); // USART3 clock
+        uart.init_uart();
+        uart.set_baud_rate(115200);
+        uart.enable_tx();
+    }
+
+    pub fn kprint(s : &str) {
+        super::USART::USART3.print(s);
+    }
+
+    pub fn kputc(c : char) {
+        super::USART::USART3.send_byte(c as u8);
     }
 }
 
