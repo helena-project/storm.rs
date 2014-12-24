@@ -57,7 +57,7 @@ build/main.o: $(RUST_SOURCES) build/deps/libcore.rlib build/libsupport.rlib buil
 	$(RUSTC) $(RUSTC_FLAGS) -C lto --emit obj -o $@ src/main.rs
 
 build/main.elf: build/main.o $(C_OBJECTS) $(ASM_OBJECTS)
-	$(CC) $(CFLAGS) $(LDFLAGS) $^ -lgcc -o $@
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ -ffreestanding -lgcc -lc
 
 build/%.bin: build/%.elf
 	$(OBJCOPY) -O binary $< $@
