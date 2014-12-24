@@ -35,42 +35,53 @@ all: $(SDB)
 build/deps/liballoc.rlib: build/deps/libcore.rlib
 
 build/deps/lib%.rlib:
+	@echo "Building $@"
 	@mkdir -p build/deps
-	$(RUSTC) $(RUSTC_FLAGS) --out-dir build/deps $(RUST_LIBS_LOC)/lib$*/lib.rs
+	@$(RUSTC) $(RUSTC_FLAGS) --out-dir build/deps $(RUST_LIBS_LOC)/lib$*/lib.rs
 
 build/libhal.rlib: build/deps/libcore.rlib
 build/libsupport.rlib: build/deps/libcore.rlib
 
 build/lib%.rlib: src/%/*.rs
+	@echo "Building $@"
 	@mkdir -p build
-	$(RUSTC) $(RUSTC_FLAGS) --out-dir build src/$*/lib.rs
+	@$(RUSTC) $(RUSTC_FLAGS) --out-dir build src/$*/lib.rs
 
 build/libdrivers.rlib: src/drivers/*.rs build/deps/libcore.rlib build/libhal.rlib
+	@echo "Building $@"
 	@mkdir -p build
-	$(RUSTC) $(RUSTC_FLAGS) -F unsafe-blocks --out-dir build src/drivers/lib.rs
+	@$(RUSTC) $(RUSTC_FLAGS) -F unsafe-blocks --out-dir build src/drivers/lib.rs
 
 build/%.o: c/%.c
-	$(CC) $(CFLAGS) -c -o $@ $^
+	@echo "Compiling $^"
+	@$(CC) $(CFLAGS) -c -o $@ $^
 
 build/main.o: $(RUST_SOURCES) build/deps/libcore.rlib build/libsupport.rlib build/libhal.rlib build/libdrivers.rlib
+	@echo "Building $@"
 	@mkdir -p build
-	$(RUSTC) $(RUSTC_FLAGS) -C lto --emit obj -o $@ src/main.rs
+	@$(RUSTC) $(RUSTC_FLAGS) -C lto --emit obj -o $@ src/main.rs
 
 build/main.elf: build/main.o $(C_OBJECTS) $(ASM_OBJECTS)
-	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ -ffreestanding -lgcc -lc
+	@echo "Linking $@"
+	@$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ -ffreestanding -lgcc -lc
 
 build/%.bin: build/%.elf
-	$(OBJCOPY) -O binary $< $@
+	@echo "$^ --> $@"
+	@$(OBJCOPY) -O binary $< $@
 
 build/%.sdb: build/%.elf
 	@echo "Packing SDB..."
 	@$(SLOAD) pack -m "$(SDB_MAINTAINER)" -v "$(SDB_VERSION)" -n "$(SDB_NAME)" -d $(SDB_DESCRIPTION) -o $@ $<
 
-.PHONY: prog
-program: build/main.bin
-	$(JLINK_EXE) prog.jlink || true
+.PHONY: program
+program: build/main.sdb
+	sload flash build/main.sdb
 
 .PHONY: clean
 clean:
+	rm -Rf build/*.*
+
+.PHONY: clean-all
+clean-all:
 	rm -Rf build
 
