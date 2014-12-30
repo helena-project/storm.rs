@@ -1,6 +1,4 @@
 use core::intrinsics::*;
-use task;
-use timer;
 
 #[allow(improper_ctypes)]
 extern {
@@ -9,8 +7,14 @@ extern {
     fn __ctx_to_master();
 }
 
-pub const YIELD : u16 = 0;
-pub const ADD_TIMER : u16 = 1;
+fn noop(_ : uint, _ : uint) -> int { -1 }
+
+pub static mut DRIVERS : [fn(uint, uint) -> int,..10] = [noop,..10];
+pub static mut NUM_DRIVERS : uint = 0;
+
+pub const WAIT : u16 = 0;
+pub const SUBSCRIBE : u16 = 1;
+pub const COMMAND : u16 = 2;
 
 pub unsafe fn switch_to_user(pc: uint, sp: *mut uint) {
     __prepare_user_stack(pc, sp);
@@ -21,7 +25,7 @@ pub unsafe fn switch_to_user(pc: uint, sp: *mut uint) {
 #[no_mangle]
 #[allow(non_snake_case)]
 #[allow(unused_assignments)]
-pub unsafe extern fn SVC_Handler(r0 : uint, r1 : uint) {
+pub unsafe extern fn SVC_Handler() {
     use core::intrinsics::volatile_load;
 
     let mut psp : uint = 0;
@@ -33,15 +37,28 @@ pub unsafe extern fn SVC_Handler(r0 : uint, r1 : uint) {
     /* SVC is one instruction before current PC. The low byte is the opcode */
     let svc = volatile_load((user_pc - 2) as *const u16) & 0xff;
     match svc {
-        YIELD => {},
-        ADD_TIMER => {
-            let alarm_task = task::Task::UserTask(r1);
-            timer::set_alarm(r0 as u32, alarm_task);
-            return ();
+        WAIT => {
+            volatile_store(psp as *mut int, 0);
         },
-        _ => {}
-    }
+        SUBSCRIBE => {
+            let r0 = volatile_load((psp) as *const uint);
+            if r0 > NUM_DRIVERS {
+                volatile_store(psp as *mut int, -1);
+            }
+            let r1 = volatile_load((psp + 4) as *const uint);
+            let r2 = volatile_load((psp + 8) as *const uint);
 
+            let res : int = DRIVERS[r0](r1, r2);
+            volatile_store(psp as *mut int, res);
+            return;
+        },
+        COMMAND => {
+            volatile_store(psp as *mut int, -1);
+        },
+        _ => {
+            volatile_store(psp as *mut int, -1);
+        }
+    }
     __ctx_to_master();
 }
 
@@ -50,3 +67,4 @@ pub unsafe extern fn SVC_Handler(r0 : uint, r1 : uint) {
 pub unsafe extern fn PendSV_Handler() {
     __ctx_to_user();
 }
+

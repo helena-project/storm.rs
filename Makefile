@@ -56,7 +56,7 @@ build/%.o: c/%.c
 	@echo "Compiling $^"
 	@$(CC) $(CFLAGS) -c -o $@ $^
 
-build/main.o: $(RUST_SOURCES) build/deps/libcore.rlib build/libsupport.rlib build/libhal.rlib build/libdrivers.rlib
+build/main.o: $(RUST_SOURCES) build/deps/libcore.rlib build/libsupport.rlib build/libhal.rlib build/libdrivers.rlib build/libapps.rlib
 	@echo "Building $@"
 	@mkdir -p build
 	@$(RUSTC) $(RUSTC_FLAGS) -C lto --emit obj -o $@ src/main.rs

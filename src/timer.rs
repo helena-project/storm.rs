@@ -23,7 +23,9 @@ pub static mut ALARMS : RingBuf<Alarm> =
           , buf: 0 as *mut Option<Alarm>
           };
 
-pub fn set_alarm(tics : u32, task : Task) {
+pub fn set_user_alarm(tics : uint, task_addr : uint) -> int {
+    let task = Task::UserTask(task_addr);
+    let tics = tics as u32;
     let cur_time = ast::get_counter();
     let alarm = Alarm { task: task, tics: tics + cur_time};
     unsafe {
@@ -37,7 +39,7 @@ pub fn set_alarm(tics : u32, task : Task) {
       ast::set_alarm(alarm.tics, ast_alarm_handler);
       ast::enable();
     }
-
+    return 0;
 }
 
 pub fn setup() {

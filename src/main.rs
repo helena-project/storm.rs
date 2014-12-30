@@ -8,6 +8,8 @@ extern crate drivers;
 extern crate hal;
 extern crate support;
 
+extern crate apps;
+
 mod std {
     pub use core::*;
 }
@@ -16,59 +18,6 @@ mod task;
 mod timer;
 mod ringbuf;
 pub mod syscall;
-
-mod app {
-    use hal::usart::kstdio::*;
-    use hal::gpio;
-    use syscall as svc;
-
-
-    static LED : gpio::Pin = gpio::Pin { bus : gpio::Port::PORT2, pin: 10 };
-
-    static mut count : uint = 0;
-
-    #[inline(never)]
-    pub fn initialize() {
-        kprint("I'm in the app!\n");
-        LED.make_output();
-
-        let ts : u32 = 1 << 15;
-        unsafe {
-            asm!("mov r0, $0; mov r1, $1; svc $2"
-                    :
-                    :"r"(ts),"r"(timer_fired),"i"(svc::ADD_TIMER)
-                    :"r0"
-                    : "volatile");
-        }
-        unsafe {
-            asm!("svc $0" ::"i"(svc::YIELD):: "volatile");
-        }
-    }
-
-    #[inline(never)]
-    pub fn timer_fired() {
-        LED.toggle();
-
-        unsafe {
-            count = count + 1;
-            if count % 10 == 0 {
-                kprint("Timer fired 10 times\n");
-            }
-        }
-
-        let ts : u32 = 1 << 15;
-        unsafe {
-            asm!("mov r0, $0; mov r1, $1; svc $2"
-                    :
-                    :"r"(ts),"r"(timer_fired),"i"(svc::ADD_TIMER)
-                    :"r0"
-                    : "volatile");
-        }
-        unsafe {
-            asm!("svc $0" ::"i"(svc::YIELD):: "volatile");
-        }
-    }
-}
 
 static mut PROCESS_STACK : [uint,..4096] = [0,..4096];
 
@@ -82,6 +31,7 @@ pub extern fn main() -> int {
     use hal::spi;
     use task;
     use task::Task::*;
+    use timer;
 
     use drivers::flash_attr::FlashAttr;
 
@@ -107,12 +57,17 @@ pub extern fn main() -> int {
         }
     }
 
+    unsafe {
+        syscall::DRIVERS[0] = timer::set_user_alarm;
+        syscall::NUM_DRIVERS = 1;
+    }
+
     timer::setup();
 
     unsafe {
         task::setup();
     }
-    task::Task::UserTask(app::initialize as uint).post();
+    task::Task::UserTask(apps::blinkapp::initialize as uint).post();
 
     loop {
         match unsafe { task::dequeue() } {

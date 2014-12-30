@@ -7,6 +7,8 @@
 .globl __prepare_user_stack
 .globl __ctx_to_master
 .globl __ctx_to_user
+.globl __subscribe
+.globl __wait
 
 .thumb_func
 /* r0 is start address and r1 is top of user stack */
@@ -36,3 +38,19 @@ __ctx_to_master:
     movw LR, #0xFFF9
     movt LR, #0xFFFF
     bx lr
+
+.thumb_func
+__wait:
+    svc 0
+    bx lr
+
+.thumb_func
+__subscribe:
+    svc 1
+    bx lr
+
+.thumb_func
+__command:
+    svc 2
+    bx lr
+
