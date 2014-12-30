@@ -4,7 +4,7 @@ Rust code for the Storm
 
 ## Requirements
 
-1. [Rust](http://www.rust-lang.org/) -- 12/30/2014 nightly version available (here)[http://www.scs.stanford.edu/~alevy/rust-2014-12-30.tar.gz]
+1. [Rust](http://www.rust-lang.org/) -- 12/30/2014 nightly version available [here](http://www.scs.stanford.edu/~alevy/rust-2014-12-30.tar.gz)
 2. [LLVM](http://llvm.org/) (a dependency of rust)
 3. arm-non-eabi toolchain
 4. JLinkExe (for programming the storm)
