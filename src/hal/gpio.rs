@@ -1,4 +1,5 @@
 use core::intrinsics;
+use hil::gpio;
 
 #[repr(C, packed)]
 struct GpioPort {
@@ -103,18 +104,6 @@ pub enum Port {
     PORT2 = 0x400E1400
 }
 
-#[deriving(Copy)]
-pub enum PeripheralFunction {
-    A = 0b000,
-    B = 0b001,
-    C = 0b010,
-    D = 0b011,
-    E = 0b100,
-    F = 0b101,
-    G = 0b110,
-    H = 0b111
-}
-
 macro_rules! gpio_port(
     ($addr : expr) => (
         unsafe {
@@ -129,8 +118,8 @@ pub struct Pin {
     pub pin: uint,
 }
 
-impl Pin {
-    pub fn make_output(&self) {
+impl gpio::Pin for Pin {
+    fn make_output(&self) {
         let gpio = gpio_port!(self.bus);
         let p = 1 << self.pin;
         unsafe {
@@ -140,7 +129,7 @@ impl Pin {
         }
     }
 
-    pub fn set_peripheral_function(&self, peripheral : PeripheralFunction) {
+    fn set_peripheral_function(&self, peripheral : gpio::PeripheralFunction) {
         let gpio = gpio_port!(self.bus);
         let p = 1 << self.pin;
         unsafe {
@@ -160,7 +149,7 @@ impl Pin {
         }
     }
 
-    pub fn toggle(&self) {
+    fn toggle(&self) {
         let gpio = gpio_port!(self.bus);
         let p = 1 << self.pin;
         unsafe {
@@ -168,7 +157,7 @@ impl Pin {
         }
     }
 
-    pub fn set(&self) {
+    fn set(&self) {
         let gpio = gpio_port!(self.bus);
         let p = 1 << self.pin;
         unsafe {
@@ -176,7 +165,7 @@ impl Pin {
         }
     }
 
-    pub fn clear(&self) {
+    fn clear(&self) {
         let gpio = gpio_port!(self.bus);
         let p = 1 << self.pin;
         unsafe {

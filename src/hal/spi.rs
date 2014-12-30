@@ -1,4 +1,5 @@
 use core::intrinsics::*;
+use hil::spi;
 
 #[repr(C, packed)]
 #[allow(dead_code)]
@@ -25,7 +26,7 @@ pub const SPI_BASE : uint = 0x40008000;
 
 static mut GSPI : *mut SpiRegisters = SPI_BASE as *mut SpiRegisters;
 
-#[deriving(Copy)]
+#[allow(missing_copy_implementations)]
 pub struct SPI {
     pub cs: uint
 }
@@ -54,14 +55,6 @@ pub enum MODFAULT {
     Disable = 1
 }
 
-#[deriving(Copy)]
-pub enum Mode { // Mode is encoded as CPOL in bit 0 and NCPHA in bit 1
-    Mode0 = 2,  // CPOL == 0, NCPHA = 1
-    Mode1 = 0,  // CPOL == 0, NCPHA = 0
-    Mode2 = 3,  // CPOL == 1, NCPHA = 1
-    Mode3 = 1   // CPOL == 1, NCPHA = 0
-}
-
 pub fn enable() {
     unsafe {
         volatile_store(&mut(*GSPI).cr, 1);
@@ -82,8 +75,8 @@ pub fn set_mode(mstr : MSTR, ps : PS, rxfifo : RXFIFO, modf : MODFAULT) {
     }
 }
 
-impl SPI {
-    pub fn set_baud_rate(self, divisor : u8) {
+impl spi::SPI for SPI {
+    fn set_baud_rate(&self, divisor : u8) {
         unsafe {
             let mut csr = volatile_load(&(*GSPI).csr[self.cs]);
             csr = (divisor as uint << 8) | (csr & 0xffff00ff);
@@ -91,7 +84,7 @@ impl SPI {
         }
     }
 
-    pub fn set_mode(self, mode : Mode) {
+    fn set_mode(&self, mode : spi::Mode) {
         unsafe {
             let mut csr = volatile_load(&(*GSPI).csr[self.cs]);
             csr = (mode as uint) | (csr & 0xfffffffc);
@@ -99,7 +92,7 @@ impl SPI {
         }
     }
 
-    pub fn write_read(self, data : u16, lastxfer : bool) -> u16 {
+    fn write_read(&self, data : u16, lastxfer : bool) -> u16 {
         unsafe {
             let tdr = (!(1 << self.cs) & 0xf) << 16 |
                       data as uint |
@@ -107,12 +100,6 @@ impl SPI {
             volatile_store(&mut(*GSPI).tdr, tdr);
 
             while (volatile_load(&(&*GSPI).sr) & 1) != 1 {}
-            volatile_load(&(*GSPI).rdr) as u16
-        }
-    }
-
-    pub fn read(self) -> u16 {
-        unsafe {
             volatile_load(&(*GSPI).rdr) as u16
         }
     }

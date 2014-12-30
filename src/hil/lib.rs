@@ -1,15 +1,14 @@
-#![crate_name = "drivers"]
+#![crate_name = "hil"]
 #![crate_type = "rlib"]
 #![no_std]
 #![feature(globs)]
 
 extern crate core;
-extern crate hil;
 
 mod std {
     pub use core::*;
 }
 
-pub mod flash_attr;
+pub mod gpio;
+pub mod spi;
 pub mod timer;
-

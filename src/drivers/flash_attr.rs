@@ -1,11 +1,13 @@
 use core::prelude::*;
-use hal::spi::*;
-use hal::gpio::*;
+use hil::gpio;
+use hil::gpio::PeripheralFunction;
+use hil::spi;
+use hil::spi::Mode::*;
 
-pub struct FlashAttr<'a> {
-    spi: &'a mut SPI,
-    cs: &'a mut Pin,
-    pub keys: [[u8,..8],..16]
+pub struct FlashAttr<SPI : spi::SPI, Pin : gpio::Pin> {
+    spi: SPI,
+    cs: Pin,
+    keys: [[u8,..8],..16]
 }
 
 fn sleep() {
@@ -18,7 +20,8 @@ fn sleep() {
     }
 }
 
-fn get_key(spi: &SPI, cs: &Pin, idx : u8, key : &mut [u8,..8]) {
+fn get_key<SPI : spi::SPI, Pin : gpio::Pin>
+        (spi: &SPI, cs: &Pin, idx : u8, key : &mut [u8,..8]) {
     let addr = idx as uint * 64;
 
     cs.set();
@@ -41,11 +44,11 @@ fn get_key(spi: &SPI, cs: &Pin, idx : u8, key : &mut [u8,..8]) {
     cs.set();
 }
 
-impl <'a> FlashAttr<'a> {
+impl <SPI : spi::SPI, Pin : gpio::Pin> FlashAttr<SPI, Pin> {
     #[inline(never)]
-    pub fn initialize(spi: &'a mut SPI, cs: &'a mut Pin,
-                      mosi: &'a mut Pin, miso: &'a mut Pin,
-                      sclk: &'a mut Pin) -> FlashAttr<'a> {
+    pub fn initialize(spi: SPI, cs: Pin,
+                      mosi: Pin, miso: Pin,
+                      sclk: Pin) -> FlashAttr<SPI, Pin> {
         let mut keys = [[0,..8],..16];
 
         cs.make_output();
@@ -54,17 +57,17 @@ impl <'a> FlashAttr<'a> {
         miso.set_peripheral_function(PeripheralFunction::A);
         sclk.set_peripheral_function(PeripheralFunction::A);
 
-        spi.set_mode(Mode::Mode0);
+        spi.set_mode(Mode0);
         spi.set_baud_rate(8);
 
         for i in range(0,16) {
-            get_key(spi, cs, i, &mut keys[i as uint]);
+            get_key(&spi, &cs, i, &mut keys[i as uint]);
         }
 
         FlashAttr{spi: spi, cs: cs, keys: keys}
     }
 
-    pub fn do_attr(&self, key : &str, f: |u8|) -> bool {
+    pub fn do_attr(self, key : &str, f: |u8|) -> bool {
         let mut idx : uint = 0;
         let mut res_idx = None;
         for k in self.keys.iter() {
@@ -84,7 +87,7 @@ impl <'a> FlashAttr<'a> {
         }
     }
 
-    pub fn do_attr_at_idx(&self, idx: uint, f: |u8|) {
+    pub fn do_attr_at_idx(self, idx: uint, f: |u8|) {
         let addr = idx * 64;
 
         self.cs.set();
@@ -114,7 +117,7 @@ impl <'a> FlashAttr<'a> {
         self.cs.set();
     }
 
-    pub fn get_attr(&self, key : &str, value: &mut [u8,..256]) -> uint {
+    pub fn get_attr(self, key : &str, value: &mut [u8,..256]) -> uint {
         let mut len = -1;
         self.do_attr(key, |c| {
             len += 1;

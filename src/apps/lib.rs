@@ -5,6 +5,7 @@
 #![no_std]
 
 extern crate hal;
+extern crate hil;
 
 #[allow(improper_ctypes)]
 extern {
@@ -16,6 +17,7 @@ extern {
 pub mod blinkapp {
     use hal::usart::kstdio::*;
     use hal::gpio;
+    use hil::gpio::*;
 
     static LED : gpio::Pin = gpio::Pin { bus : gpio::Port::PORT2, pin: 10 };
 

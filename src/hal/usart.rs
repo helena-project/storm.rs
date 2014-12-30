@@ -140,15 +140,17 @@ impl fmt::FormatWriter for USART {
 }
 
 pub mod kstdio {
+    use gpio;
+    use hil::gpio::*;
+    use pm;
+
     pub fn kstdio_init() {
-        use gpio::*;
-        use pm;
 
         let uart = super::USART::USART3;
-        Pin {bus : Port::PORT1, pin : 9}.set_peripheral_function(
-            PeripheralFunction::A);
-        Pin {bus : Port::PORT1, pin : 10}.set_peripheral_function(
-            PeripheralFunction::A);
+        let p1 = gpio::Pin {bus : gpio::Port::PORT1, pin : 9};
+        p1.set_peripheral_function(PeripheralFunction::A);
+        let p2 = gpio::Pin {bus : gpio::Port::PORT1, pin : 10};
+        p2.set_peripheral_function(PeripheralFunction::A);
 
         pm::enable_pba_clock(11); // USART3 clock
         uart.init_uart();

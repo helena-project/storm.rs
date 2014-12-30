@@ -4,6 +4,7 @@
 #![feature(macro_rules, globs)]
 
 extern crate core;
+extern crate hil;
 
 mod std {
     pub use core::*;
