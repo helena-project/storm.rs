@@ -121,7 +121,7 @@ macro_rules! gpio_port(
             &mut *($addr as u32 as *mut GpioPort)
         }
     );
-)
+);
 
 #[deriving(Copy)]
 pub struct Pin {

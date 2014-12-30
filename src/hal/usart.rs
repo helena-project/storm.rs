@@ -49,7 +49,7 @@ macro_rules! usart (
             &mut *($addr as u32 as *mut UsartRegisters)
         }
     );
-)
+);
 
 impl USART {
     pub fn init_uart(self) {
