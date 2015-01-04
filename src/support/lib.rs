@@ -255,3 +255,9 @@ pub unsafe extern fn __aeabi_memset(dest: *mut u8, count: uint, value: i32) {
     memset(dest, value, count);
 }
 
+#[doc(hidden)]
+#[no_stack_check]
+#[no_mangle]
+pub unsafe extern fn __aeabi_memcpy(dest: *mut u8, src: *const u8, n: uint) {
+  memcpy(dest, src, n);
+}
