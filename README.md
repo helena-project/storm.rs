@@ -8,6 +8,23 @@ Rust code for the Storm
 2. [LLVM](http://llvm.org/) (a dependency of rust)
 3. arm-non-eabi toolchain
 4. JLinkExe (for programming the storm)
+5. stormloader (for programming the storm)
+
+### Sourcing Requirements
+
+On Mac OS X, you can get the arm-non-eabi toolchain via homebrew:
+
+```bash
+brew tap PX4/homebrew-px4
+brew update
+brew install gcc-arm-none-eabi-48
+```
+
+You can obtain stormloader via pip:
+
+```bash
+sudo pip install stormloader
+```
 
 ## Building
 

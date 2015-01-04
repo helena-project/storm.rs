@@ -1,6 +1,4 @@
 use core::prelude::*;
-use core::slice::*;
-use core::iter::*;
 use hal::spi::*;
 use hal::gpio::*;
 
@@ -58,7 +56,6 @@ impl <'a> FlashAttr<'a> {
 
         spi.set_mode(Mode::Mode0);
         spi.set_baud_rate(8);
-
 
         for i in range(0,16) {
             get_key(spi, cs, i, &mut keys[i as uint]);
