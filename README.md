@@ -56,8 +56,12 @@ machine, or just point this build system to it:
 
 ```bash
 $ popd
+  # OS X
 $ MY_PLAT=x86_64-apple-darwin
 $ export RUSTC="DYLD_LIBRARY_PATH=lib/rust/$MY_PLAT/stage2/lib/ lib/rust/$MY_PLAT/stage2/bin/rustc"
+  # Linux-ish
+$ MY_PLAT=x86_64-unknown-linux-gnu
+$ export RUSTC="LD_LIBRARY_PATH=lib/rust/$MY_PLAT/stage2/lib/ lib/rust/$MY_PLAT/stage2/bin/rustc"
 ```
 
 Now you can build
