@@ -1,7 +1,5 @@
 #![crate_name = "apps"]
 #![crate_type = "rlib"]
-#![feature(asm, lang_items, globs)]
-#![feature(phase)]
 #![no_std]
 
 extern crate hal;
@@ -9,9 +7,9 @@ extern crate hil;
 
 #[allow(improper_ctypes)]
 extern {
-    fn __subscribe(driver_num : uint, arg1 : uint, arg2 : uint) -> int;
-    fn __command(driver_num : uint, arg1 : uint, arg2 : uint) -> int;
-    fn __wait() -> int;
+    fn __subscribe(driver_num : usize, arg1 : usize, arg2 : usize) -> isize;
+    fn __command(driver_num : usize, arg1 : usize, arg2 : usize) -> isize;
+    fn __wait() -> isize;
 }
 
 pub mod blinkapp {
@@ -21,7 +19,7 @@ pub mod blinkapp {
 
     static LED : gpio::Pin = gpio::Pin { bus : gpio::Port::PORT2, pin: 10 };
 
-    static mut count : uint = 0;
+    static mut count : usize = 0;
 
     #[inline(never)]
     pub fn initialize() {
@@ -29,7 +27,7 @@ pub mod blinkapp {
         kprint("I'm in the app!\n");
 
         unsafe {
-            super::__subscribe(0, 1 << 15, timer_fired as uint);
+            super::__subscribe(0, 1 << 15, timer_fired as usize);
             super::__wait();
         }
     }
@@ -46,7 +44,7 @@ pub mod blinkapp {
         }
 
         unsafe {
-            super::__subscribe(0, 1 << 15, timer_fired as uint);
+            super::__subscribe(0, 1 << 15, timer_fired as usize);
             super::__wait();
         }
     }

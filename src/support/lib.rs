@@ -22,10 +22,9 @@
 
 #![crate_name = "support"]
 #![crate_type = "rlib"]
-#![feature(asm, lang_items, globs)]
-#![feature(phase)]
 #![no_std]
-
+#![allow(unstable)]
+#![feature(asm,lang_items)]
 
 // This library defines the builtin functions, so it would be a shame for
 // LLVM to optimize these function calls to themselves!
@@ -33,20 +32,20 @@
 
 extern crate core;
 
-#[phase(plugin, link)]
-#[cfg(test)] extern crate std;
-#[cfg(test)] extern crate native;
+#[cfg(test)] #[macro_use] extern crate std;
 
-use core::fmt::Arguments;
-use core::intrinsics::*;
-use core::ptr::RawPtr;
+use core::ptr::PtrExt;
+
+pub use arm::*;
+
+mod arm;
 
 #[no_mangle]
 pub unsafe extern fn memcpy(dest: *mut u8, src: *const u8,
-                            n: uint) -> *mut u8 {
+                            n: usize) -> *mut u8 {
     let mut i = 0;
     while i < n {
-        *dest.offset(i as int) = *src.offset(i as int);
+        *dest.offset(i as isize) = *src.offset(i as isize);
         i += 1;
     }
     return dest;
@@ -54,17 +53,17 @@ pub unsafe extern fn memcpy(dest: *mut u8, src: *const u8,
 
 #[no_mangle]
 pub unsafe extern fn memmove(dest: *mut u8, src: *const u8,
-                             n: uint) -> *mut u8 {
+                             n: usize) -> *mut u8 {
     if src < dest as *const u8 { // copy from end
         let mut i = n;
         while i != 0 {
             i -= 1;
-            *dest.offset(i as int) = *src.offset(i as int);
+            *dest.offset(i as isize) = *src.offset(i as isize);
         }
     } else { // copy from beginning
         let mut i = 0;
         while i < n {
-            *dest.offset(i as int) = *src.offset(i as int);
+            *dest.offset(i as isize) = *src.offset(i as isize);
             i += 1;
         }
     }
@@ -72,21 +71,21 @@ pub unsafe extern fn memmove(dest: *mut u8, src: *const u8,
 }
 
 #[no_mangle]
-pub unsafe extern fn memset(s: *mut u8, c: i32, n: uint) -> *mut u8 {
+pub unsafe extern fn memset(s: *mut u8, c: i32, n: usize) -> *mut u8 {
     let mut i = 0;
     while i < n {
-        *s.offset(i as int) = c as u8;
+        *s.offset(i as isize) = c as u8;
         i += 1;
     }
     return s;
 }
 
 #[no_mangle]
-pub unsafe extern fn memcmp(s1: *const u8, s2: *const u8, n: uint) -> i32 {
+pub unsafe extern fn memcmp(s1: *const u8, s2: *const u8, n: usize) -> i32 {
     let mut i = 0;
     while i < n {
-        let a = *s1.offset(i as int);
-        let b = *s2.offset(i as int);
+        let a = *s1.offset(i as isize);
+        let b = *s2.offset(i as isize);
         if a != b {
             return a as i32 - b as i32
         }
@@ -97,8 +96,8 @@ pub unsafe extern fn memcmp(s1: *const u8, s2: *const u8, n: uint) -> i32 {
 
 #[cfg(test)]
 mod test {
-    use core::str::StrSlice;
-    use core::slice::{MutableSlice, ImmutableSlice};
+    use core::str::StrExt;
+    use core::slice::SliceExt;
 
     use super::{memcmp, memset, memcpy, memmove};
 
@@ -146,7 +145,7 @@ mod test {
 
     #[test]
     fn memset_array() {
-        let mut buffer = [b'X', .. 100];
+        let mut buffer = [b'X';  100];
         unsafe {
             memset(buffer.as_mut_ptr(), b'#' as i32, buffer.len());
         }
@@ -155,7 +154,7 @@ mod test {
 
     #[test]
     fn memcpy_and_memcmp_arrays() {
-        let (src, mut dst) = ([b'X', .. 100], [b'Y', .. 100]);
+        let (src, mut dst) = ([b'X';  100], [b'Y';  100]);
         unsafe {
             assert!(memcmp(src.as_ptr(), dst.as_ptr(), 100) != 0);
             let _ = memcpy(dst.as_mut_ptr(), src.as_ptr(), 100);
@@ -188,76 +187,4 @@ mod test {
             }
         }
     }
-}
-
-#[cfg(not(test))]
-#[inline(always)]
-/// NOP instruction
-pub fn nop() {
-  unsafe { asm!("nop" :::: "volatile"); }
-}
-
-#[cfg(test)]
-/// NOP instruction (mock)
-pub fn nop() {
-}
-
-#[cfg(not(test))]
-#[inline(always)]
-/// WFI instruction
-pub fn wfi() {
-    unsafe { asm!("wfi" :::: "volatile"); }
-}
-
-#[cfg(test)]
-/// WFI instruction (mock)
-pub fn wfi() {
-}
-
-#[cfg(not(test))]
-#[lang="stack_exhausted"]
-extern fn stack_exhausted() {}
-
-#[cfg(not(test))]
-#[lang="eh_personality"]
-extern fn eh_personality() {}
-
-#[cfg(not(test))]
-#[lang="begin_unwind"]
-extern fn begin_unwind() {}
-
-#[cfg(not(test))]
-#[lang="panic_fmt"]
-#[no_mangle]
-extern fn rust_begin_unwind(_fmt: &Arguments,
-    _file_line: &(&'static str, uint)) -> ! {
-  loop { }
-}
-
-#[doc(hidden)]
-#[no_stack_check]
-#[no_mangle]
-pub unsafe extern fn __aeabi_unwind_cpp_pr0() {
-  abort();
-}
-
-#[doc(hidden)]
-#[no_stack_check]
-#[no_mangle]
-pub unsafe extern fn __aeabi_unwind_cpp_pr1() {
-  abort();
-}
-
-#[doc(hidden)]
-#[no_stack_check]
-#[no_mangle]
-pub unsafe extern fn __aeabi_memset(dest: *mut u8, count: uint, value: i32) {
-    memset(dest, value, count);
-}
-
-#[doc(hidden)]
-#[no_stack_check]
-#[no_mangle]
-pub unsafe extern fn __aeabi_memcpy(dest: *mut u8, src: *const u8, n: uint) {
-  memcpy(dest, src, n);
 }

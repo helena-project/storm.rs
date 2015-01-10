@@ -7,11 +7,11 @@ use hil::spi::Mode::*;
 pub struct FlashAttr<SPI : spi::SPI, Pin : gpio::Pin> {
     spi: SPI,
     cs: Pin,
-    keys: [[u8,..8],..16]
+    keys: [[u8;8];16]
 }
 
 fn sleep() {
-    let mut i : uint = 0;
+    let mut i : usize = 0;
     loop {
         i += 1;
         if i > 1000 {
@@ -21,8 +21,8 @@ fn sleep() {
 }
 
 fn get_key<SPI : spi::SPI, Pin : gpio::Pin>
-        (spi: &SPI, cs: &Pin, idx : u8, key : &mut [u8,..8]) {
-    let addr = idx as uint * 64;
+        (spi: &SPI, cs: &Pin, idx : u8, key : &mut [u8;8]) {
+    let addr = idx as usize * 64;
 
     cs.set();
     sleep();
@@ -49,7 +49,7 @@ impl <SPI : spi::SPI, Pin : gpio::Pin> FlashAttr<SPI, Pin> {
     pub fn initialize(spi: SPI, cs: Pin,
                       mosi: Pin, miso: Pin,
                       sclk: Pin) -> FlashAttr<SPI, Pin> {
-        let mut keys = [[0,..8],..16];
+        let mut keys = [[0;8];16];
 
         cs.make_output();
 
@@ -61,14 +61,14 @@ impl <SPI : spi::SPI, Pin : gpio::Pin> FlashAttr<SPI, Pin> {
         spi.set_baud_rate(8);
 
         for i in range(0,16) {
-            get_key(&spi, &cs, i, &mut keys[i as uint]);
+            get_key(&spi, &cs, i, &mut keys[i as usize]);
         }
 
         FlashAttr{spi: spi, cs: cs, keys: keys}
     }
 
-    pub fn do_attr(self, key : &str, f: |u8|) -> bool {
-        let mut idx : uint = 0;
+    pub fn do_attr<F: FnMut(u8)>(self, key : &str, f: F) -> bool {
+        let mut idx : usize = 0;
         let mut res_idx = None;
         for k in self.keys.iter() {
             if cmp_keys(key, *k) {
@@ -87,7 +87,7 @@ impl <SPI : spi::SPI, Pin : gpio::Pin> FlashAttr<SPI, Pin> {
         }
     }
 
-    pub fn do_attr_at_idx(self, idx: uint, f: |u8|) {
+    pub fn do_attr_at_idx<F: FnMut(u8)>(self, idx: usize, mut f: F) {
         let addr = idx * 64;
 
         self.cs.set();
@@ -103,11 +103,11 @@ impl <SPI : spi::SPI, Pin : gpio::Pin> FlashAttr<SPI, Pin> {
         self.spi.write_read(0, false);
 
         for _i in range(0,8) {
-            let _x : uint = _i;
+            let _x : usize = _i;
             self.spi.write_read(0, false);
         }
 
-        let len = self.spi.write_read(0, false) as uint;
+        let len = self.spi.write_read(0, false) as usize;
 
         for _i in range(0, len) {
             f(self.spi.write_read(0, false) as u8);
@@ -117,9 +117,9 @@ impl <SPI : spi::SPI, Pin : gpio::Pin> FlashAttr<SPI, Pin> {
         self.cs.set();
     }
 
-    pub fn get_attr(self, key : &str, value: &mut [u8,..256]) -> uint {
+    pub fn get_attr(self, key : &str, value: &mut [u8;256]) -> usize {
         let mut len = -1;
-        self.do_attr(key, |c| {
+        self.do_attr(key, |&mut: c| {
             len += 1;
             value[len] = c;
         });
@@ -127,7 +127,7 @@ impl <SPI : spi::SPI, Pin : gpio::Pin> FlashAttr<SPI, Pin> {
     }
 }
 
-fn cmp_keys(key1 : &str, key2: [u8,..8]) -> bool {
+fn cmp_keys(key1 : &str, key2: [u8;8]) -> bool {
     use core::prelude::*;
 
     if key1.len() > 8 {

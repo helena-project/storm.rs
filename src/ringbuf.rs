@@ -4,14 +4,14 @@ use core::intrinsics::*;
 use core::ptr;
 
 pub struct RingBuf<T> {
-    pub head : uint,
-    pub tail : uint,
-    pub cap  : uint,
+    pub head : usize,
+    pub tail : usize,
+    pub cap  : usize,
     pub buf  : *mut Option<T>
 }
 
 impl <T> RingBuf<T> {
-    pub fn len(&self) -> uint {
+    pub fn len(&self) -> usize {
         (self.tail + self.cap - self.head) % self.cap
     }
 
@@ -25,7 +25,7 @@ impl <T> RingBuf<T> {
         }
 
         unsafe {
-          let tail_elm = offset(self.buf as *const Option<T>, self.tail as int) as *mut Option<T>;
+          let tail_elm = offset(self.buf as *const Option<T>, self.tail as isize) as *mut Option<T>;
           *tail_elm = Some(elm);
         };
         self.tail = next_tail;
@@ -33,7 +33,7 @@ impl <T> RingBuf<T> {
     }
 
     pub unsafe fn dequeue(&mut self) -> Option<T> {
-        let head_elm = offset(self.buf as *const Option<T>, self.head as int);
+        let head_elm = offset(self.buf as *const Option<T>, self.head as isize);
         let elm = ptr::read(head_elm);
         match elm {
             None => None,
@@ -46,7 +46,7 @@ impl <T> RingBuf<T> {
     }
 
     pub unsafe fn peek(&self) -> Option<T> {
-        ptr::read(offset(self.buf as *const Option<T>, self.head as int))
+        ptr::read(offset(self.buf as *const Option<T>, self.head as isize))
     }
 }
 

@@ -1,3 +1,4 @@
+use core::prelude::*;
 use core::intrinsics;
 use nvic;
 use hil::timer::Timer;
@@ -16,10 +17,10 @@ struct AstRegisters {
     //0x20
     ar0 : u32,
     ar1 : u32,
-    reserved0 : [u32, ..2],
+    reserved0 : [u32;2],
     pir0 : u32,
     pir1 : u32,
-    reserved1 : [u32, ..2],
+    reserved1 : [u32;2],
     //0x40
     clock : u32,
     dtr : u32,
@@ -30,7 +31,7 @@ struct AstRegisters {
     //we leave out parameter and version
 }
 
-pub const AST_BASE : int = 0x400F0800;
+pub const AST_BASE : isize = 0x400F0800;
 
 #[allow(missing_copy_implementations)]
 pub struct Ast {
@@ -44,7 +45,6 @@ pub static mut Ast0 : Ast =
 fn noop() {}
 
 #[repr(uint)]
-#[deriving(Copy)]
 pub enum Clock {
     ClockRCSys = 0,
     ClockOsc32 = 1,
@@ -52,6 +52,8 @@ pub enum Clock {
     ClockGclk2 = 3,
     Clock1K = 4
 }
+
+impl Copy for Clock {}
 
 impl Ast {
     pub unsafe fn new(callback: fn()) -> Ast {

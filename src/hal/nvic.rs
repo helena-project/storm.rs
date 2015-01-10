@@ -1,11 +1,11 @@
+use core::prelude::*;
 use core::intrinsics;
 
 #[repr(C, packed)]
 struct Nvic {
-    iser : [u32, ..28]
+    iser : [u32;28]
 }
 
-#[deriving(Copy)]
 pub enum NvicIdx {
     HFLASHC = 0,
     PDCA0,
@@ -87,10 +87,12 @@ pub enum NvicIdx {
     LCDCA
 }
 
+impl Copy for NvicIdx {}
+
 pub fn enable(signal : NvicIdx) {
     let nvic_addr : u32 = 0xe000e100;
     let nvic = unsafe { &mut *(nvic_addr as *mut Nvic)};
-    let int = signal as uint;
+    let int = signal as usize;
 
     unsafe {
         intrinsics::volatile_store(&mut nvic.iser[int / 32], 1 << (int & 31));

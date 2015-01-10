@@ -11,14 +11,14 @@ pub static mut VirtualTimer :
 pub fn virtual_timer_driver_callback() {
     unsafe {
         let mut vt = VirtualTimer.take().unwrap();
-        vt.fire_alarm(|addr: uint| {
+        vt.fire_alarm(|&: addr| {
             UserTask(addr).post();
         });
         VirtualTimer = Some(vt);
     }
 }
 
-pub fn virtual_timer_driver_svc(r1 : uint, r2 : uint) -> int {
+pub fn virtual_timer_driver_svc(r1 : usize, r2 : usize) -> isize {
     unsafe {
         let mut vt = VirtualTimer.take().unwrap();
         let res = vt.set_user_alarm(r1 as u32, r2);

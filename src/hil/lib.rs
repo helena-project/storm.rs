@@ -1,7 +1,7 @@
 #![crate_name = "hil"]
 #![crate_type = "rlib"]
+#![allow(unstable)]
 #![no_std]
-#![feature(globs)]
 
 extern crate core;
 

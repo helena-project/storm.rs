@@ -1,4 +1,5 @@
 use core::intrinsics;
+use core::marker::Copy;
 use hil::gpio;
 
 #[repr(C, packed)]
@@ -31,7 +32,7 @@ struct GpioPort {
     ovrt : u32,
     //0x60
     pvr : u32,
-    reserved0 : [u32, ..3],
+    reserved0 : [u32;3],
     puer : u32,
     puers : u32,
     puerc : u32,
@@ -64,7 +65,7 @@ struct GpioPort {
     ifrc : u32,
     reserved2 : u32,
     //0xE0
-    reserved3 : [u32, ..8],
+    reserved3 : [u32;8],
     //0x100
     odcr0 : u32,
     odcr0s : u32,
@@ -75,34 +76,35 @@ struct GpioPort {
     odcr1c : u32,
     odcr1t : u32,
     //0x120
-    reserved4 : [u32, ..4],
+    reserved4 : [u32;4],
     osrr0 : u32,
     osrr0s : u32,
     osrr0c : u32,
     osrr0t : u32,
     //0x140
-    reserved5: [u32, ..8],
+    reserved5: [u32;8],
     //0x160
     ster : u32,
     sters : u32,
     sterc : u32,
     stert : u32,
-    reserved6 : [u32, ..4],
+    reserved6 : [u32;4],
     //0x180
     ever : u32,
     evers : u32,
     everc : u32,
     evert : u32,
-    reserved7: [u32, ..112]
+    reserved7: [u32;112]
     //0x200 end
 }
 
-#[deriving(Copy)]
 pub enum Port {
     PORT0 = 0x400E1000,
     PORT1 = 0x400E1200,
     PORT2 = 0x400E1400
 }
+
+impl Copy for Port {}
 
 macro_rules! gpio_port(
     ($addr : expr) => (
@@ -112,11 +114,12 @@ macro_rules! gpio_port(
     );
 );
 
-#[deriving(Copy)]
 pub struct Pin {
     pub bus: Port,
-    pub pin: uint,
+    pub pin: usize,
 }
+
+impl Copy for Pin {}
 
 impl gpio::Pin for Pin {
     fn make_output(&self) {
@@ -137,8 +140,8 @@ impl gpio::Pin for Pin {
             intrinsics::volatile_store(&mut gpio.gperc, p);
 
             // Set PMR0-2 according to passed in peripheral
-            let p = 1 << self.pin as uint;
-            let periph = peripheral as uint;
+            let p = 1 << self.pin as usize;
+            let periph = peripheral as usize;
 
             intrinsics::volatile_store(&mut gpio.pmr0,
               ((periph & 1) << p) as u32); // First bit of peripheral

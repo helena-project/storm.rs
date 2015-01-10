@@ -1,15 +1,15 @@
-use core::option::Option;
-use core::option::Option::*;
+use core::prelude::*;
 use ringbuf::RingBuf;
 
-#[deriving(Copy)]
 pub enum Task {
-    UserTask(uint),
+    UserTask(usize),
     KernelTask(fn())
 }
 
-const MAX_TASKS : uint = 10;
-static mut TASK_BUF : [Option<Task>,..MAX_TASKS] = [None,..MAX_TASKS];
+impl Copy for Task {}
+
+const MAX_TASKS : usize = 10;
+static mut TASK_BUF : [Option<Task>;MAX_TASKS] = [None;MAX_TASKS];
 
 pub static mut MANAGER : RingBuf<Task> =
     RingBuf { head: 0, tail: 0, cap: MAX_TASKS,

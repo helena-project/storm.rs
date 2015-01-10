@@ -1,5 +1,5 @@
 RUSTC ?= rustc
-RUSTC_FLAGS += --opt-level 2 -Z no-landing-pads
+RUSTC_FLAGS += -C opt-level=2 -Z no-landing-pads
 RUSTC_FLAGS += --target config/thumbv7em-none-eabi
 RUSTC_FLAGS += -Ctarget-cpu=cortex-m4 -C relocation_model=static
 RUSTC_FLAGS += -g -C no-stack-check -Lbuild/deps -Lbuild

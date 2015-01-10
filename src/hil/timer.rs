@@ -1,3 +1,4 @@
+use core::prelude::*;
 
 pub trait Timer {
     fn now(&self) -> u32;
@@ -6,5 +7,5 @@ pub trait Timer {
 }
 
 pub trait AlarmHandler {
-    fn fire_alarm(&mut self, |uint|);
+    fn fire_alarm<F: FnMut(usize)>(&mut self, F);
 }

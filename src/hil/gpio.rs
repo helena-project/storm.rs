@@ -1,5 +1,5 @@
+use core::prelude::*;
 
-#[deriving(Copy)]
 pub enum PeripheralFunction {
     A = 0b000,
     B = 0b001,
@@ -10,6 +10,8 @@ pub enum PeripheralFunction {
     G = 0b110,
     H = 0b111
 }
+
+impl Copy for PeripheralFunction {}
 
 pub trait Pin {
     fn make_output(&self);

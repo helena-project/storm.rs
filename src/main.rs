@@ -1,7 +1,7 @@
 #![no_main]
 #![no_std]
-#![allow(dead_code)]
-#![feature(globs, asm, slicing_syntax)]
+#![allow(dead_code, unstable)]
+#![feature(asm)]
 
 extern crate core;
 extern crate drivers;
@@ -22,10 +22,10 @@ mod task;
 mod ringbuf;
 pub mod syscall;
 
-static mut PROCESS_STACK : [uint,..4096] = [0,..4096];
+static mut PROCESS_STACK : [usize;4096] = [0;4096];
 
 #[no_mangle]
-pub extern fn main() -> int {
+pub extern fn main() {
     use hal::gpio::*;
     use hal::usart::kstdio::*;
     use hal::pm;
@@ -63,7 +63,7 @@ pub extern fn main() -> int {
         config::config();
     }
 
-    task::Task::UserTask(apps::blinkapp::initialize as uint).post();
+    task::Task::UserTask(apps::blinkapp::initialize as usize).post();
 
     loop {
         match unsafe { task::dequeue() } {

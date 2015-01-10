@@ -1,4 +1,3 @@
-use core::fmt;
 use core::intrinsics;
 use core::prelude::*;
 
@@ -17,7 +16,7 @@ struct UsartRegisters {
     brgr : u32,
     rtor : u32,
     ttgr : u32,
-    reserved0 : [u32,..5],
+    reserved0 : [u32;5],
     //0x40
     fidi : u32,
     ner : u32,
@@ -32,16 +31,17 @@ struct UsartRegisters {
     version : u32
 }
 
-const USART_SIZE : int = 0x4000;
-const USART_BASE_ADDRESS : int = 0x40024000;
+const USART_SIZE : isize = 0x4000;
+const USART_BASE_ADDRESS : isize = 0x40024000;
 
-#[deriving(Copy)]
 pub enum USART {
     USART0 = USART_BASE_ADDRESS,
     USART1 = USART_BASE_ADDRESS + USART_SIZE * 1,
     USART2 = USART_BASE_ADDRESS + USART_SIZE * 2,
     USART3 = USART_BASE_ADDRESS + USART_SIZE * 3,
 }
+
+impl Copy for USART {}
 
 macro_rules! usart (
     ($addr : expr) => (
@@ -127,15 +127,6 @@ impl USART {
       unsafe {
           intrinsics::volatile_store(&mut dev.brgr, cd);
       }
-    }
-}
-
-impl fmt::FormatWriter for USART {
-    fn write(&mut self, bytes: &[u8]) -> ::core::result::Result<(), fmt::Error> {
-        for b in bytes.iter() {
-            self.send_byte(*b);
-        }
-        return ::core::result::Result::Ok(());
     }
 }
 
