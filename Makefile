@@ -8,7 +8,6 @@ RUST_LIBS_LOC ?= lib
 
 OBJCOPY ?= arm-none-eabi-objcopy
 CC = arm-none-eabi-gcc
-LD = arm-none-eabi-ld
 CFLAGS += -g -mcpu=cortex-m4 -mthumb -g -nostdlib
 LDFLAGS += -Tconfig/stormpayload.ld
 
