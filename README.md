@@ -15,26 +15,16 @@ applications from each other and the kernel.
 ## Requirements
 
 1. [Rust](http://www.rust-lang.org/) 1.0-alpha.
-3. [arm-non-eabi toolchain](https://launchpad.net/gcc-arm-embedded/).
-4. stormloader (recommended) or JLinkExe for programming the storm.
+2. [arm-non-eabi toolchain](https://launchpad.net/gcc-arm-embedded/).
+3. stormloader (recommended) or JLinkExe for programming the storm.
+4. Command line utilities: wget, sed, make
 
 ### Installing Requirements
 
 ### Rust
 
-The version of the Rust compiler you use should match the version checkout in
-the `lib/rust` submodule. The easies way to make sure that is the case is to
-compile it from source:
-
-```bash
-$ cd lib/rust
-$ ./configure
-$ make
-$ sudo make install
-```
-
-However, compiling takes a long time. Instead we've mirrored the binary
-distribution of the currently used version for various host operating systems:
+Compiling Rust takes a long time. Instead we've mirrored the binary distribution
+of the currently used version for various host operating systems:
 
   * [Linux 64-bit](http://www.scs.stanford.edu/~alevy/rust/rust-1.0.0-alpha-x86_64-unknown-linux-gnu.tar.gz)
   * [Linux 32-bit](http://www.scs.stanford.edu/~alevy/rust/rust-1.0.0-alpha-i686-unknown-linux-gnu.tar.gz)
@@ -73,6 +63,12 @@ You can obtain stormloader via pip:
 sudo pip install stormloader
 ```
 
+You can update stormloader via pip as well:
+
+```bash
+sudo pip install -U stormloader
+```
+
 ## Building
 
 If all the tools are in your `$PATH`, you should be good to go. Otherwise set the env variables:
@@ -80,34 +76,6 @@ If all the tools are in your `$PATH`, you should be good to go. Otherwise set th
 * `RUSTC` - `rustc` compiler
 * `CC` - `arm-none-eabi-gcc`
 * `OBJCOPY` - `arm-none-eabi-objcopy`
-
-If this is a fresh checkout, you'll need to initialze the Rust submodule:
-
-```bash
-git submodule init
-git submodule update
-```
-
-If you choose to compile Rust from source, you can build a copy from the
-submodule:
-
-```bash
-$ pushd lib/rust
-$ ./configure && make
-```
-
-Once built, you can either install the compiler for your machine, or just point
-this build system to it:
-
-```bash
-$ popd
-  # OS X
-$ MY_PLAT=x86_64-apple-darwin
-$ export RUSTC="DYLD_LIBRARY_PATH=lib/rust/$MY_PLAT/stage2/lib/ lib/rust/$MY_PLAT/stage2/bin/rustc"
-  # Linux-ish
-$ MY_PLAT=x86_64-unknown-linux-gnu
-$ export RUSTC="LD_LIBRARY_PATH=lib/rust/$MY_PLAT/stage2/lib/ lib/rust/$MY_PLAT/stage2/bin/rustc"
-```
 
 You're now ready to build!
 
