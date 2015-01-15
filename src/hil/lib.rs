@@ -5,7 +5,7 @@
 
 extern crate core;
 
-pub use uart::UART;
+pub use uart::*;
 
 mod std {
     pub use core::*;

@@ -13,7 +13,7 @@ extern {
 }
 
 pub mod blinkapp {
-    use platform::sam4l::usart::kstdio::*;
+    // use platform::sam4l::usart::kstdio::*;
     use platform::sam4l::gpio;
     use hil::gpio::*;
 
@@ -24,7 +24,7 @@ pub mod blinkapp {
     #[inline(never)]
     pub fn initialize() {
         LED.make_output();
-        kprint("I'm in the app!\n");
+        // kprint("I'm in the app!\n");
 
         unsafe {
             super::__subscribe(0, 1 << 15, timer_fired as usize);
@@ -39,7 +39,7 @@ pub mod blinkapp {
         unsafe {
             count = count + 1;
             if count % 10 == 0 {
-                kprint("Timer fired 10 times\n");
+                // kprint("Timer fired 10 times\n");
             }
         }
 

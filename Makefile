@@ -68,7 +68,7 @@ $(BUILD_DIR)/libapps.rlib: $(call libs,core hil platform)
 $(BUILD_DIR)/libplatform.rlib: $(call libs,core hil)
 
 # TODO: This should recursively match rs files in dependency list.
-$(BUILD_DIR)/lib%.rlib: src/%/*.rs $(call libs,core) | $(BUILD_DIR)
+$(BUILD_DIR)/lib%.rlib: $(call rwildcard,src/$*/,*.rs) $(call libs,core) | $(BUILD_DIR)
 	@echo "Building $@"
 	@$(RUSTC) $(RUSTC_FLAGS) --out-dir $(BUILD_DIR) src/$*/lib.rs
 

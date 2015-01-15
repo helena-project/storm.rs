@@ -1,5 +1,5 @@
 use core::intrinsics;
-use core::prelude::*;
+use hil::uart;
 
 #[repr(C, packed)]
 #[allow(dead_code)]
@@ -34,127 +34,124 @@ struct UsartRegisters {
 const USART_SIZE : isize = 0x4000;
 const USART_BASE_ADDRESS : isize = 0x40024000;
 
-pub enum USART {
+#[derive(Copy)]
+pub enum BaseAddr {
     USART0 = USART_BASE_ADDRESS,
     USART1 = USART_BASE_ADDRESS + USART_SIZE * 1,
     USART2 = USART_BASE_ADDRESS + USART_SIZE * 2,
     USART3 = USART_BASE_ADDRESS + USART_SIZE * 3,
 }
 
-impl Copy for USART {}
-
-macro_rules! usart (
-    ($addr : expr) => (
-        unsafe {
-            &mut *($addr as u32 as *mut UsartRegisters)
-        }
-    );
-);
+pub struct USART {
+    regs: &'static mut UsartRegisters
+}
 
 impl USART {
-    pub fn init_uart(self) {
-        let dev = usart!(self);
-        let mode = 0 /* mode */ |
-                   0 << 4 /*USCLKS*/ |
-                   3 << 6 /* CHRL 8 bits */ |
-                   4 << 9 /* no parity */ |
-                   0 << 12 /* NBSTOP 1 bit */;
+    pub fn new(base: BaseAddr) -> USART {
+        USART {
+            regs: unsafe { intrinsics::transmute(base) }
+        }
+
+    }
+
+    pub fn enable_rx(&mut self) {
         unsafe {
-            intrinsics::volatile_store(&mut dev.mr, mode);
-            intrinsics::volatile_store(&mut dev.ttgr, 4);
+            intrinsics::volatile_store(&mut self.regs.cr, 1 << 4);
         }
     }
 
-    pub fn enable_rx(self) {
-        let dev = usart!(self);
+    pub fn disable_rx(&mut self) {
         unsafe {
-            intrinsics::volatile_store(&mut dev.cr, 1 << 4);
+            intrinsics::volatile_store(&mut self.regs.cr, 1 << 5);
         }
     }
 
-    pub fn disable_rx(self) {
-        let dev = usart!(self);
+    pub fn enable_tx(&mut self) {
         unsafe {
-            intrinsics::volatile_store(&mut dev.cr, 1 << 5);
+            intrinsics::volatile_store(&mut self.regs.cr, 1 << 6);
         }
     }
 
-    pub fn enable_tx(self) {
-        let dev = usart!(self);
+    pub fn disable_tx(&mut self) {
         unsafe {
-            intrinsics::volatile_store(&mut dev.cr, 1 << 6);
+            intrinsics::volatile_store(&mut self.regs.cr, 1 << 7);
         }
     }
 
-    pub fn disable_tx(self) {
-        let dev = usart!(self);
+    pub fn rx_ready(&self) -> bool {
         unsafe {
-            intrinsics::volatile_store(&mut dev.cr, 1 << 7);
+            intrinsics::volatile_load(&self.regs.csr) & 0x1 != 0
         }
     }
 
-    pub fn rx_ready(self) -> bool {
-        let dev = usart!(self);
+    pub fn tx_ready(&self) -> bool {
         unsafe {
-            intrinsics::volatile_load(&dev.csr) & 0x1 != 0
+            intrinsics::volatile_load(&self.regs.csr) & 0x2 != 0
         }
     }
 
-    pub fn tx_ready(self) -> bool {
-        let dev = usart!(self);
+    pub fn set_baud_rate(&mut self, rate : u32) {
+        let cd = 48000000 / (16 * rate);
         unsafe {
-            intrinsics::volatile_load(&dev.csr) & 0x2 != 0
+            intrinsics::volatile_store(&mut self.regs.brgr, cd);
         }
     }
 
-    pub fn send_byte(self, b : u8) {
-        let dev = usart!(self);
+    pub fn set_mode(&mut self, mode : u32) {
         unsafe {
-            while !self.tx_ready() {}
-            intrinsics::volatile_store(&mut dev.thr, b as u32);
+            intrinsics::volatile_store(&mut self.regs.mr, mode);
         }
-    }
-
-    pub fn print(self, s : &str) {
-        for b in s.bytes() {
-            self.send_byte(b);
-        }
-    }
-
-    pub fn set_baud_rate(self, rate : u32) {
-      let dev = usart!(self);
-      let cd = 48000000 / (16 * rate);
-      unsafe {
-          intrinsics::volatile_store(&mut dev.brgr, cd);
-      }
     }
 }
 
-pub mod kstdio {
-    use super::super::gpio;
-    use hil::gpio::*;
-    use super::super::pm;
+impl uart::UART for USART {
+    fn init(&mut self, params: uart::UARTParams) {
+        let parity = match params.parity {
+            uart::Parity::EVEN => 0,
+            uart::Parity::ODD => 1,
+            uart::Parity::FORCE0 => 2,
+            uart::Parity::FORCE1 => 3,
+            uart::Parity::NONE => 4,
+            uart::Parity::MULTIDROP => 5
+        };
 
-    pub fn kstdio_init() {
+        let chrl = ((params.data_bits - 1) & 0x3) as u32;
 
-        let uart = super::USART::USART3;
-        let p1 = gpio::Pin {bus : gpio::Port::PORT1, pin : 9};
-        p1.set_peripheral_function(PeripheralFunction::A);
-        let p2 = gpio::Pin {bus : gpio::Port::PORT1, pin : 10};
-        p2.set_peripheral_function(PeripheralFunction::A);
-
-        pm::enable_pba_clock(11); // USART3 clock
-        uart.init_uart();
-        uart.set_baud_rate(115200);
-        uart.enable_tx();
+        let mode : u32 = 0 /* mode */ |
+                   0 << 4 /*USCLKS*/ |
+                   chrl << 6 /* CHRL 8 bits */ |
+                   parity << 9 /* no parity */ |
+                   0 << 12 /* NBSTOP 1 bit */;
+        self.set_mode(mode);
+        self.set_baud_rate(params.baud_rate);
+        // This is just copied from TinyOS, not exactly sure how to
+        // generalize
+        unsafe {
+            intrinsics::volatile_store(&mut self.regs.ttgr, 4);
+        }
     }
 
-    pub fn kprint(s : &str) {
-        super::USART::USART3.print(s);
+    fn toggle_tx(&mut self, enable : bool) {
+        if enable {
+            self.enable_tx();
+        } else {
+            self.disable_tx();
+        }
     }
 
-    pub fn kputc(c : char) {
-        super::USART::USART3.send_byte(c as u8);
+    fn toggle_rx(&mut self, enable : bool) {
+        if enable {
+            self.enable_rx();
+        } else {
+            self.disable_rx();
+        }
+    }
+
+    fn send_byte(&mut self, b : u8) {
+        unsafe {
+            while !self.tx_ready() {}
+            intrinsics::volatile_store(&mut self.regs.thr, b as u32);
+        }
     }
 }
 
