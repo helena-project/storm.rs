@@ -34,6 +34,7 @@ CORE_DIR=$(BUILD_DIR)/core
 EXTERN_SRCS=extern
 
 libs = $(addprefix $(BUILD_DIR)/lib,$(addsuffix .rlib,$(1)))
+rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))
 
 all: $(SDB)
 
@@ -66,11 +67,12 @@ $(BUILD_DIR)/libcore.rlib: $(CORE_DIR)/libcore.rlib | $(BUILD_DIR)
 $(BUILD_DIR)/libapps.rlib: $(call libs,core hil hal)
 $(BUILD_DIR)/libhal.rlib: $(call libs,core hil)
 
+# TODO: This should recursively match rs files in dependency list.
 $(BUILD_DIR)/lib%.rlib: src/%/*.rs $(call libs,core) | $(BUILD_DIR)
 	@echo "Building $@"
 	@$(RUSTC) $(RUSTC_FLAGS) --out-dir $(BUILD_DIR) src/$*/lib.rs
 
-$(BUILD_DIR)/libdrivers.rlib: src/drivers/*.rs $(call libs,core hil)
+$(BUILD_DIR)/libdrivers.rlib: $(call rwildcard,src/drivers/,*.rs) $(call libs,core hil)
 	@echo "Building $@"
 	@$(RUSTC) $(RUSTC_FLAGS) -F unsafe-blocks --out-dir $(BUILD_DIR) src/drivers/lib.rs
 
