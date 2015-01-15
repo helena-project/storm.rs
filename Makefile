@@ -4,7 +4,7 @@ RUSTC_FLAGS += --target config/thumbv7em-none-eabi
 RUSTC_FLAGS += -Ctarget-cpu=cortex-m4 -C relocation_model=static
 RUSTC_FLAGS += -g -C no-stack-check -Lbuild
 
-VERSION_CMD = rustc --version | sed 's/[^(]*(\([^ ]*\).*/\1/'
+VERSION_CMD = rustc --version | head -n 1 | sed 's/[^(]*(\([^ ]*\).*/\1/'
 RUSTC_VERSION=$(shell $(VERSION_CMD))
 
 OBJCOPY ?= arm-none-eabi-objcopy
@@ -64,8 +64,8 @@ $(BUILD_DIR)/libcore.rlib: $(CORE_DIR)/libcore.rlib | $(BUILD_DIR)
 	@echo "Copying $< to $@"
 	@cp $< $@
 
-$(BUILD_DIR)/libapps.rlib: $(call libs,core hil hal)
-$(BUILD_DIR)/libhal.rlib: $(call libs,core hil)
+$(BUILD_DIR)/libapps.rlib: $(call libs,core hil platform)
+$(BUILD_DIR)/libplatform.rlib: $(call libs,core hil)
 
 # TODO: This should recursively match rs files in dependency list.
 $(BUILD_DIR)/lib%.rlib: src/%/*.rs $(call libs,core) | $(BUILD_DIR)
@@ -80,7 +80,7 @@ $(BUILD_DIR)/%.o: c/%.c | $(BUILD_DIR)
 	@echo "Compiling $^"
 	@$(CC) $(CFLAGS) -c -o $@ $^
 
-$(BUILD_DIR)/main.o: $(RUST_SOURCES) $(call libs,core support hal drivers apps)
+$(BUILD_DIR)/main.o: $(RUST_SOURCES) $(call libs,core support platform drivers apps)
 	@echo "Building $@"
 	@$(RUSTC) $(RUSTC_FLAGS) -C lto --emit obj -o $@ src/main.rs
 

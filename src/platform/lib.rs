@@ -1,4 +1,4 @@
-#![crate_name = "drivers"]
+#![crate_name = "platform"]
 #![crate_type = "rlib"]
 #![allow(unstable)]
 #![no_std]
@@ -10,6 +10,4 @@ mod std {
     pub use core::*;
 }
 
-pub mod flash_attr;
-pub mod timer;
-pub mod uart;
+pub mod sam4l;

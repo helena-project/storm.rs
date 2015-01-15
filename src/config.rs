@@ -1,12 +1,12 @@
 use core::prelude::*;
-use hal;
+use platform::sam4l::ast;
 use hil::timer::AlarmHandler;
 use drivers;
 use syscall;
 use task::Task::UserTask;
 
 pub static mut VirtualTimer :
-    Option<drivers::timer::VirtualTimer<hal::ast::Ast>> = None;
+    Option<drivers::timer::VirtualTimer<ast::Ast>> = None;
 
 pub fn virtual_timer_driver_callback() {
     unsafe {
@@ -28,7 +28,7 @@ pub fn virtual_timer_driver_svc(r1 : usize, r2 : usize) -> isize {
 }
 
 pub unsafe fn config() {
-    let mut ast = hal::ast::Ast::new(virtual_timer_driver_callback);
+    let mut ast = ast::Ast::new(virtual_timer_driver_callback);
     ast.setup();
     VirtualTimer = Some(drivers::timer::VirtualTimer::initialize(ast));
     syscall::DRIVERS[0] = virtual_timer_driver_svc;

@@ -131,9 +131,9 @@ impl USART {
 }
 
 pub mod kstdio {
-    use gpio;
+    use super::super::gpio;
     use hil::gpio::*;
-    use pm;
+    use super::super::pm;
 
     pub fn kstdio_init() {
 

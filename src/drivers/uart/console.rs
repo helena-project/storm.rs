@@ -1,4 +1,4 @@
-use hal::UART;
+use hil::UART;
 
 pub struct InitParams {
     pub baud_rate: u32,

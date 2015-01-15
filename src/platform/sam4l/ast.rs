@@ -1,6 +1,6 @@
 use core::prelude::*;
 use core::intrinsics;
-use nvic;
+use super::nvic;
 use hil::timer::Timer;
 
 #[repr(C, packed)]

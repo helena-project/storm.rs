@@ -5,7 +5,7 @@
 
 extern crate core;
 extern crate drivers;
-extern crate hal;
+extern crate platform;
 extern crate hil;
 extern crate support;
 
@@ -27,9 +27,9 @@ static mut PROCESS_STACK : [usize; 4096] = [0; 4096];
 // Mock UART Usage
 
 struct MyUart;
-impl hal::UART for MyUart {
+impl hil::UART for MyUart {
     fn send(&self, thing: &str) {
-        use hal::usart::kstdio::*;
+        use platform::sam4l::usart::kstdio::*;
         kprint(thing);
     }
 }
@@ -53,11 +53,10 @@ fn init_console() {
 
 #[no_mangle]
 pub extern fn main() {
-    use hal::gpio::*;
-    use hal::usart::kstdio::*;
-    use hal::pm;
-    use hal::pm::*;
-    use hal::spi;
+    use platform::sam4l::gpio::*;
+    use platform::sam4l::usart::kstdio::*;
+    use platform::sam4l::{spi, pm};
+    use platform::sam4l::pm::*;
     use task;
     use task::Task::*;
 

@@ -2,7 +2,7 @@
 #![crate_type = "rlib"]
 #![no_std]
 
-extern crate hal;
+extern crate platform;
 extern crate hil;
 
 #[allow(improper_ctypes)]
@@ -13,8 +13,8 @@ extern {
 }
 
 pub mod blinkapp {
-    use hal::usart::kstdio::*;
-    use hal::gpio;
+    use platform::sam4l::usart::kstdio::*;
+    use platform::sam4l::gpio;
     use hil::gpio::*;
 
     static LED : gpio::Pin = gpio::Pin { bus : gpio::Port::PORT2, pin: 10 };
