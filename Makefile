@@ -4,10 +4,8 @@ RUSTC_FLAGS += --target config/thumbv7em-none-eabi
 RUSTC_FLAGS += -Ctarget-cpu=cortex-m4 -C relocation_model=static
 RUSTC_FLAGS += -g -C no-stack-check -Lbuild
 
-# This should be changed to reflect the real local version for core library
-# checkout. For now, we'll use the alpha version since we don't know the format
-# Rust uses for versioned tarballs.
-RUSTC_VERSION=1.0.0-alpha
+VERSION_CMD = rustc --version | sed 's/[^(]*(\([^ ]*\).*/\1/'
+RUSTC_VERSION=$(shell $(VERSION_CMD))
 
 OBJCOPY ?= arm-none-eabi-objcopy
 CC = arm-none-eabi-gcc
@@ -44,7 +42,7 @@ $(BUILD_DIR) $(CORE_DIR):
 $(CORE_DIR)/rustc-$(RUSTC_VERSION)-src.tar.gz: | $(CORE_DIR)
 	@echo "Fetching $(@F)"
 	@mkdir -p $(CORE_DIR)/rustc
-	@wget -q -O $@ https://static.rust-lang.org/dist/$(@F)
+	@wget -q -O $@ https://github.com/rust-lang/rust/archive/$(RUSTC_VERSION).tar.gz
 
 $(CORE_DIR)/libcore.rlib: $(CORE_DIR)/rustc-$(RUSTC_VERSION)-src.tar.gz
 	@echo "Untarring $(<F)"
