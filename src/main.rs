@@ -22,7 +22,34 @@ mod task;
 mod ringbuf;
 pub mod syscall;
 
-static mut PROCESS_STACK : [usize;4096] = [0;4096];
+static mut PROCESS_STACK : [usize; 4096] = [0; 4096];
+
+// Mock UART Usage
+
+struct MyUart;
+impl hal::UART for MyUart {
+    fn send(&self, thing: &str) {
+        use hal::usart::kstdio::*;
+        kprint(thing);
+    }
+}
+
+fn init_console() {
+    let uart_1 = MyUart;
+    let console = drivers::uart::console::init(uart_1,
+        drivers::uart::console::InitParams {
+            baud_rate: 115200,
+            data_bits: 8,
+            parity: false,
+            stop_bits: 1
+        }
+    );
+
+    console.speak("Hi there.\n");
+    console.speak("Hello thar!\n");
+}
+
+// End of mock UART usage
 
 #[no_mangle]
 pub extern fn main() {
@@ -37,6 +64,9 @@ pub extern fn main() {
     use drivers::flash_attr::FlashAttr;
 
     kstdio_init();
+
+    init_console();
+
     spi::set_mode(spi::MSTR::Master, spi::PS::Variable,
                       spi::RXFIFO::Disable, spi::MODFAULT::Disable);
     spi::enable();

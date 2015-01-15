@@ -5,6 +5,7 @@
 
 extern crate core;
 extern crate hil;
+extern crate hal;
 
 mod std {
     pub use core::*;
@@ -12,4 +13,4 @@ mod std {
 
 pub mod flash_attr;
 pub mod timer;
-
+pub mod uart;
