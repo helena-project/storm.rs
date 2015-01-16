@@ -57,7 +57,7 @@ $(EXTERN_SRCS)/rustc/src/libcore/lib.rs: $(EXTERN_SRCS)/rustc-$(RUSTC_VERSION)-s
 # a stupid bug.
 $(CORE_DIR)/libcore.rlib: $(EXTERN_SRCS)/rustc/src/libcore/lib.rs
 	@echo "Building $@"
-	@$(RUSTC) $(RUSTC_FLAGS) -C opt-level=0 --out-dir $(CORE_DIR) $(EXTERN_SRCS)/rustc/src/libcore/lib.rs
+	@$(RUSTC) $(RUSTC_FLAGS) --out-dir $(CORE_DIR) $(EXTERN_SRCS)/rustc/src/libcore/lib.rs
 
 $(BUILD_DIR)/libcore.rlib: $(CORE_DIR)/libcore.rlib | $(BUILD_DIR)
 	@echo "Copying $< to $@"
