@@ -44,11 +44,16 @@ $(CORE_DIR)/rustc-$(RUSTC_VERSION)-src.tar.gz: | $(CORE_DIR)
 	@mkdir -p $(CORE_DIR)/rustc
 	@wget -q -O $@ https://github.com/rust-lang/rust/archive/$(RUSTC_VERSION).tar.gz
 
+# Overrides `opt-level` because for some reason `opt-level=2` includes an
+# `__aeabi_memset` (an GCC intrinsic available during linking) that doesn't get
+# resolved when compiling main.o, even though it seems to be available for some
+# other crates. This works for now, but should be fixed ASAP, this is obviously
+# a stupid bug.
 $(CORE_DIR)/libcore.rlib: $(CORE_DIR)/rustc-$(RUSTC_VERSION)-src.tar.gz
 	@echo "Untarring $(<F)"
 	@tar -C $(CORE_DIR)/rustc -zx --strip-components=1 -f $^
 	@echo "Building $@"
-	@$(RUSTC) $(RUSTC_FLAGS) --out-dir $(CORE_DIR) $(CORE_DIR)/rustc/src/libcore/lib.rs
+	@$(RUSTC) $(RUSTC_FLAGS) -C opt-level=0 --out-dir $(CORE_DIR) $(CORE_DIR)/rustc/src/libcore/lib.rs
 
 $(BUILD_DIR)/libcore.rlib: $(CORE_DIR)/libcore.rlib | $(BUILD_DIR)
 	@echo "Copying $< to $@"
