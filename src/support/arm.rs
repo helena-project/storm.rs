@@ -59,16 +59,3 @@ pub unsafe extern fn __aeabi_unwind_cpp_pr1() {
   abort();
 }
 
-#[doc(hidden)]
-#[no_stack_check]
-#[no_mangle]
-pub unsafe extern fn __aeabi_memset(dest: *mut u8, count: usize, value: i32) {
-    super::memset(dest, value, count);
-}
-
-#[doc(hidden)]
-#[no_stack_check]
-#[no_mangle]
-pub unsafe extern fn __aeabi_memcpy(dest: *mut u8, src: *const u8, n: usize) {
-  super::memcpy(dest, src, n);
-}

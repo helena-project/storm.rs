@@ -16,6 +16,7 @@
  */
 
 #include <stdint.h>
+#include <string.h>
  
 // Symbols defined in the storm linker file
 extern uint32_t _sfixed;
@@ -275,4 +276,8 @@ void Reset_Handler(void)
 	main();
 
 }
+
+extern void __aeabi_memset(void* dest, unsigned int count, int value);
+
+extern void __aeabi_memcpy(void* dest, void* src, unsigned int n);
 
