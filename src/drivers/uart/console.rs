@@ -1,12 +1,11 @@
-use hil::{UART, UARTParams};
-use hil::uart;
+use hil::{UART, UARTParams, Parity};
 use core::prelude::*;
 
 #[derive(Copy)]
 pub struct InitParams {
     pub baud_rate: u32,
     pub data_bits: u8,
-    pub parity: uart::Parity
+    pub parity: Parity
 }
 
 pub struct Console<T: UART> {
@@ -31,7 +30,6 @@ impl<T: UART> Console<T> {
 }
 
 pub fn init<T: UART>(mut uart: T, params: InitParams) -> Console<T> {
-
     uart.init(UARTParams {
         baud_rate: params.baud_rate,
         data_bits: params.data_bits,

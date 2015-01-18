@@ -6,43 +6,43 @@ use drivers;
 use syscall;
 use task::Task::UserTask;
 
-pub static mut VirtualTimer :
+pub static mut VirtualTimer:
     Option<drivers::timer::VirtualTimer<ast::Ast>> = None;
 
 pub fn virtual_timer_driver_callback() {
-    unsafe {
-        let mut vt = VirtualTimer.take().unwrap();
-        vt.fire_alarm(|&: addr| {
-            UserTask(addr).post();
-        });
-        VirtualTimer = Some(vt);
-    }
+    let mut vt = unsafe {
+        VirtualTimer.as_mut().expect("VirtualTimer is None!")
+    };
+
+    vt.fire_alarm(|&: addr| {
+        UserTask(addr).post();
+    });
 }
 
-pub fn virtual_timer_driver_svc(r1 : usize, r2 : usize) -> isize {
-    unsafe {
-        let mut vt = VirtualTimer.take().unwrap();
-        let res = vt.set_user_alarm(r1 as u32, r2);
-        VirtualTimer = Some(vt);
-        return res;
-    }
+pub fn virtual_timer_driver_svc(r1: usize, r2: usize) -> isize {
+    let mut vt = unsafe {
+        VirtualTimer.as_mut().expect("VirtualTimer is None!")
+    };
+
+    vt.set_user_alarm(r1 as u32, r2)
 }
 
-pub static mut Console :
+pub static mut Console:
     Option<drivers::uart::console::Console<usart::USART>> = None;
 
 pub fn console_driver_writec_svc(r1: usize, _: usize) -> isize {
-    unsafe {
-        let mut console = Console.take().unwrap();
-        console.putc(r1 as u8);
-        Console = Some(console);
-        return 0;
-    }
+    let mut console = unsafe {
+        Console.as_mut().expect("Console is None!")
+    };
+
+    console.putc(r1 as u8);
+    0
 }
 
 pub unsafe fn config() {
     let mut ast = ast::Ast::new(virtual_timer_driver_callback);
     ast.setup();
+
     VirtualTimer = Some(drivers::timer::VirtualTimer::initialize(ast));
     syscall::SUBSCRIBE_DRIVERS[0] = virtual_timer_driver_svc;
     syscall::NUM_SUBSCRIBE_DRIVERS += 1;
@@ -64,12 +64,14 @@ fn init_console() -> drivers::uart::console::Console<usart::USART> {
     });
 
     // Set up as USB output
-    let p1 = gpio::Pin {bus : gpio::Port::PORT1, pin : 9};
+    let p1 = gpio::Pin {bus: gpio::Port::PORT1, pin: 9};
     p1.set_peripheral_function(PeripheralFunction::A);
-    let p2 = gpio::Pin {bus : gpio::Port::PORT1, pin : 10};
+
+    let p2 = gpio::Pin {bus: gpio::Port::PORT1, pin: 10};
     p2.set_peripheral_function(PeripheralFunction::A);
 
-    // USART3 clock; this should probably be in USART's init
+    // USART3 clock; this should probably be in USART's init, and should likely
+    // depend on the location.
     pm::enable_pba_clock(11);
 
     let console = drivers::uart::console::init(uart_3,

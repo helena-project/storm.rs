@@ -1,6 +1,8 @@
 use core::intrinsics;
 use hil::uart;
 
+#[allow(dead_code)]
+
 // This should likely be moved to a better location. Maybe hil?
 macro_rules! volatile {
     ($item:expr) => ({
@@ -15,7 +17,6 @@ macro_rules! volatile {
 }
 
 #[repr(C, packed)]
-#[allow(dead_code)]
 struct UsartRegisters {
     cr: u32,
     mr: u32,
@@ -82,6 +83,7 @@ impl USART {
     // with enums when there are choices and not just numbers, and passing the
     // struct to this function. As is, it's too easy to make a mistake.
     unsafe fn set_mode(&mut self, mode: u32) {
+        #![allow(unused_unsafe)]
         volatile!(self.regs.mr = mode);
     }
 
@@ -130,4 +132,3 @@ impl uart::UART for USART {
         }
     }
 }
-
