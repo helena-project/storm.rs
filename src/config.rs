@@ -76,7 +76,7 @@ fn init_console() -> drivers::uart::console::Console<usart::USART> {
         drivers::uart::console::InitParams {
             baud_rate: 115200,
             data_bits: 8,
-            parity: uart::Parity::NONE
+            parity: uart::Parity::None
         }
     );
 

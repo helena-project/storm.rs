@@ -96,21 +96,12 @@ impl USART {
 
 impl uart::UART for USART {
     fn init(&mut self, params: uart::UARTParams) {
-        let parity = match params.parity {
-            uart::Parity::EVEN => 0,
-            uart::Parity::ODD => 1,
-            uart::Parity::FORCE0 => 2,
-            uart::Parity::FORCE1 => 3,
-            uart::Parity::NONE => 4,
-            uart::Parity::MULTIDROP => 5
-        };
-
         let chrl = ((params.data_bits - 1) & 0x3) as u32;
-        let mode : u32 = 0 /* mode */ |
-                   0 << 4 /*USCLKS*/ |
-                   chrl << 6 /* CHRL 8 bits */ |
-                   parity << 9 /* no parity */ |
-                   0 << 12 /* NBSTOP 1 bit */;
+        let mode = 0 /* mode */
+            | 0 << 4 /*USCLKS*/
+            | chrl << 6 /* Character Length */
+            | (params.parity as u32) << 9 /* Parity */
+            | 0 << 12; /* Number of stop bits = 1 */;
 
         unsafe { self.set_mode(mode); }
         self.set_baud_rate(params.baud_rate);

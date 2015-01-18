@@ -1,11 +1,11 @@
 #[derive(Copy)]
 pub enum Parity {
-    EVEN,
-    ODD,
-    FORCE0,
-    FORCE1,
-    NONE,
-    MULTIDROP
+    Even = 0,
+    Odd = 1,
+    ForceZero = 2,
+    ForceOne = 3,
+    None = 4,
+    Multidrop = 6
 }
 
 #[derive(Copy)]
