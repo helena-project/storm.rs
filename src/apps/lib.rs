@@ -2,8 +2,11 @@
 #![crate_type = "rlib"]
 #![no_std]
 
+extern crate core;
 extern crate platform;
 extern crate hil;
+
+use core::prelude::*;
 
 #[allow(improper_ctypes)]
 extern {
@@ -12,8 +15,16 @@ extern {
     fn __wait() -> isize;
 }
 
+fn writeln(line: &str) {
+    unsafe {
+        for byte in line.bytes() {
+            __command(0, byte as usize, 0);
+        }
+        __command(0, '\n' as usize, 0);
+    }
+}
+
 pub mod blinkapp {
-    // use platform::sam4l::usart::kstdio::*;
     use platform::sam4l::gpio;
     use hil::gpio::*;
 
@@ -24,7 +35,7 @@ pub mod blinkapp {
     #[inline(never)]
     pub fn initialize() {
         LED.make_output();
-        // kprint("I'm in the app!\n");
+        super::writeln("I'm in the app!");
 
         unsafe {
             super::__subscribe(0, 1 << 15, timer_fired as usize);
@@ -39,7 +50,7 @@ pub mod blinkapp {
         unsafe {
             count = count + 1;
             if count % 10 == 0 {
-                // kprint("Timer fired 10 times\n");
+                super::writeln("Timer fired 10 times");
             }
         }
 

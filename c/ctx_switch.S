@@ -8,6 +8,7 @@
 .globl __ctx_to_master
 .globl __ctx_to_user
 .globl __subscribe
+.globl __command
 .globl __wait
 
 .thumb_func
