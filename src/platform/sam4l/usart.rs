@@ -48,7 +48,7 @@ const USART_SIZE: usize = 0x4000;
 const USART_BASE_ADDRESS: usize = 0x40024000;
 
 #[derive(Copy)]
-pub enum BaseAddr {
+pub enum Location {
     USART0 = 0,
     USART1 = 1,
     USART2 = 2,
@@ -60,8 +60,8 @@ pub struct USART {
 }
 
 impl USART {
-    pub fn new(base: BaseAddr) -> USART {
-        let address = USART_BASE_ADDRESS + (base as usize) * USART_SIZE;
+    pub fn new(location: Location) -> USART {
+        let address = USART_BASE_ADDRESS + (location as usize) * USART_SIZE;
 
         USART {
             regs: unsafe { intrinsics::transmute(address) }

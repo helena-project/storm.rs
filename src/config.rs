@@ -59,7 +59,7 @@ fn init_console() -> drivers::uart::console::Console<usart::USART> {
     use hil::gpio::*;
     use hil::uart;
     use platform::sam4l::pm;
-    let uart_3 = usart::USART::new(usart::BaseAddr::USART3);
+    let uart_3 = usart::USART::new(usart::Location::USART3);
 
     let p1 = gpio::Pin {bus : gpio::Port::PORT1, pin : 9};
     p1.set_peripheral_function(PeripheralFunction::A);
