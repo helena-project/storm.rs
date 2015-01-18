@@ -1,6 +1,19 @@
 use core::intrinsics;
 use hil::uart;
 
+// This should likely be moved to a better location. Maybe hil?
+macro_rules! volatile {
+    ($item:expr) => ({
+        use core::intrinsics::volatile_load;
+        unsafe { volatile_load(&$item) }
+    });
+
+    ($item:ident = $value:expr) => ({
+        use core::intrinsics::volatile_store;
+        unsafe { volatile_store(&mut $item, $value); }
+    });
+}
+
 #[repr(C, packed)]
 #[allow(dead_code)]
 struct UsartRegisters {
@@ -31,15 +44,15 @@ struct UsartRegisters {
     version: u32
 }
 
-const USART_SIZE : isize = 0x4000;
-const USART_BASE_ADDRESS : isize = 0x40024000;
+const USART_SIZE: usize = 0x4000;
+const USART_BASE_ADDRESS: usize = 0x40024000;
 
 #[derive(Copy)]
 pub enum BaseAddr {
-    USART0 = USART_BASE_ADDRESS,
-    USART1 = USART_BASE_ADDRESS + USART_SIZE * 1,
-    USART2 = USART_BASE_ADDRESS + USART_SIZE * 2,
-    USART3 = USART_BASE_ADDRESS + USART_SIZE * 3,
+    USART0 = 0,
+    USART1 = 1,
+    USART2 = 2,
+    USART3 = 3,
 }
 
 pub struct USART {
@@ -48,59 +61,31 @@ pub struct USART {
 
 impl USART {
     pub fn new(base: BaseAddr) -> USART {
+        let address = USART_BASE_ADDRESS + (base as usize) * USART_SIZE;
+
         USART {
-            regs: unsafe { intrinsics::transmute(base) }
-        }
-
-    }
-
-    pub fn enable_rx(&mut self) {
-        unsafe {
-            intrinsics::volatile_store(&mut self.regs.cr, 1 << 4);
+            regs: unsafe { intrinsics::transmute(address) }
         }
     }
 
-    pub fn disable_rx(&mut self) {
-        unsafe {
-            intrinsics::volatile_store(&mut self.regs.cr, 1 << 5);
-        }
+    fn set_baud_rate(&mut self, baud_rate: u32) {
+        let cd = 48000000 / (16 * baud_rate);
+        volatile!(self.regs.brgr = cd);
     }
 
-    pub fn enable_tx(&mut self) {
-        unsafe {
-            intrinsics::volatile_store(&mut self.regs.cr, 1 << 6);
-        }
-    }
-
-    pub fn disable_tx(&mut self) {
-        unsafe {
-            intrinsics::volatile_store(&mut self.regs.cr, 1 << 7);
-        }
+    // This can be made safe by having a struct represent the mode register,
+    // with enums when there are choices and not just numbers, and passing the
+    // struct to this function. As is, it's too easy to make a mistake.
+    unsafe fn set_mode(&mut self, mode: u32) {
+        volatile!(self.regs.mr = mode);
     }
 
     pub fn rx_ready(&self) -> bool {
-        unsafe {
-            intrinsics::volatile_load(&self.regs.csr) & 0x1 != 0
-        }
+        volatile!(self.regs.csr) & 0b1 != 0
     }
 
     pub fn tx_ready(&self) -> bool {
-        unsafe {
-            intrinsics::volatile_load(&self.regs.csr) & 0x2 != 0
-        }
-    }
-
-    pub fn set_baud_rate(&mut self, rate : u32) {
-        let cd = 48000000 / (16 * rate);
-        unsafe {
-            intrinsics::volatile_store(&mut self.regs.brgr, cd);
-        }
-    }
-
-    pub fn set_mode(&mut self, mode : u32) {
-        unsafe {
-            intrinsics::volatile_store(&mut self.regs.mr, mode);
-        }
+        volatile!(self.regs.csr) & 0b10 != 0
     }
 }
 
@@ -116,41 +101,36 @@ impl uart::UART for USART {
         };
 
         let chrl = ((params.data_bits - 1) & 0x3) as u32;
-
         let mode : u32 = 0 /* mode */ |
                    0 << 4 /*USCLKS*/ |
                    chrl << 6 /* CHRL 8 bits */ |
                    parity << 9 /* no parity */ |
                    0 << 12 /* NBSTOP 1 bit */;
-        self.set_mode(mode);
+
+        unsafe { self.set_mode(mode); }
         self.set_baud_rate(params.baud_rate);
-        // This is just copied from TinyOS, not exactly sure how to
-        // generalize
-        unsafe {
-            intrinsics::volatile_store(&mut self.regs.ttgr, 4);
-        }
+        // Copied from TinyOS, not exactly sure how to generalize
+        volatile!(self.regs.ttgr = 4);
     }
 
-    fn toggle_tx(&mut self, enable : bool) {
+    fn send_byte(&mut self, byte: u8) {
+        while !self.tx_ready() {}
+        volatile!(self.regs.thr = byte as u32);
+    }
+
+    fn toggle_rx(&mut self, enable: bool) {
         if enable {
-            self.enable_tx();
+            volatile!(self.regs.cr = 1 << 4);
         } else {
-            self.disable_tx();
+            volatile!(self.regs.cr = 1 << 5);
         }
     }
 
-    fn toggle_rx(&mut self, enable : bool) {
+    fn toggle_tx(&mut self, enable: bool) {
         if enable {
-            self.enable_rx();
+            volatile!(self.regs.cr = 1 << 6);
         } else {
-            self.disable_rx();
-        }
-    }
-
-    fn send_byte(&mut self, b : u8) {
-        unsafe {
-            while !self.tx_ready() {}
-            intrinsics::volatile_store(&mut self.regs.thr, b as u32);
+            volatile!(self.regs.cr = 1 << 7);
         }
     }
 }
