@@ -44,8 +44,8 @@ struct UsartRegisters {
     version: u32
 }
 
-const USART_SIZE: usize = 0x4000;
-const USART_BASE_ADDRESS: usize = 0x40024000;
+const SIZE: usize = 0x4000;
+const BASE_ADDRESS: usize = 0x40024000;
 
 #[derive(Copy)]
 pub enum Location {
@@ -55,13 +55,18 @@ pub enum Location {
     USART3 = 3,
 }
 
+#[derive(Copy)]
+pub struct Params {
+    pub location: Location,
+}
+
 pub struct USART {
     regs: &'static mut UsartRegisters
 }
 
 impl USART {
-    pub fn new(location: Location) -> USART {
-        let address = USART_BASE_ADDRESS + (location as usize) * USART_SIZE;
+    pub fn new(params: Params) -> USART {
+        let address = BASE_ADDRESS + (params.location as usize) * SIZE;
 
         USART {
             regs: unsafe { intrinsics::transmute(address) }

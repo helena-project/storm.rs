@@ -55,18 +55,22 @@ pub unsafe fn config() {
 
 // Mock UART Usage
 fn init_console() -> drivers::uart::console::Console<usart::USART> {
-    use platform::sam4l::gpio;
+    use platform::sam4l::{gpio, pm};
     use hil::gpio::*;
     use hil::uart;
-    use platform::sam4l::pm;
-    let uart_3 = usart::USART::new(usart::Location::USART3);
 
+    let uart_3 = usart::USART::new(usart::Params {
+        location: usart::Location::USART3
+    });
+
+    // Set up as USB output
     let p1 = gpio::Pin {bus : gpio::Port::PORT1, pin : 9};
     p1.set_peripheral_function(PeripheralFunction::A);
     let p2 = gpio::Pin {bus : gpio::Port::PORT1, pin : 10};
     p2.set_peripheral_function(PeripheralFunction::A);
 
-    pm::enable_pba_clock(11); // USART3 clock
+    // USART3 clock; this should probably be in USART's init
+    pm::enable_pba_clock(11);
 
     let console = drivers::uart::console::init(uart_3,
         drivers::uart::console::InitParams {
