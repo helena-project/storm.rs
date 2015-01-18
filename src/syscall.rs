@@ -9,8 +9,11 @@ extern {
 
 fn noop(_ : usize, _ : usize) -> isize { -1 }
 
-pub static mut DRIVERS : [fn(usize, usize) -> isize;10] = [noop;10];
-pub static mut NUM_DRIVERS : usize = 0;
+pub static mut SUBSCRIBE_DRIVERS : [fn(usize, usize) -> isize;10] = [noop;10];
+pub static mut NUM_SUBSCRIBE_DRIVERS : usize = 0;
+
+pub static mut CMD_DRIVERS : [fn(usize, usize) -> isize;10] = [noop;10];
+pub static mut NUM_CMD_DRIVERS : usize = 0;
 
 pub const WAIT : u16 = 0;
 pub const SUBSCRIBE : u16 = 1;
@@ -41,20 +44,28 @@ pub unsafe extern fn SVC_Handler() {
             volatile_store(psp as *mut isize, 0);
         },
         SUBSCRIBE => {
-
             let r0 = volatile_load((psp) as *const usize);
-            if r0 > NUM_DRIVERS {
+            if r0 > NUM_SUBSCRIBE_DRIVERS {
                 volatile_store(psp as *mut isize, -1);
             }
             let r1 = volatile_load((psp + 4) as *const usize);
             let r2 = volatile_load((psp + 8) as *const usize);
 
-            let res : isize = DRIVERS[r0](r1, r2);
+            let res : isize = SUBSCRIBE_DRIVERS[r0](r1, r2);
             volatile_store(psp as *mut isize, res);
             return;
         },
         COMMAND => {
-            volatile_store(psp as *mut isize, -1);
+            let r0 = volatile_load((psp) as *const usize);
+            if r0 > NUM_CMD_DRIVERS {
+                volatile_store(psp as *mut isize, -1);
+            }
+            let r1 = volatile_load((psp + 4) as *const usize);
+            let r2 = volatile_load((psp + 8) as *const usize);
+
+            let res : isize = CMD_DRIVERS[r0](r1, r2);
+            volatile_store(psp as *mut isize, res);
+            return;
         },
         _ => {
             volatile_store(psp as *mut isize, -1);

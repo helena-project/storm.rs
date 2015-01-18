@@ -23,52 +23,12 @@ pub mod syscall;
 
 static mut PROCESS_STACK : [usize; 4096] = [0; 4096];
 
-// Mock UART Usage
-fn init_console() {
-    use platform::sam4l::gpio;
-    use platform::sam4l::usart;
-    use hil::gpio::*;
-    use hil::uart;
-    use platform::sam4l::pm;
-    let uart_3 = usart::USART::new(usart::BaseAddr::USART3);
-
-    let p1 = gpio::Pin {bus : gpio::Port::PORT1, pin : 9};
-    p1.set_peripheral_function(PeripheralFunction::A);
-    let p2 = gpio::Pin {bus : gpio::Port::PORT1, pin : 10};
-    p2.set_peripheral_function(PeripheralFunction::A);
-
-    pm::enable_pba_clock(11); // USART3 clock
-
-    let mut console = drivers::uart::console::init(uart_3,
-        drivers::uart::console::InitParams {
-            baud_rate: 115200,
-            data_bits: 8,
-            parity: uart::Parity::NONE
-        }
-    );
-
-    console.writeln("Hi there.");
-    console.write("Hello thar!");
-    console.write(" I'm the captain!");
-}
-// End of mock UART usage
-
 #[no_mangle]
 pub extern fn main() {
-    // use platform::sam4l::gpio::*;
-    // use platform::sam4l::usart::kstdio::*;
-    // use platform::sam4l::{spi, pm};
-    // use platform::sam4l::pm::*;
     use task;
     use task::Task::*;
 
-    // use drivers::flash_attr::FlashAttr;
-
-    // kstdio_init();
-
-    init_console();
-
-    /*
+    /* use drivers::flash_attr::FlashAttr;
     spi::set_mode(spi::MSTR::Master, spi::PS::Variable,
                       spi::RXFIFO::Disable, spi::MODFAULT::Disable);
     spi::enable();

@@ -14,15 +14,19 @@ pub struct Console<T: UART> {
 }
 
 impl<T: UART> Console<T> {
+    pub fn putc(&mut self, byte: u8) {
+        self.uart.send_byte(byte);
+    }
+
     pub fn write(&mut self, content: &str) {
         for byte in content.bytes() {
-            self.uart.send_byte(byte);
+            self.putc(byte);
         }
     }
 
     pub fn writeln(&mut self, content: &str) {
         self.write(content);
-        self.uart.send_byte('\n' as u8);
+        self.putc('\n' as u8);
     }
 }
 
