@@ -68,7 +68,7 @@ fn init_console() -> drivers::uart::console::Console<usart::USART> {
 
     pm::enable_pba_clock(11); // USART3 clock
 
-    let mut console = drivers::uart::console::init(uart_3,
+    let console = drivers::uart::console::init(uart_3,
         drivers::uart::console::InitParams {
             baud_rate: 115200,
             data_bits: 8,
