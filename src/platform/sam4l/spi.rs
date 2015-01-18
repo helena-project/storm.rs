@@ -5,21 +5,21 @@ use hil::spi;
 #[repr(C, packed)]
 #[allow(dead_code)]
 struct SpiRegisters {
-    cr : usize,
-    mr : usize,
-    rdr : usize,
-    tdr : usize,
-    sr : usize,
-    ier : usize,
-    idr : usize,
-    imr : usize,
+    cr: usize,
+    mr: usize,
+    rdr: usize,
+    tdr: usize,
+    sr: usize,
+    ier: usize,
+    idr: usize,
+    imr: usize,
     //0x20
     reserved0 : [usize;4],
-    csr : [usize;4],
+    csr: [usize;4],
     //0x40
-    reserved1 : [usize;41],
-    wpcr : usize,
-    wpsr : usize
+    reserved1: [usize;41],
+    wpcr: usize,
+    wpsr: usize
     //we leave out parameter and version
 }
 

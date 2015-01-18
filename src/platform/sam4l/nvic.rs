@@ -1,4 +1,3 @@
-use core::prelude::*;
 use core::intrinsics;
 
 #[repr(C, packed)]
@@ -7,6 +6,7 @@ struct Nvic {
 }
 
 #[repr(C)]
+#[derive(Copy)]
 pub enum NvicIdx {
     HFLASHC = 0,
     PDCA0,
@@ -87,8 +87,6 @@ pub enum NvicIdx {
     TWIM3,
     LCDCA
 }
-
-impl Copy for NvicIdx {}
 
 pub fn enable(signal : NvicIdx) {
     let nvic_addr : u32 = 0xe000e100;

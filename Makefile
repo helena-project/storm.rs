@@ -51,11 +51,6 @@ $(EXTERN_SRCS)/rustc/src/libcore/lib.rs: $(EXTERN_SRCS)/rustc-$(RUSTC_VERSION)-s
 	@tar -C $(EXTERN_SRCS)/rustc -zx --strip-components=1 -f $^
 	@touch $@ # Touch so lib.rs appears newer than tarball
 
-# Overrides `opt-level` because for some reason `opt-level=2` includes an
-# `__aeabi_memset` (an GCC intrinsic available during linking) that doesn't get
-# resolved when compiling main.o, even though it seems to be available for some
-# other crates. This works for now, but should be fixed ASAP, this is obviously
-# a stupid bug.
 $(CORE_DIR)/libcore.rlib: $(EXTERN_SRCS)/rustc/src/libcore/lib.rs
 	@echo "Building $@"
 	@$(RUSTC) $(RUSTC_FLAGS) --out-dir $(CORE_DIR) $(EXTERN_SRCS)/rustc/src/libcore/lib.rs
@@ -64,6 +59,8 @@ $(BUILD_DIR)/libcore.rlib: $(CORE_DIR)/libcore.rlib | $(BUILD_DIR)
 	@echo "Copying $< to $@"
 	@cp $< $@
 
+# Apps shouldn't depend on `platform`, but a hack for now until
+# drivers are more complete
 $(BUILD_DIR)/libapps.rlib: $(call libs,core hil platform)
 $(BUILD_DIR)/libplatform.rlib: $(call libs,core hil)
 

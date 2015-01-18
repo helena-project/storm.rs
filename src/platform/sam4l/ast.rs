@@ -6,28 +6,28 @@ use hil::timer::Timer;
 #[repr(C, packed)]
 #[allow(missing_copy_implementations)]
 struct AstRegisters {
-    cr : u32,
-    cv : u32,
-    sr : u32,
-    pub scr : u32,
-    ier : u32,
-    idr : u32,
-    imr : u32,
-    wer : u32,
+    cr: u32,
+    cv: u32,
+    sr: u32,
+    scr: u32,
+    ier: u32,
+    idr: u32,
+    imr: u32,
+    wer: u32,
     //0x20
-    ar0 : u32,
-    ar1 : u32,
-    reserved0 : [u32;2],
-    pir0 : u32,
-    pir1 : u32,
-    reserved1 : [u32;2],
+    ar0: u32,
+    ar1: u32,
+    reserved0: [u32; 2],
+    pir0: u32,
+    pir1: u32,
+    reserved1: [u32; 2],
     //0x40
-    clock : u32,
-    dtr : u32,
-    eve : u32,
-    evd : u32,
-    evm : u32,
-    calv : u32
+    clock: u32,
+    dtr: u32,
+    eve: u32,
+    evd: u32,
+    evm: u32,
+    calv: u32
     //we leave out parameter and version
 }
 
@@ -35,8 +35,8 @@ pub const AST_BASE : isize = 0x400F0800;
 
 #[allow(missing_copy_implementations)]
 pub struct Ast {
-    addr : *mut AstRegisters,
-    callback : fn()
+    addr: *mut AstRegisters,
+    callback: fn()
 }
 
 pub static mut Ast0 : Ast =

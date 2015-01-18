@@ -4,31 +4,31 @@ use hil::uart;
 #[repr(C, packed)]
 #[allow(dead_code)]
 struct UsartRegisters {
-    cr : u32,
-    mr : u32,
-    ier : u32,
-    idr : u32,
-    imr : u32,
-    csr : u32,
-    rhr : u32,
-    thr : u32,
+    cr: u32,
+    mr: u32,
+    ier: u32,
+    idr: u32,
+    imr: u32,
+    csr: u32,
+    rhr: u32,
+    thr: u32,
     //0x20
-    brgr : u32,
-    rtor : u32,
-    ttgr : u32,
-    reserved0 : [u32;5],
+    brgr: u32,
+    rtor: u32,
+    ttgr: u32,
+    reserved0: [u32; 5],
     //0x40
-    fidi : u32,
-    ner : u32,
-    reserved1 : u32,
-    ifr : u32,
-    man : u32,
-    linmr : u32,
-    linir : u32,
-    linbrr : u32,
-    wpmr : u32,
-    wpsr : u32,
-    version : u32
+    fidi: u32,
+    ner: u32,
+    reserved1: u32,
+    ifr: u32,
+    man: u32,
+    linmr: u32,
+    linir: u32,
+    linbrr: u32,
+    wpmr: u32,
+    wpsr: u32,
+    version: u32
 }
 
 const USART_SIZE : isize = 0x4000;
