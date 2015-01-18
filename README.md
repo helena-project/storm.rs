@@ -42,7 +42,7 @@ On Mac OS X, you can get the arm-non-eabi toolchain via homebrew:
 ```bash
 $ brew tap PX4/homebrew-px4
 $ brew update
-$ brew install gcc-arm-none-eabi-48
+$ brew install gcc-arm-none-eabi-49
 ```
 
 On Linux it is available through many distribution managers:
