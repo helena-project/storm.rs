@@ -57,6 +57,16 @@ For Windows and other operating systems, download site is
 
 ### Stormloader
 
+You'll need to install
+[libftdi-0.20.tar.gz](http://www.intra2net.com/en/developer/libftdi/download/libftdi-0.20.tar.gz)
+for stormloader to function; newer versions will not work. In turn, libftdi
+depends on libusb and libusb-config. On OS X, you can satisfy the libftdi
+prereqs via homebrew:
+
+```bash
+brew install libusb libusb-compat
+```
+
 You can obtain stormloader via pip:
 
 ```bash
