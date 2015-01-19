@@ -37,7 +37,13 @@ of the currently used version for various host operating systems:
 
 #### `arm-none-eabi` toolchain
 
-On Mac OS X, you can get the arm-non-eabi toolchain via homebrew:
+On Mac OS X, you can get the arm-non-eabi toolchain via port:
+
+```bash
+$ port install arm-none-eabi-gcc
+```
+
+or via homebrew:
 
 ```bash
 $ brew tap PX4/homebrew-px4
