@@ -1,178 +1,124 @@
 use core::intrinsics;
-use core::marker::Copy;
 use hil::gpio;
 
 #[repr(C, packed)]
-struct GpioPort {
-    gper: u32,
-    gpers: u32,
-    gperc: u32,
-    gpert: u32,
-    pmr0: u32,
-    pmr0s: u32,
-    pmr0c: u32,
-    pmr0t: u32,
-    //0x20
-    pmr1: u32,
-    pmr1s: u32,
-    pmr1c: u32,
-    pmr1t: u32,
-    pmr2: u32,
-    pmr2s: u32,
-    pmr2c: u32,
-    pmr2t: u32,
-    //0x40
-    oder: u32,
-    oders: u32,
-    oderc: u32,
-    odert: u32,
-    ovr: u32,
-    ovrs: u32,
-    ovrc: u32,
-    ovrt: u32,
-    //0x60
-    pvr: u32,
-    reserved0: [u32; 3],
-    puer: u32,
-    puers: u32,
-    puerc: u32,
-    puert: u32,
-    //0x80
-    pder: u32,
-    pders: u32,
-    pderc: u32,
-    pdert: u32,
-    ier: u32,
-    iers: u32,
-    ierc: u32,
-    iert: u32,
-    //0xA0
-    imr0: u32,
-    imr0s: u32,
-    imr0c: u32,
-    imr0t: u32,
-    imr1: u32,
-    imr1s: u32,
-    imr1c: u32,
-    imr1t: u32,
-    //0xC0
-    gfer: u32,
-    gfers: u32,
-    gferc: u32,
-    gfert: u32,
-    ifr: u32,
-    reserved1: u32,
-    ifrc: u32,
-    reserved2: u32,
-    //0xE0
-    reserved3: [u32;8],
-    //0x100
-    odcr0: u32,
-    odcr0s: u32,
-    odcr0c: u32,
-    odcr0t: u32,
-    odcr1: u32,
-    odcr1s: u32,
-    odcr1c: u32,
-    odcr1t: u32,
-    //0x120
-    reserved4: [u32;4],
-    osrr0: u32,
-    osrr0s: u32,
-    osrr0c: u32,
-    osrr0t: u32,
-    //0x140
-    reserved5: [u32; 8],
-    //0x160
-    ster: u32,
-    sters: u32,
-    sterc: u32,
-    stert: u32,
-    reserved6: [u32;4],
-    //0x180
-    ever: u32,
-    evers: u32,
-    everc: u32,
-    evert: u32,
-    reserved7: [u32;112]
-    //0x200 end
+struct Register {
+    val: u32,
+    set: u32,
+    clear: u32,
+    toggle: u32
+}
+
+#[repr(C, packed)]
+struct RegisterRO {
+    read: u32,
+    reserved: [u32; 3]
+}
+
+#[repr(C, packed)]
+struct RegisterRC {
+    read: u32,
+    reserved0: u32,
+    clear: u32,
+    reserved1: u32
+}
+
+#[repr(C, packed)]
+struct GPIOPort {
+    gper: Register,
+    pmr0: Register,
+    pmr1: Register,
+    pmr2: Register,
+    oder: Register,
+    ovr: Register,
+    pvr: RegisterRO,
+    puer: Register,
+    pder: Register,
+    ier: Register,
+    imr0: Register,
+    imr1: Register,
+    gfer: Register,
+    ifr: RegisterRC,
+    reserved0: [u32; 8],
+    ocdr0: Register,
+    ocdr1: Register,
+    reserved1: [u32; 4],
+    osrr0: Register,
+    reserved2: [u32; 8],
+    ster: Register,
+    reserved3: [u32; 4],
+    ever: Register,
+    // reserved4: [u32; 26],
+    // PARAMETER: u32,
+    // VERSION: u32,
+}
+
+const BASE_ADDRESS: usize = 0x400E1000;
+const SIZE: usize = 0x200;
+
+#[derive(Copy)]
+pub enum Location {
+    GPIO0 = 0,
+    GPIO1 = 1,
+    GPIO2 = 2,
 }
 
 #[derive(Copy)]
-pub enum Port {
-    PORT0 = 0x400E1000,
-    PORT1 = 0x400E1200,
-    PORT2 = 0x400E1400
+pub struct Params {
+    pub location: Location,
+    pub pin: u8,
 }
 
-macro_rules! gpio_port(
-    ($addr : expr) => (
-        unsafe {
-            &mut *($addr as u32 as *mut GpioPort)
+struct GPIO {
+    port: &'static mut GPIOPort,
+    pin: u8,
+    pin_mask: u32
+}
+
+macro_rules! port_register_fn {
+    ($name:ident, $reg:ident, $option:ident) => (
+        fn $name(&mut self) {
+            volatile!(self.port.$reg.$option = self.pin_mask);
         }
     );
-);
-
-pub struct Pin {
-    pub bus: Port,
-    pub pin: usize,
 }
 
-impl Copy for Pin {}
+// Note: Perhaps the 'new' function should return Result<T> to do simple init
+// checks quickly. Here, for example, we chould check that 'pin' is valid and
+// panic before continuing to boot.
+impl GPIO {
+    pub fn new(params: Params) -> GPIO {
+        let address = BASE_ADDRESS + (params.location as usize) * SIZE;
 
-impl gpio::Pin for Pin {
-    fn make_output(&self) {
-        let gpio = gpio_port!(self.bus);
-        let p = 1 << self.pin;
-        unsafe {
-            intrinsics::volatile_store(&mut gpio.gpers, p);
-            intrinsics::volatile_store(&mut gpio.oders, p);
-            intrinsics::volatile_store(&mut gpio.sterc, p);
-        }
-    }
-
-    fn set_peripheral_function(&self, peripheral : gpio::PeripheralFunction) {
-        let gpio = gpio_port!(self.bus);
-        let p = 1 << self.pin;
-        unsafe {
-            // clear GPIO enable for pin
-            intrinsics::volatile_store(&mut gpio.gperc, p);
-
-            // Set PMR0-2 according to passed in peripheral
-            let p = 1 << self.pin as usize;
-            let periph = peripheral as usize;
-
-            intrinsics::volatile_store(&mut gpio.pmr0,
-              ((periph & 1) << p) as u32); // First bit of peripheral
-            intrinsics::volatile_store(&mut gpio.pmr1,
-              ((periph & 2 >> 1) << p) as u32); // Second bit of peripheral
-            intrinsics::volatile_store(&mut gpio.pmr2,
-             ((periph & 4 >> 2) << p) as u32); // Third bit of peripheral
-        }
-    }
-
-    fn toggle(&self) {
-        let gpio = gpio_port!(self.bus);
-        let p = 1 << self.pin;
-        unsafe {
-            intrinsics::volatile_store(&mut gpio.ovrt, p);
-        }
-    }
-
-    fn set(&self) {
-        let gpio = gpio_port!(self.bus);
-        let p = 1 << self.pin;
-        unsafe {
-            intrinsics::volatile_store(&mut gpio.ovrs, p);
-        }
-    }
-
-    fn clear(&self) {
-        let gpio = gpio_port!(self.bus);
-        let p = 1 << self.pin;
-        unsafe {
-            intrinsics::volatile_store(&mut gpio.ovrc, p);
+        GPIO {
+            port: unsafe { intrinsics::transmute(address) },
+            pin: params.pin,
+            pin_mask: 1 << params.pin
         }
     }
 }
 
+impl gpio::Pin for GPIO {
+    fn make_output(&mut self) {
+        volatile!(self.port.gper.set = self.pin_mask);
+        volatile!(self.port.oder.set = self.pin_mask);
+        volatile!(self.port.ster.clear = self.pin_mask);
+    }
+
+    fn select_peripheral(&mut self, function: gpio::PeripheralFunction) {
+        let (f, p) = (function as u32, self.pin as u32);
+        let (bit0, bit1, bit2) = (f & 0b1, (f & 0b10) >> 1, (f & 0b100) >> 2);
+
+        // clear GPIO enable for pin
+        volatile!(self.port.gper.clear = self.pin_mask);
+
+        // Set PMR0-2 according to passed in peripheral
+        volatile!(self.port.pmr0.val = bit0 << p);
+        volatile!(self.port.pmr1.val = bit1 << p);
+        volatile!(self.port.pmr2.val = bit2 << p);
+    }
+
+    port_register_fn!(toggle, ovr, toggle);
+    port_register_fn!(set, ovr, set);
+    port_register_fn!(clear, ovr, clear);
+}

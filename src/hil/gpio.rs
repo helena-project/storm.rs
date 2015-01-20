@@ -14,10 +14,11 @@ pub enum PeripheralFunction {
 impl Copy for PeripheralFunction {}
 
 pub trait Pin {
-    fn make_output(&self);
-    fn set(&self);
-    fn clear(&self);
-    fn toggle(&self);
-    fn set_peripheral_function(&self, PeripheralFunction);
+    // What is make output?
+    fn make_output(&mut self);
+    fn set(&mut self);
+    fn clear(&mut self);
+    fn toggle(&mut self);
+    fn select_peripheral(&mut self, PeripheralFunction);
 }
 

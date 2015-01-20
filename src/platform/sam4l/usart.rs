@@ -1,21 +1,6 @@
 use core::intrinsics;
 use hil::uart;
 
-#[allow(dead_code)]
-
-// This should likely be moved to a better location. Maybe hil?
-macro_rules! volatile {
-    ($item:expr) => ({
-        use core::intrinsics::volatile_load;
-        unsafe { volatile_load(&$item) }
-    });
-
-    ($item:ident = $value:expr) => ({
-        use core::intrinsics::volatile_store;
-        unsafe { volatile_store(&mut $item, $value); }
-    });
-}
-
 #[repr(C, packed)]
 struct UsartRegisters {
     cr: u32,
@@ -26,13 +11,11 @@ struct UsartRegisters {
     csr: u32,
     rhr: u32,
     thr: u32,
-    //0x20
-    brgr: u32,
+    brgr: u32, // 0x20
     rtor: u32,
     ttgr: u32,
     reserved0: [u32; 5],
-    //0x40
-    fidi: u32,
+    fidi: u32, // 0x40
     ner: u32,
     reserved1: u32,
     ifr: u32,
