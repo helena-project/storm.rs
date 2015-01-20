@@ -15,7 +15,7 @@ applications from each other and the kernel.
 ## Requirements
 
 1. [Rust](http://www.rust-lang.org/) 1.0-alpha.
-2. [arm-non-eabi toolchain](https://launchpad.net/gcc-arm-embedded/).
+2. [arm-none-eabi toolchain](https://launchpad.net/gcc-arm-embedded/).
 3. stormloader (recommended) or JLinkExe for programming the storm.
 4. Command line utilities: wget, sed, make
 
@@ -73,7 +73,7 @@ prereqs via homebrew:
 brew install libusb libusb-compat
 ```
 
-You can obtain stormloader via pip:
+You can obtain stormloader via pip (python2 only, currently):
 
 ```bash
 sudo pip install stormloader
