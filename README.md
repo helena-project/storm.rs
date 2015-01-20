@@ -37,7 +37,7 @@ of the currently used version for various host operating systems:
 
 #### `arm-none-eabi` toolchain
 
-On Mac OS X, you can get the arm-non-eabi toolchain via port:
+On Mac OS X, you can get the arm-none-eabi toolchain via port:
 
 ```bash
 $ port install arm-none-eabi-gcc
