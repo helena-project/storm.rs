@@ -1,5 +1,5 @@
 use core::intrinsics;
-use hil::gpio;
+use hil;
 
 #[repr(C, packed)]
 struct Register {
@@ -11,13 +11,13 @@ struct Register {
 
 #[repr(C, packed)]
 struct RegisterRO {
-    read: u32,
+    val: u32,
     reserved: [u32; 3]
 }
 
 #[repr(C, packed)]
 struct RegisterRC {
-    read: u32,
+    val: u32,
     reserved0: u32,
     clear: u32,
     reserved1: u32
@@ -64,6 +64,18 @@ pub enum Location {
 }
 
 #[derive(Copy)]
+pub enum PeripheralFunction {
+    A = 0b000,
+    B = 0b001,
+    C = 0b010,
+    D = 0b011,
+    E = 0b100,
+    F = 0b101,
+    G = 0b110,
+    H = 0b111
+}
+
+#[derive(Copy)]
 pub struct Params {
     pub location: Location,
     pub pin: u8,
@@ -84,8 +96,8 @@ macro_rules! port_register_fn {
 }
 
 // Note: Perhaps the 'new' function should return Result<T> to do simple init
-// checks quickly. Here, for example, we chould check that 'pin' is valid and
-// panic before continuing to boot.
+// checks as soon as possible. Here, for example, we chould check that 'pin' is
+// valid and panic before continuing to boot.
 impl GPIO {
     pub fn new(params: Params) -> GPIO {
         let address = BASE_ADDRESS + (params.location as usize) * SIZE;
@@ -96,16 +108,8 @@ impl GPIO {
             pin_mask: 1 << params.pin
         }
     }
-}
 
-impl gpio::Pin for GPIO {
-    fn make_output(&mut self) {
-        volatile!(self.port.gper.set = self.pin_mask);
-        volatile!(self.port.oder.set = self.pin_mask);
-        volatile!(self.port.ster.clear = self.pin_mask);
-    }
-
-    fn select_peripheral(&mut self, function: gpio::PeripheralFunction) {
+    fn select_peripheral(&mut self, function: PeripheralFunction) {
         let (f, p) = (function as u32, self.pin as u32);
         let (bit0, bit1, bit2) = (f & 0b1, (f & 0b10) >> 1, (f & 0b100) >> 2);
 
@@ -116,6 +120,18 @@ impl gpio::Pin for GPIO {
         volatile!(self.port.pmr0.val = bit0 << p);
         volatile!(self.port.pmr1.val = bit1 << p);
         volatile!(self.port.pmr2.val = bit2 << p);
+    }
+}
+
+impl hil::gpio::Pin for GPIO {
+    fn enable_output(&mut self) {
+        volatile!(self.port.gper.set = self.pin_mask);
+        volatile!(self.port.oder.set = self.pin_mask);
+        volatile!(self.port.ster.clear = self.pin_mask);
+    }
+
+    fn read(&self) -> bool {
+        (volatile!(self.port.pvr.val) & self.pin_mask) > 0
     }
 
     port_register_fn!(toggle, ovr, toggle);

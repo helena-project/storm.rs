@@ -6,6 +6,7 @@
 extern crate core;
 
 pub use uart::*;
+pub use gpio::*;
 
 mod std {
     pub use core::*;

@@ -10,6 +10,6 @@ mod std {
     pub use core::*;
 }
 
-pub mod flash_attr;
+// pub mod flash_attr;
 pub mod timer;
 pub mod uart;

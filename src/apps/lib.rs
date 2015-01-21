@@ -27,14 +27,22 @@ fn writeln(line: &str) {
 
 pub mod blinkapp {
     use platform::sam4l::gpio;
-    use hil::gpio::*;
+    use hil::gpio::{Pin};
+    use core::prelude::*;
 
-    static LED : gpio::Pin = gpio::Pin { bus : gpio::Port::PORT2, pin: 10 };
-
+    // LED should be a device driver using GPIO
+    static mut LED: Option<gpio::GPIO> = None;
     static mut count : usize = 0;
 
     #[inline(never)]
     pub fn initialize() {
+        LED = Some(gpio::GPIO::new(
+            gpio::Params {
+                location: gpio::Location::GPIO2,
+                pin: 10
+            }
+        ));
+
         LED.make_output();
         super::writeln("I'm in the app!");
 
