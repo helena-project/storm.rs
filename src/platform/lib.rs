@@ -1,12 +1,14 @@
 #![crate_name = "platform"]
 #![crate_type = "rlib"]
-#![allow(unstable)]
 #![no_std]
+
+#![allow(unstable)]
+#![feature(plugin)]
 
 extern crate core;
 extern crate hil;
+#[plugin] #[no_link] extern crate plugins;
 
-#[macro_export]
 macro_rules! volatile {
     ($item:expr) => ({
         use core::intrinsics::volatile_load;

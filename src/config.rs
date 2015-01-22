@@ -1,6 +1,5 @@
 use core::prelude::*;
-use platform::sam4l::usart;
-use platform::sam4l::ast;
+use platform::sam4l::{usart, ast, gpio};
 use hil::timer::AlarmHandler;
 use drivers;
 use syscall;
@@ -55,26 +54,28 @@ pub unsafe fn config() {
 
 // Mock UART Usage
 fn init_console() -> drivers::uart::console::Console<usart::USART> {
-    use platform::sam4l::{gpio, pm};
-    use hil::gpio::*;
+    use platform::sam4l::pm;
     use hil::uart;
+
+    let pin_9 = gpio::GPIOPin::new(gpio::Params {
+        location: gpio::Location::GPIOPin9,
+        port: gpio::GPIOPort::GPIO1
+    });
+
+    let pin_10 = gpio::GPIOPin::new(gpio::Params {
+        location: gpio::Location::GPIOPin10,
+        port: gpio::GPIOPort::GPIO1
+    });
 
     let uart_3 = usart::USART::new(usart::Params {
         location: usart::Location::USART3
     });
 
-    // Set up as USB output
-    let p1 = gpio::Pin {bus: gpio::Port::PORT1, pin: 9};
-    p1.set_peripheral_function(PeripheralFunction::A);
-
-    let p2 = gpio::Pin {bus: gpio::Port::PORT1, pin: 10};
-    p2.set_peripheral_function(PeripheralFunction::A);
-
     // USART3 clock; this should probably be in USART's init, and should likely
     // depend on the location.
     pm::enable_pba_clock(11);
 
-    drivers::uart::console::init(uart_3,
+    drivers::uart::console::init(uart_3, pin_9, pin_10,
         drivers::uart::console::InitParams {
             baud_rate: 115200,
             data_bits: 8,

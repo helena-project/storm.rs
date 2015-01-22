@@ -1,3 +1,4 @@
+use core::marker::Copy;
 use core::intrinsics;
 use hil::uart;
 
@@ -31,13 +32,10 @@ struct UsartRegisters {
 const SIZE: usize = 0x4000;
 const BASE_ADDRESS: usize = 0x40024000;
 
-#[derive(Copy)]
+repeated_enum!(
 pub enum Location {
-    USART0 = 0,
-    USART1 = 1,
-    USART2 = 2,
-    USART3 = 3,
-}
+    USART * 4
+});
 
 #[derive(Copy)]
 pub struct Params {

@@ -59,10 +59,14 @@ $(BUILD_DIR)/libcore.rlib: $(CORE_DIR)/libcore.rlib | $(BUILD_DIR)
 	@echo "Copying $< to $@"
 	@cp $< $@
 
+$(BUILD_DIR)/libplugins.rlib: $(call rwildcard,src/plugins/,*.rs) | $(BUILD_DIR)
+	@echo "Building $@"
+	@$(RUSTC) --out-dir $(BUILD_DIR) src/plugins/lib.rs
+
 # Apps shouldn't depend on `platform`, but a hack for now until
 # drivers are more complete
 $(BUILD_DIR)/libapps.rlib: $(call libs,core hil platform)
-$(BUILD_DIR)/libplatform.rlib: $(call libs,core hil)
+$(BUILD_DIR)/libplatform.rlib: $(call libs,core hil plugins)
 
 # TODO: This should recursively match rs files in dependency list.
 $(BUILD_DIR)/lib%.rlib: $(call rwildcard,src/$*/,*.rs) $(call libs,core) | $(BUILD_DIR)

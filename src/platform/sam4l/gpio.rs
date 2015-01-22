@@ -1,4 +1,5 @@
 use core::intrinsics;
+use core::marker::Copy;
 use hil;
 
 #[repr(C, packed)]
@@ -24,7 +25,7 @@ struct RegisterRC {
 }
 
 #[repr(C, packed)]
-struct GPIOPort {
+struct GPIOPortRegisters {
     gper: Register,
     pmr0: Register,
     pmr1: Register,
@@ -48,42 +49,33 @@ struct GPIOPort {
     ster: Register,
     reserved3: [u32; 4],
     ever: Register,
-    // reserved4: [u32; 26],
-    // PARAMETER: u32,
-    // VERSION: u32,
+    reserved4: [u32; 26],
+    parameter: u32,
+    version: u32,
 }
 
 const BASE_ADDRESS: usize = 0x400E1000;
 const SIZE: usize = 0x200;
 
-#[derive(Copy)]
-pub enum Location {
-    GPIO0 = 0,
-    GPIO1 = 1,
-    GPIO2 = 2,
-}
+repeated_enum!(
+pub enum GPIOPort {
+    GPIO * 3
+});
 
-#[derive(Copy)]
-pub enum PeripheralFunction {
-    A = 0b000,
-    B = 0b001,
-    C = 0b010,
-    D = 0b011,
-    E = 0b100,
-    F = 0b101,
-    G = 0b110,
-    H = 0b111
-}
+repeated_enum!(
+pub enum Location {
+    GPIOPin * 32
+});
 
 #[derive(Copy)]
 pub struct Params {
     pub location: Location,
-    pub pin: u8,
+    pub port: GPIOPort,
 }
 
-struct GPIO {
-    port: &'static mut GPIOPort,
-    pin: u8,
+pub struct GPIOPin {
+    port: &'static mut GPIOPortRegisters,
+    number: u8,
     pin_mask: u32
 }
 
@@ -98,32 +90,20 @@ macro_rules! port_register_fn {
 // Note: Perhaps the 'new' function should return Result<T> to do simple init
 // checks as soon as possible. Here, for example, we chould check that 'pin' is
 // valid and panic before continuing to boot.
-impl GPIO {
-    pub fn new(params: Params) -> GPIO {
-        let address = BASE_ADDRESS + (params.location as usize) * SIZE;
+impl GPIOPin {
+    pub fn new(params: Params) -> GPIOPin {
+        let address = BASE_ADDRESS + (params.port as usize) * SIZE;
+        let pin_number = params.location as u8;
 
-        GPIO {
+        GPIOPin {
             port: unsafe { intrinsics::transmute(address) },
-            pin: params.pin,
-            pin_mask: 1 << params.pin
+            number: pin_number,
+            pin_mask: 1 << (pin_number as u32)
         }
-    }
-
-    fn select_peripheral(&mut self, function: PeripheralFunction) {
-        let (f, p) = (function as u32, self.pin as u32);
-        let (bit0, bit1, bit2) = (f & 0b1, (f & 0b10) >> 1, (f & 0b100) >> 2);
-
-        // clear GPIO enable for pin
-        volatile!(self.port.gper.clear = self.pin_mask);
-
-        // Set PMR0-2 according to passed in peripheral
-        volatile!(self.port.pmr0.val = bit0 << p);
-        volatile!(self.port.pmr1.val = bit1 << p);
-        volatile!(self.port.pmr2.val = bit2 << p);
     }
 }
 
-impl hil::gpio::Pin for GPIO {
+impl hil::GPIOPin for GPIOPin {
     fn enable_output(&mut self) {
         volatile!(self.port.gper.set = self.pin_mask);
         volatile!(self.port.oder.set = self.pin_mask);
@@ -132,6 +112,19 @@ impl hil::gpio::Pin for GPIO {
 
     fn read(&self) -> bool {
         (volatile!(self.port.pvr.val) & self.pin_mask) > 0
+    }
+
+    fn select_peripheral(&mut self, function: hil::PeripheralFunction) {
+        let (f, n) = (function as u32, self.number as u32);
+        let (bit0, bit1, bit2) = (f & 0b1, (f & 0b10) >> 1, (f & 0b100) >> 2);
+
+        // clear GPIO enable for pin
+        volatile!(self.port.gper.clear = self.pin_mask);
+
+        // Set PMR0-2 according to passed in peripheral
+        volatile!(self.port.pmr0.val = bit0 << n);
+        volatile!(self.port.pmr1.val = bit1 << n);
+        volatile!(self.port.pmr2.val = bit2 << n);
     }
 
     port_register_fn!(toggle, ovr, toggle);
