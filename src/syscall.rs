@@ -2,26 +2,26 @@ use core::intrinsics::*;
 
 #[allow(improper_ctypes)]
 extern {
-    fn __prepare_user_stack(start : usize, user_stack : *mut usize);
+    fn __prepare_user_stack(start: usize, user_stack: *mut usize);
     fn __ctx_to_user();
     fn __ctx_to_master();
 }
 
-fn noop(_ : usize, _ : usize) -> isize { -1 }
+fn noop(_: usize, _: usize) -> isize { -1 }
 
-pub static mut SUBSCRIBE_DRIVERS : [fn(usize, usize) -> isize;10] = [noop;10];
-pub static mut NUM_SUBSCRIBE_DRIVERS : usize = 0;
+pub static mut SUBSCRIBE_DRIVERS: [fn(usize, usize) -> isize; 10] = [noop; 10];
+pub static mut NUM_SUBSCRIBE_DRIVERS: usize = 0;
 
-pub static mut CMD_DRIVERS : [fn(usize, usize) -> isize;10] = [noop;10];
-pub static mut NUM_CMD_DRIVERS : usize = 0;
+pub static mut CMD_DRIVERS: [fn(usize, usize) -> isize; 10] = [noop; 10];
+pub static mut NUM_CMD_DRIVERS: usize = 0;
 
-pub const WAIT : u16 = 0;
-pub const SUBSCRIBE : u16 = 1;
-pub const COMMAND : u16 = 2;
+pub const WAIT: u16 = 0;
+pub const SUBSCRIBE: u16 = 1;
+pub const COMMAND: u16 = 2;
 
 pub unsafe fn switch_to_user(pc: usize, sp: *mut usize) {
     __prepare_user_stack(pc, sp);
-    let icsr : *mut usize = 0xE000ED04 as *mut usize;
+    let icsr: *mut usize = 0xE000ED04 as *mut usize;
     volatile_store(icsr, volatile_load(icsr as *const usize) | 1<<28);
 }
 
@@ -31,7 +31,7 @@ pub unsafe fn switch_to_user(pc: usize, sp: *mut usize) {
 pub unsafe extern fn SVC_Handler() {
     use core::intrinsics::volatile_load;
 
-    let mut psp : usize = 0;
+    let mut psp: usize = 0;
     asm!("mrs $0, PSP" :"=r"(psp)::: "volatile");
 
     /* Find process PC on stack */
@@ -51,7 +51,7 @@ pub unsafe extern fn SVC_Handler() {
             let r1 = volatile_load((psp + 4) as *const usize);
             let r2 = volatile_load((psp + 8) as *const usize);
 
-            let res : isize = SUBSCRIBE_DRIVERS[r0](r1, r2);
+            let res: isize = SUBSCRIBE_DRIVERS[r0](r1, r2);
             volatile_store(psp as *mut isize, res);
             return;
         },
@@ -63,7 +63,7 @@ pub unsafe extern fn SVC_Handler() {
             let r1 = volatile_load((psp + 4) as *const usize);
             let r2 = volatile_load((psp + 8) as *const usize);
 
-            let res : isize = CMD_DRIVERS[r0](r1, r2);
+            let res: isize = CMD_DRIVERS[r0](r1, r2);
             volatile_store(psp as *mut isize, res);
             return;
         },

@@ -21,7 +21,7 @@ mod task;
 mod ringbuf;
 pub mod syscall;
 
-static mut PROCESS_STACK : [usize; 4096] = [0; 4096];
+static mut PROCESS_STACK: [usize; 4096] = [0; 4096];
 
 #[no_mangle]
 pub extern fn main() {

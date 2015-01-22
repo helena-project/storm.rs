@@ -9,22 +9,22 @@ use ringbuf::RingBuf;
 
 #[deriving(Copy)]
 pub struct Alarm {
-    pub task : Task,
-    pub tics : u32
+    pub task: Task,
+    pub tics: u32
 }
 
-const MAX_ALARMS : uint = 100;
+const MAX_ALARMS: uint = 100;
 
-static mut ALARM_BUF : [Option<Alarm>,..MAX_ALARMS] = [None,..MAX_ALARMS];
+static mut ALARM_BUF: [Option<Alarm>,..MAX_ALARMS] = [None,..MAX_ALARMS];
 
-pub static mut ALARMS : RingBuf<Alarm> =
+pub static mut ALARMS: RingBuf<Alarm> =
   RingBuf { head: 0
           , tail: 0
           , cap: 0
           , buf: 0 as *mut Option<Alarm>
           };
 
-pub fn set_user_alarm(tics : uint, task_addr : uint) -> int {
+pub fn set_user_alarm(tics: uint, task_addr: uint) -> int {
     unsafe {
         let task = Task::UserTask(task_addr);
         let tics = tics as u32;

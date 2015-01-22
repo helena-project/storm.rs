@@ -46,15 +46,15 @@ struct PmRegisters {
     protctrl: u32,
     reserved9: u32,
     fastsleep: u32,
-    reserved10: [u32;2],
+    reserved10: [u32; 2],
     //0x200
     config: u32,
     version: u32
 }
 
-pub const PM_BASE : isize = 0x400E0000;
+pub const PM_BASE: isize = 0x400E0000;
 
-static mut PM : *mut PmRegisters = PM_BASE as *mut PmRegisters;
+static mut PM: *mut PmRegisters = PM_BASE as *mut PmRegisters;
 
 #[derive(Copy)]
 pub enum Clock {
@@ -67,17 +67,17 @@ pub enum Clock {
     RC1M
 }
 
-unsafe fn unlock(register_offset : u32) {
+unsafe fn unlock(register_offset: u32) {
     volatile_store(&mut (*PM).unlock, 0xAA000000 | register_offset);
 }
 
-pub fn select_main_clock(clock : Clock) {
+pub fn select_main_clock(clock: Clock) {
     unsafe {
         volatile_store(&mut(*PM).mcctrl, clock as u32 & 0xFF);
     }
 }
 
-pub fn enable_pba_clock(clock : usize) {
+pub fn enable_pba_clock(clock: usize) {
     unsafe {
         unlock(0x028);
 

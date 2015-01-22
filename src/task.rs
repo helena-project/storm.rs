@@ -8,10 +8,10 @@ pub enum Task {
 
 impl Copy for Task {}
 
-const MAX_TASKS : usize = 10;
-static mut TASK_BUF : [Option<Task>;MAX_TASKS] = [None;MAX_TASKS];
+const MAX_TASKS: usize = 10;
+static mut TASK_BUF: [Option<Task>; MAX_TASKS] = [None; MAX_TASKS];
 
-pub static mut MANAGER : RingBuf<Task> =
+pub static mut MANAGER: RingBuf<Task> =
     RingBuf { head: 0, tail: 0, cap: MAX_TASKS,
               buf: 0 as *mut Option<Task> };
 

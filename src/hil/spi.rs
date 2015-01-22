@@ -10,7 +10,7 @@ pub enum Mode { // Mode is encoded as CPOL in bit 0 and NCPHA in bit 1
 impl Copy for Mode {}
 
 pub trait SPI {
-    fn set_baud_rate(&self, divisor : u8);
+    fn set_baud_rate(&self, divisor: u8);
     fn set_mode(&self, Mode);
     fn write_read(&self, u16, bool) -> u16;
 }

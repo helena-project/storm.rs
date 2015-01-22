@@ -10,10 +10,10 @@ struct Alarm {
 
 impl Copy for Alarm {}
 
-pub struct VirtualTimer<T : Timer> {
+pub struct VirtualTimer<T: Timer> {
     timer: T,
     active: bool,
-    alarms: [Alarm;10],
+    alarms: [Alarm; 10],
 }
 
 impl <T: Timer> AlarmHandler for VirtualTimer<T> {
@@ -43,10 +43,10 @@ impl <T: Timer> VirtualTimer<T> {
             duration: 0, 
             cb_addr: 0
         };
-        VirtualTimer {timer: timer, active: false, alarms: [base_alarm;10]}
+        VirtualTimer {timer: timer, active: false, alarms: [base_alarm; 10]}
     }
 
-    pub fn set_user_alarm(&mut self, duration : u32, cb : usize) -> isize {
+    pub fn set_user_alarm(&mut self, duration: u32, cb: usize) -> isize {
         let now = self.timer.now();
         let alarm = Alarm { armed: true,
                             origin: now,

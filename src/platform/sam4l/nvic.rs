@@ -2,7 +2,7 @@ use core::intrinsics;
 
 #[repr(C, packed)]
 struct Nvic {
-    iser : [u32;28]
+    iser: [u32; 28]
 }
 
 #[repr(C)]
@@ -88,8 +88,8 @@ pub enum NvicIdx {
     LCDCA
 }
 
-pub fn enable(signal : NvicIdx) {
-    let nvic_addr : u32 = 0xe000e100;
+pub fn enable(signal: NvicIdx) {
+    let nvic_addr: u32 = 0xe000e100;
     let nvic = unsafe { &mut *(nvic_addr as *mut Nvic)};
     let int = signal as usize;
 

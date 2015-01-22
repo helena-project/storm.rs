@@ -4,10 +4,10 @@ use core::intrinsics::*;
 use core::ptr;
 
 pub struct RingBuf<T> {
-    pub head : usize,
-    pub tail : usize,
-    pub cap  : usize,
-    pub buf  : *mut Option<T>
+    pub head: usize,
+    pub tail: usize,
+    pub cap: usize,
+    pub buf: *mut Option<T>
 }
 
 impl <T> RingBuf<T> {

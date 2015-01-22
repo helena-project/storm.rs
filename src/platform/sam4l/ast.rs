@@ -31,7 +31,7 @@ struct AstRegisters {
     //we leave out parameter and version
 }
 
-pub const AST_BASE : isize = 0x400F0800;
+pub const AST_BASE: isize = 0x400F0800;
 
 #[allow(missing_copy_implementations)]
 pub struct Ast {
@@ -39,7 +39,7 @@ pub struct Ast {
     callback: fn()
 }
 
-pub static mut Ast0 : Ast =
+pub static mut Ast0: Ast =
     Ast {addr: AST_BASE as *mut AstRegisters, callback: noop };
 
 fn noop() {}
@@ -99,7 +99,7 @@ impl Ast {
     }
 
 
-    pub fn select_clock(&mut self, clock : Clock) {
+    pub fn select_clock(&mut self, clock: Clock) {
         unsafe {
           // Disable clock by setting first bit to zero
           let enb = intrinsics::volatile_load(&(*self.addr).clock) ^ 1;
@@ -132,7 +132,7 @@ impl Ast {
         }
     }
 
-    pub fn set_prescalar(&mut self, val : u8) {
+    pub fn set_prescalar(&mut self, val: u8) {
         while self.busy() {}
         unsafe {
             let cr = intrinsics::volatile_load(&(*self.addr).cr) | (val as u32) << 16;
@@ -179,7 +179,7 @@ impl Ast {
         }
     }
 
-    pub fn set_periodic_interval(&mut self, interval : u32) {
+    pub fn set_periodic_interval(&mut self, interval: u32) {
         while self.busy() {}
         unsafe {
             intrinsics::volatile_store(&mut (*self.addr).pir0, interval);
@@ -194,7 +194,7 @@ impl Ast {
     }
 
 
-    pub fn set_counter(&mut self, value : u32) {
+    pub fn set_counter(&mut self, value: u32) {
         while self.busy() {}
         unsafe {
             intrinsics::volatile_store(&mut (*self.addr).cv, value);

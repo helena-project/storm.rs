@@ -14,18 +14,18 @@ struct SpiRegisters {
     idr: usize,
     imr: usize,
     //0x20
-    reserved0 : [usize;4],
-    csr: [usize;4],
+    reserved0: [usize; 4],
+    csr: [usize; 4],
     //0x40
-    reserved1: [usize;41],
+    reserved1: [usize; 41],
     wpcr: usize,
     wpsr: usize
     //we leave out parameter and version
 }
 
-pub const SPI_BASE : usize = 0x40008000;
+pub const SPI_BASE: usize = 0x40008000;
 
-static mut GSPI : *mut SpiRegisters = SPI_BASE as *mut SpiRegisters;
+static mut GSPI: *mut SpiRegisters = SPI_BASE as *mut SpiRegisters;
 
 #[allow(missing_copy_implementations)]
 pub struct SPI {
@@ -72,7 +72,7 @@ pub fn disable() {
     }
 }
 
-pub fn set_mode(mstr : MSTR, ps : PS, rxfifo : RXFIFO, modf : MODFAULT) {
+pub fn set_mode(mstr: MSTR, ps: PS, rxfifo: RXFIFO, modf: MODFAULT) {
     let mode = (mstr as usize) | (ps as usize) << 1 | (rxfifo as usize) << 6 |
                 (modf as usize) << 4;
     unsafe {
@@ -81,7 +81,7 @@ pub fn set_mode(mstr : MSTR, ps : PS, rxfifo : RXFIFO, modf : MODFAULT) {
 }
 
 impl spi::SPI for SPI {
-    fn set_baud_rate(&self, divisor : u8) {
+    fn set_baud_rate(&self, divisor: u8) {
         unsafe {
             let mut csr = volatile_load(&(*GSPI).csr[self.cs]);
             csr = (divisor as usize) << 8 | (csr & 0xffff00ff);
@@ -89,7 +89,7 @@ impl spi::SPI for SPI {
         }
     }
 
-    fn set_mode(&self, mode : spi::Mode) {
+    fn set_mode(&self, mode: spi::Mode) {
         unsafe {
             let mut csr = volatile_load(&(*GSPI).csr[self.cs]);
             csr = (mode as usize) | (csr & 0xfffffffc);
@@ -97,7 +97,7 @@ impl spi::SPI for SPI {
         }
     }
 
-    fn write_read(&self, data : u16, lastxfer : bool) -> u16 {
+    fn write_read(&self, data: u16, lastxfer: bool) -> u16 {
         unsafe {
             let tdr = (!(1 << self.cs) & 0xf) << 16 |
                       data as usize |
