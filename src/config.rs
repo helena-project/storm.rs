@@ -38,6 +38,18 @@ pub fn console_driver_writec_svc(r1: usize, _: usize) -> isize {
     0
 }
 
+pub static mut LED:
+    Option<drivers::gpio::led::LED<gpio::GPIOPin>> = None;
+
+pub fn led_driver_toggle_svc(_: usize, _: usize) -> isize {
+    let mut led = unsafe {
+        LED.as_mut().expect("LED is None!")
+    };
+
+    led.toggle();
+    0
+}
+
 pub unsafe fn config() {
     let mut ast = ast::Ast::new(virtual_timer_driver_callback);
     ast.setup();
@@ -50,12 +62,33 @@ pub unsafe fn config() {
     syscall::CMD_DRIVERS[0] = console_driver_writec_svc;
     syscall::NUM_CMD_DRIVERS += 1;
 
+    LED = Some(init_led());
+    syscall::CMD_DRIVERS[1] = led_driver_toggle_svc;
+    syscall::NUM_CMD_DRIVERS += 1;
 }
 
-// Mock UART Usage
+fn init_led() -> drivers::gpio::led::LED<gpio::GPIOPin> {
+    use platform::sam4l::gpio;
+
+    let pin_10 = gpio::GPIOPin::new(gpio::Params {
+        location: gpio::Location::GPIOPin10,
+        port: gpio::GPIOPort::GPIO2
+    });
+
+    drivers::gpio::led::init(pin_10,
+        drivers::gpio::led::InitParams {
+            start_status: drivers::gpio::led::LEDStatus::On
+        }
+    )
+}
+
 fn init_console() -> drivers::uart::console::Console<usart::USART> {
     use platform::sam4l::pm;
     use hil::uart;
+
+    let uart_3 = usart::USART::new(usart::Params {
+        location: usart::Location::USART3
+    });
 
     let pin_9 = gpio::GPIOPin::new(gpio::Params {
         location: gpio::Location::GPIOPin9,
@@ -65,10 +98,6 @@ fn init_console() -> drivers::uart::console::Console<usart::USART> {
     let pin_10 = gpio::GPIOPin::new(gpio::Params {
         location: gpio::Location::GPIOPin10,
         port: gpio::GPIOPort::GPIO1
-    });
-
-    let uart_3 = usart::USART::new(usart::Params {
-        location: usart::Location::USART3
     });
 
     // USART3 clock; this should probably be in USART's init, and should likely

@@ -11,8 +11,8 @@ use core::prelude::*;
 
 #[allow(improper_ctypes)]
 extern {
-    fn __subscribe(driver_num : usize, arg1 : usize, arg2 : usize) -> isize;
-    fn __command(driver_num : usize, arg1 : usize, arg2 : usize) -> isize;
+    fn __subscribe(driver_num: usize, arg1: usize, arg2: usize) -> isize;
+    fn __command(driver_num: usize, arg1: usize, arg2: usize) -> isize;
     fn __wait() -> isize;
 }
 
@@ -25,48 +25,41 @@ fn writeln(line: &str) {
     }
 }
 
+fn toggle_led() {
+    unsafe {
+        __command(1, 0, 0);
+    }
+}
+
 pub mod blinkapp {
-    // use platform::sam4l::gpio;
-    // use hil::gpio::{Pin};
-    // use core::prelude::*;
+    static mut count: usize = 0;
 
-    // // LED should be a device driver using GPIO
-    // static mut LED: Option<gpio::GPIO> = None;
-    // static mut count : usize = 0;
+    #[inline(never)]
+    pub fn initialize() {
+        super::toggle_led();
+        super::writeln("I'm in the app!");
 
-    // #[inline(never)]
-    // pub fn initialize() {
-    //     LED = Some(gpio::GPIO::new(
-    //         gpio::Params {
-    //             location: gpio::Location::GPIO2,
-    //             pin: 10
-    //         }
-    //     ));
+        unsafe {
+            super::__subscribe(0, 1 << 15, timer_fired as usize);
+            super::__wait();
+        }
+    }
 
-    //     LED.make_output();
-    //     super::writeln("I'm in the app!");
+    #[inline(never)]
+    pub fn timer_fired() {
+        super::toggle_led();
 
-    //     unsafe {
-    //         super::__subscribe(0, 1 << 15, timer_fired as usize);
-    //         super::__wait();
-    //     }
-    // }
+        unsafe {
+            count += 1;
+            if count % 10 == 0 {
+                super::writeln("Timer fired 10 times");
+            }
+        }
 
-    // #[inline(never)]
-    // pub fn timer_fired() {
-    //     LED.toggle();
-
-    //     unsafe {
-    //         count = count + 1;
-    //         if count % 10 == 0 {
-    //             super::writeln("Timer fired 10 times");
-    //         }
-    //     }
-
-    //     unsafe {
-    //         super::__subscribe(0, 1 << 15, timer_fired as usize);
-    //         super::__wait();
-    //     }
-    // }
+        unsafe {
+            super::__subscribe(0, 1 << 15, timer_fired as usize);
+            super::__wait();
+        }
+    }
 }
 

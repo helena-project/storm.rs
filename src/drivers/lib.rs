@@ -13,3 +13,4 @@ mod std {
 // pub mod flash_attr;
 pub mod timer;
 pub mod uart;
+pub mod gpio;

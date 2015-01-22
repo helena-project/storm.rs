@@ -55,7 +55,7 @@ pub extern fn main() {
         config::config();
     }
 
-    // task::Task::UserTask(apps::blinkapp::initialize as usize).post();
+    task::Task::UserTask(apps::blinkapp::initialize as usize).post();
 
     loop {
         match unsafe { task::dequeue() } {
