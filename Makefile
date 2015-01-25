@@ -30,7 +30,7 @@ SDB_DESCRIPTION="An OS for the storm"
 JLINK_EXE=JLinkExe
 
 BUILD_DIR=build
-CORE_DIR=$(BUILD_DIR)/core
+CORE_DIR=$(BUILD_DIR)/core-$(RUSTC_VERSION)
 EXTERN_SRCS=extern
 
 libs = $(addprefix $(BUILD_DIR)/lib,$(addsuffix .rlib,$(1)))
@@ -41,7 +41,7 @@ all: $(SDB)
 $(BUILD_DIR) $(CORE_DIR) $(EXTERN_SRCS):
 	@mkdir -p $@
 
-$(EXTERN_SRCS)/rustc-$(RUSTC_VERSION)-src.tar.gz: | $(EXTERN_SRCS) $(CORE_DIR)
+$(EXTERN_SRCS)/rustc-$(RUSTC_VERSION)-src.tar.gz: | $(EXTERN_SRCS)
 	@echo "Fetching $(@F)"
 	@wget -q -O $@ https://github.com/rust-lang/rust/archive/$(RUSTC_VERSION).tar.gz
 
@@ -51,7 +51,7 @@ $(EXTERN_SRCS)/rustc/src/libcore/lib.rs: $(EXTERN_SRCS)/rustc-$(RUSTC_VERSION)-s
 	@tar -C $(EXTERN_SRCS)/rustc -zx --strip-components=1 -f $^
 	@touch $@ # Touch so lib.rs appears newer than tarball
 
-$(CORE_DIR)/libcore.rlib: $(EXTERN_SRCS)/rustc/src/libcore/lib.rs
+$(CORE_DIR)/libcore.rlib: $(EXTERN_SRCS)/rustc/src/libcore/lib.rs | $(CORE_DIR)
 	@echo "Building $@"
 	@$(RUSTC) $(RUSTC_FLAGS) --out-dir $(CORE_DIR) $(EXTERN_SRCS)/rustc/src/libcore/lib.rs
 
@@ -63,12 +63,10 @@ $(BUILD_DIR)/libplugins.rlib: $(call rwildcard,src/plugins/,*.rs) | $(BUILD_DIR)
 	@echo "Building $@"
 	@$(RUSTC) --out-dir $(BUILD_DIR) src/plugins/lib.rs
 
-# Apps shouldn't depend on `platform`, but a hack for now until
-# drivers are more complete
+# Apps shouldn't depend on `platform`. Okay until drivers are more complete
 $(BUILD_DIR)/libapps.rlib: $(call libs,core hil platform)
 $(BUILD_DIR)/libplatform.rlib: $(call libs,core hil plugins)
 
-# TODO: This should recursively match rs files in dependency list.
 $(BUILD_DIR)/lib%.rlib: $(call rwildcard,src/$*/,*.rs) $(call libs,core) | $(BUILD_DIR)
 	@echo "Building $@"
 	@$(RUSTC) $(RUSTC_FLAGS) --out-dir $(BUILD_DIR) src/$*/lib.rs
@@ -106,4 +104,4 @@ clean:
 	rm -Rf $(BUILD_DIR)/*.*
 
 clean-all:
-	rm -Rf $(BUILD_DIR)
+	rm -Rf $(BUILD_DIR) $(EXTERN_SRCS)
