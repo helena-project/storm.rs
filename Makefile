@@ -20,18 +20,18 @@ ASM_OBJECTS=$(ASM_SOURCES:S/%.c=build/%.o)
 
 RUST_SOURCES=$(wildcard src/*.rs)
 
+BUILD_DIR=build
+CORE_DIR=$(BUILD_DIR)/core-$(RUSTC_VERSION)
+EXTERN_SRCS=extern
+
 SLOAD=sload
-SDB=build/main.sdb
+SDB=$(BUILD_DIR)/main.sdb
 SDB_MAINTAINER=$(shell whoami)
 SDB_VERSION=$(shell git show-ref -s HEAD)
 SDB_NAME=storm.rs
 SDB_DESCRIPTION="An OS for the storm"
 
 JLINK_EXE=JLinkExe
-
-BUILD_DIR=build
-CORE_DIR=$(BUILD_DIR)/core-$(RUSTC_VERSION)
-EXTERN_SRCS=extern
 
 libs = $(addprefix $(BUILD_DIR)/lib,$(addsuffix .rlib,$(1)))
 rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))
@@ -59,21 +59,20 @@ $(BUILD_DIR)/libcore.rlib: $(CORE_DIR)/libcore.rlib | $(BUILD_DIR)
 	@echo "Copying $< to $@"
 	@cp $< $@
 
-$(BUILD_DIR)/libplugins.rlib: $(call rwildcard,src/plugins/,*.rs) | $(BUILD_DIR)
+$(BUILD_DIR)/libplugins.dylib: $(call rwildcard,src/plugins/,*.rs) | $(BUILD_DIR)
 	@echo "Building $@"
 	@$(RUSTC) --out-dir $(BUILD_DIR) src/plugins/lib.rs
-
-# Apps shouldn't depend on `platform`. Okay until drivers are more complete
-$(BUILD_DIR)/libapps.rlib: $(call libs,core hil platform)
-$(BUILD_DIR)/libplatform.rlib: $(call libs,core hil plugins)
-
-$(BUILD_DIR)/lib%.rlib: $(call rwildcard,src/$*/,*.rs) $(call libs,core) | $(BUILD_DIR)
-	@echo "Building $@"
-	@$(RUSTC) $(RUSTC_FLAGS) --out-dir $(BUILD_DIR) src/$*/lib.rs
 
 $(BUILD_DIR)/libdrivers.rlib: $(call rwildcard,src/drivers/,*.rs) $(call libs,core hil)
 	@echo "Building $@"
 	@$(RUSTC) $(RUSTC_FLAGS) -F unsafe-blocks --out-dir $(BUILD_DIR) src/drivers/lib.rs
+
+$(BUILD_DIR)/libplatform.rlib: $(call libs,core hil) $(BUILD_DIR)/libplugins.dylib
+
+.SECONDEXPANSION:
+$(BUILD_DIR)/lib%.rlib: $$(call rwildcard,src/$$**/,*.rs) $(call libs,core) | $(BUILD_DIR)
+	@echo "Building $@ (changed: $?, at $*)"
+	@$(RUSTC) $(RUSTC_FLAGS) --out-dir $(BUILD_DIR) src/$*/lib.rs
 
 $(BUILD_DIR)/%.o: c/%.c | $(BUILD_DIR)
 	@echo "Compiling $^"

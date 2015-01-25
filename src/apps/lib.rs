@@ -4,8 +4,6 @@
 #![no_std]
 
 extern crate core;
-extern crate platform;
-extern crate hil;
 
 use core::prelude::*;
 
