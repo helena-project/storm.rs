@@ -71,7 +71,7 @@ $(BUILD_DIR)/libplatform.rlib: $(call libs,core hil) $(BUILD_DIR)/libplugins.dyl
 
 .SECONDEXPANSION:
 $(BUILD_DIR)/lib%.rlib: $$(call rwildcard,src/$$**/,*.rs) $(call libs,core) | $(BUILD_DIR)
-	@echo "Building $@ (changed: $?, at $*)"
+	@echo "Building $@"
 	@$(RUSTC) $(RUSTC_FLAGS) --out-dir $(BUILD_DIR) src/$*/lib.rs
 
 $(BUILD_DIR)/%.o: c/%.c | $(BUILD_DIR)
