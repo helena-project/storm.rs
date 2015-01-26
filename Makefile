@@ -85,7 +85,8 @@ program: $(BUILD_DIR)/main.sdb
 
 clean:
 	rm -Rf $(BUILD_DIR)/*.*
-	rm -rf $(call rwildcard,,*.o)
+	@echo "rm -rf rwildcard: *.o"
+	@rm -rf $(call rwildcard,,*.o)
 
-clean-all:
+clean-all: clean
 	rm -Rf $(BUILD_DIR) $(EXTERN_SRCS)
