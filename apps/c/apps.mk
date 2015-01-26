@@ -17,8 +17,6 @@ INC_FLAGS := $(addprefix -I,$(HERE)$(INCS))
 
 APP_OBJECTS := $(APP_OBJS) $(LIB_OBJS)
 
-.PHONY: all clean
-
 $(APP_OBJS): $(APP_SRCS) $(LIB_OBJS)
 $(LIB_OBJS): $(LIB_SRCS)
 

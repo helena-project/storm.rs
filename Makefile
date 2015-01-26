@@ -67,7 +67,7 @@ $(BUILD_DIR)/main.o: $(RUST_SOURCES) $(call libs,core support platform drivers a
 	@$(RUSTC) $(RUSTC_FLAGS) -C lto --emit obj -o $@ src/main.rs
 
 $(BUILD_DIR)/main.elf: $(BUILD_DIR)/main.o $(APP_OBJECTS) $(C_OBJECTS) $(ASM_OBJECTS)
-	@echo "Linking $@ ($^)"
+	@echo "Linking $@"
 	@$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ -ffreestanding -lgcc -lc
 
 $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf
