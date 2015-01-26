@@ -1,12 +1,10 @@
 #include <commands.h>
 
-#define REGISTER_APP(name, init) \
-  void (*name)() __attribute__((section(".app.blink"))) = init
-
 static uint32_t count = 0;
 
-void
+static void
 timer_fired() {
+  toggle_led();
   if (!(++count % 10)) {
     println("That's 10 timer fires.");
   }
@@ -15,7 +13,7 @@ timer_fired() {
   wait();
 }
 
-void
+static void
 init() {
   toggle_led();
   println("Welcome to the blink app!");

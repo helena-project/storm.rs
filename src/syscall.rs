@@ -19,7 +19,8 @@ pub const WAIT: u16 = 0;
 pub const SUBSCRIBE: u16 = 1;
 pub const COMMAND: u16 = 2;
 
-pub unsafe fn switch_to_user(pc: usize, sp: *mut usize) {
+#[no_mangle]
+pub unsafe extern fn switch_to_user(pc: usize, sp: *mut usize) {
     __prepare_user_stack(pc, sp);
     let icsr: *mut usize = 0xE000ED04 as *mut usize;
     volatile_store(icsr, volatile_load(icsr as *const usize) | 1<<28);

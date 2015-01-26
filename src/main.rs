@@ -23,6 +23,10 @@ pub mod syscall;
 
 static mut PROCESS_STACK: [usize; 4096] = [0; 4096];
 
+extern {
+    fn __start_apps();
+}
+
 #[no_mangle]
 pub extern fn main() {
     use task;
@@ -53,9 +57,10 @@ pub extern fn main() {
     unsafe {
         task::setup();
         config::config();
+        __start_apps();
     }
 
-    task::Task::UserTask(apps::blink::initialize as usize).post();
+    // task::Task::UserTask(apps::blink::initialize as usize).post();
 
     loop {
         match unsafe { task::dequeue() } {

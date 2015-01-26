@@ -4,12 +4,9 @@ RUSTC_FLAGS += --target config/thumbv7em-none-eabi
 RUSTC_FLAGS += -Ctarget-cpu=cortex-m4 -C relocation_model=static
 RUSTC_FLAGS += -g -C no-stack-check -Lbuild
 
-VERSION_CMD = rustc --version | head -n 1 | sed 's/[^(]*(\([^ ]*\).*/\1/'
-RUSTC_VERSION=$(shell $(VERSION_CMD))
-
 OBJCOPY ?= arm-none-eabi-objcopy
 CC = arm-none-eabi-gcc
-CFLAGS += -g -mcpu=cortex-m4 -mthumb -g -nostdlib
+CFLAGS += -g -O3 -std=gnu99 -mcpu=cortex-m4 -mthumb -nostdlib
 LDFLAGS += -Tconfig/stormpayload.ld
 
 C_SOURCES=c/stormcrt1.c
@@ -19,10 +16,7 @@ ASM_SOURCES=c/ctx_switch.S
 ASM_OBJECTS=$(ASM_SOURCES:S/%.c=build/%.o)
 
 RUST_SOURCES=$(wildcard src/*.rs)
-
 BUILD_DIR=build
-CORE_DIR=$(BUILD_DIR)/core-$(RUSTC_VERSION)
-EXTERN_SRCS=extern
 
 SLOAD=sload
 SDB=$(BUILD_DIR)/main.sdb
@@ -33,31 +27,21 @@ SDB_DESCRIPTION="An OS for the storm"
 
 JLINK_EXE=JLinkExe
 
+whereami = $(CURDIR)/$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST))
 libs = $(addprefix $(BUILD_DIR)/lib,$(addsuffix .rlib,$(1)))
-rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))
+rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) \
+		  $(filter $(subst *,%,$2),$d))
 
 all: $(SDB)
 
-$(BUILD_DIR) $(CORE_DIR) $(EXTERN_SRCS):
+$(BUILD_DIR):
 	@mkdir -p $@
 
-$(EXTERN_SRCS)/rustc-$(RUSTC_VERSION)-src.tar.gz: | $(EXTERN_SRCS)
-	@echo "Fetching $(@F)"
-	@wget -q -O $@ https://github.com/rust-lang/rust/archive/$(RUSTC_VERSION).tar.gz
+# $(BUILD_DIR)/libcore.rlib
+-include config/libcore.mk
 
-$(EXTERN_SRCS)/rustc/src/libcore/lib.rs: $(EXTERN_SRCS)/rustc-$(RUSTC_VERSION)-src.tar.gz
-	@echo "Untarring $(<F)"
-	@mkdir -p $(EXTERN_SRCS)/rustc
-	@tar -C $(EXTERN_SRCS)/rustc -zx --strip-components=1 -f $^
-	@touch $@ # Touch so lib.rs appears newer than tarball
-
-$(CORE_DIR)/libcore.rlib: $(EXTERN_SRCS)/rustc/src/libcore/lib.rs | $(CORE_DIR)
-	@echo "Building $@"
-	@$(RUSTC) $(RUSTC_FLAGS) --out-dir $(CORE_DIR) $(EXTERN_SRCS)/rustc/src/libcore/lib.rs
-
-$(BUILD_DIR)/libcore.rlib: $(CORE_DIR)/libcore.rlib | $(BUILD_DIR)
-	@echo "Copying $< to $@"
-	@cp $< $@
+# Compiles and adds to $(APP_OBJECTS)
+-include apps/c/apps.mk
 
 $(BUILD_DIR)/libplugins.dylib: $(call rwildcard,src/plugins/,*.rs) | $(BUILD_DIR)
 	@echo "Building $@"
@@ -82,8 +66,8 @@ $(BUILD_DIR)/main.o: $(RUST_SOURCES) $(call libs,core support platform drivers a
 	@echo "Building $@"
 	@$(RUSTC) $(RUSTC_FLAGS) -C lto --emit obj -o $@ src/main.rs
 
-$(BUILD_DIR)/main.elf: $(BUILD_DIR)/main.o $(C_OBJECTS) $(ASM_OBJECTS)
-	@echo "Linking $@"
+$(BUILD_DIR)/main.elf: $(BUILD_DIR)/main.o $(APP_OBJECTS) $(C_OBJECTS) $(ASM_OBJECTS)
+	@echo "Linking $@ ($^)"
 	@$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ -ffreestanding -lgcc -lc
 
 $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf
@@ -101,6 +85,7 @@ program: $(BUILD_DIR)/main.sdb
 
 clean:
 	rm -Rf $(BUILD_DIR)/*.*
+	rm -rf $(call rwildcard,,*.o)
 
 clean-all:
 	rm -Rf $(BUILD_DIR) $(EXTERN_SRCS)
