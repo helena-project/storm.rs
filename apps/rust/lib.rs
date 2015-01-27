@@ -8,7 +8,7 @@ extern crate core;
 use core::prelude::*;
 
 macro_rules! register_app {
-    ($section:expr, $name:ident, $init_func:expr) => (
+    ($section:expr, $init_func:expr) => (
         #[link_section = $section]
         pub static RUST_BLINK_INIT: fn() = $init_func;
     );

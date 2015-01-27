@@ -18,4 +18,4 @@ fn initialize() {
     super::wait();
 }
 
-register_app!(".app.rust-boop", boop, initialize);
+register_app!(".app.rust-boop", initialize);
