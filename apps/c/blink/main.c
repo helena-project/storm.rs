@@ -16,7 +16,7 @@ timer_fired() {
 static void
 init() {
   toggle_led();
-  println("Welcome to the blink app!");
+  println("Welcome to the C blink app!");
 
   timer_subscribe(1 << 15, timer_fired);
   wait();

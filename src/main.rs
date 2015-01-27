@@ -8,7 +8,6 @@ extern crate drivers;
 extern crate platform;
 extern crate hil;
 extern crate support;
-extern crate apps;
 
 use core::prelude::*;
 

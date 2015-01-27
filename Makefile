@@ -42,6 +42,9 @@ $(BUILD_DIR):
 
 # Compiles and adds to $(APP_OBJECTS)
 -include apps/c/apps.mk
+#
+# Compiles and adds to $(APP_OBJECTS)
+-include apps/rust/apps.mk
 
 $(BUILD_DIR)/libplugins.dylib: $(call rwildcard,src/plugins/,*.rs) | $(BUILD_DIR)
 	@echo "Building $@"
@@ -62,7 +65,7 @@ $(BUILD_DIR)/%.o: c/%.c | $(BUILD_DIR)
 	@echo "Compiling $^"
 	@$(CC) $(CFLAGS) -c -o $@ $^
 
-$(BUILD_DIR)/main.o: $(RUST_SOURCES) $(call libs,core support platform drivers apps)
+$(BUILD_DIR)/main.o: $(RUST_SOURCES) $(call libs,core support platform drivers)
 	@echo "Building $@"
 	@$(RUSTC) $(RUSTC_FLAGS) -C lto --emit obj -o $@ src/main.rs
 

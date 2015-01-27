@@ -1,6 +1,6 @@
 #![crate_name = "apps"]
 #![crate_type = "rlib"]
-#![allow(unstable)]
+#![allow(unstable, unused)]
 #![no_std]
 
 extern crate core;
