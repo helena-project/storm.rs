@@ -1,0 +1,18 @@
+#!/bin/bash
+
+#export VERSION=2.1.0
+export VERSION=1.20.0
+
+export TARGET=arm-none-eabi
+export PREFIX=$HOME/bin/$TARGET
+export PATH=$PATH:$PREFIX/bin
+
+rm -fr newlib-$VERSION
+
+wget ftp://sources.redhat.com/pub/newlib/newlib-$VERSION.tar.gz
+tar xzvf newlib-$VERSION.tar.gz
+
+cd newlib-$VERSION
+./configure --target=$TARGET --prefix=$PREFIX --disable-newlib-supplied-syscalls
+make 
+make install
