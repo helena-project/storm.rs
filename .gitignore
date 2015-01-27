@@ -1,6 +1,6 @@
 extern/*
 build/*
-libcore.rlib
+*.rlib
 *.sdb
 *.bin
 *.elf
