@@ -18,5 +18,4 @@ fn initialize() {
     super::wait();
 }
 
-#[link_section = ".app.rust-boop"]
-pub static RUST_BLINK_INIT: fn() = initialize;
+register_app!(".app.rust-boop", boop, initialize);
