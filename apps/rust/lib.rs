@@ -7,7 +7,7 @@ extern crate core;
 
 use core::prelude::*;
 
-pub mod blink;
+pub mod boop;
 
 // List of commands
 const CMD_PRINTC: usize = 0;
