@@ -38,6 +38,14 @@ pub fn console_driver_writec_svc(r1: usize, _: usize) -> isize {
     0
 }
 
+pub fn console_driver_readc_svc(_: usize, _: usize) -> isize {
+    let mut console = unsafe {
+        Console.as_mut().expect("Console is None!")
+    };
+
+    console.getc() as isize
+}
+
 pub static mut LED:
     Option<drivers::gpio::led::LED<gpio::GPIOPin>> = None;
 
@@ -60,6 +68,9 @@ pub unsafe fn config() {
 
     Console = Some(init_console());
     syscall::CMD_DRIVERS[0] = console_driver_writec_svc;
+    syscall::NUM_CMD_DRIVERS += 1;
+
+    syscall::CMD_DRIVERS[2] = console_driver_readc_svc;
     syscall::NUM_CMD_DRIVERS += 1;
 
     LED = Some(init_led());

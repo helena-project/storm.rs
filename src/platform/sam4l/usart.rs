@@ -83,6 +83,7 @@ impl uart::UART for USART {
         let mode = 0 /* mode */
             | 0 << 4 /*USCLKS*/
             | chrl << 6 /* Character Length */
+            // | 1 << 8 /* synchronous receive mode */
             | (params.parity as u32) << 9 /* Parity */
             | 0 << 12; /* Number of stop bits = 1 */;
 
@@ -95,6 +96,14 @@ impl uart::UART for USART {
     fn send_byte(&mut self, byte: u8) {
         while !self.tx_ready() {}
         volatile!(self.regs.thr = byte as u32);
+    }
+
+    fn read_byte(&self) -> u8 {
+        if self.rx_ready() {
+            volatile!(self.regs.rhr) as u8
+        } else {
+            '\0' as u8
+        }
     }
 
     fn toggle_rx(&mut self, enable: bool) {

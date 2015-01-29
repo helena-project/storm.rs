@@ -17,6 +17,10 @@ impl<T: UART> Console<T> {
         self.uart.send_byte(byte);
     }
 
+    pub fn getc(&mut self) -> u8 {
+        self.uart.read_byte()
+    }
+
     pub fn write(&mut self, content: &str) {
         for byte in content.bytes() {
             self.putc(byte);
@@ -42,7 +46,7 @@ pub fn init<U,P>(mut uart: U, mut pin1: P, mut pin2: P, params: InitParams)
     });
 
     uart.toggle_tx(true);
-    uart.toggle_rx(false);
+    uart.toggle_rx(true);
 
     Console {
         uart: uart,

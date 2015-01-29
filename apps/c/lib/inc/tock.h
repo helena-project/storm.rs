@@ -4,14 +4,18 @@
 #include <stdint.h>
 
 #define SVC_ROUTINE(name, number) \
-  static inline void __##name(uint32_t a, uint32_t b, uint32_t c) {\
+  static inline int32_t __##name(uint32_t a, uint32_t b, uint32_t c) {\
     register uint32_t _a asm("r0") = a;               \
     register uint32_t _b asm("r1") = b;               \
     register uint32_t _c asm("r2") = c;               \
+    int32_t result;                                   \
     asm volatile(                                     \
         "svc " #number "\n\t"                         \
-        :: "r" (_a), "r" (_b), "r" (_c)               \
+        "mov %[result], r0\n\t"                       \
+        : [result]"=r" (result)                       \
+        : "r" (_a), "r" (_b), "r" (_c)                \
     );                                                \
+    return result;                                    \
   }
 
 SVC_ROUTINE(wait, 0)
@@ -21,6 +25,7 @@ SVC_ROUTINE(command, 2)
 // List of commands
 #define CMD_PRINTC 0
 #define CMD_TOGGLE_LED 1
+#define CMD_GETC 2
 
 // List of subscriptions
 #define SUB_TIMER 0

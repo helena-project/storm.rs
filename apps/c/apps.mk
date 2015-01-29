@@ -1,4 +1,4 @@
-APPS := blink
+APPS := blink echo
 
 HERE := $(dir $(call whereami))
 
