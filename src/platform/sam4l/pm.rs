@@ -58,7 +58,7 @@ static mut PM: *mut PmRegisters = PM_BASE as *mut PmRegisters;
 
 #[derive(Copy)]
 pub enum Clock {
-    RCSYS = 0,
+    RCSYS,
     OSC0,
     PLL,
     DFLL,
@@ -82,6 +82,15 @@ pub fn enable_pba_clock(clock: usize) {
         unlock(0x028);
 
         let val = volatile_load(&(*PM).pbamask) | (1 << clock);
+        volatile_store(&mut (*PM).pbamask, val);
+    }
+}
+
+pub fn disable_pba_clock(clock: usize) {
+    unsafe {
+        unlock(0x028);
+
+        let val = volatile_load(&(*PM).pbamask) & !(1 << clock);
         volatile_store(&mut (*PM).pbamask, val);
     }
 }

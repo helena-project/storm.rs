@@ -1,10 +1,10 @@
-use core::prelude::*;
-use core::intrinsics::*;
+use core::intrinsics;
 use hil::spi;
+use sam4l::pm;
 
 #[repr(C, packed)]
-#[allow(dead_code)]
-struct SpiRegisters {
+#[allow(dead_code,missing_copy_implementations)]
+pub struct SpiRegisters {
     cr: usize,
     mr: usize,
     rdr: usize,
@@ -23,90 +23,113 @@ struct SpiRegisters {
     //we leave out parameter and version
 }
 
-pub const SPI_BASE: usize = 0x40008000;
+pub const BASE_ADDRESS: usize = 0x40008000;
 
-static mut GSPI: *mut SpiRegisters = SPI_BASE as *mut SpiRegisters;
+static mut NUM_ENABLED : isize = 0;
 
 #[allow(missing_copy_implementations)]
 pub struct SPI {
-    pub cs: usize
+    registers: &'static mut SpiRegisters,
+    pcs: usize,
+    enabled: bool
 }
 
+#[derive(Copy)]
 pub enum MSTR {
     Master = 1,
     Slave = 0
 }
 
-impl Copy for MSTR {}
-
+#[derive(Copy)]
 pub enum PS {
     Fixed = 0,
     Variable = 1
 }
 
-impl Copy for PS {}
-
+#[derive(Copy)]
 pub enum RXFIFO {
     Disable = 0,
     Enable = 1
 }
 
-impl Copy for RXFIFO {}
-
+#[derive(Copy)]
 pub enum MODFAULT {
     Enable = 0,
     Disable = 1
 }
 
-impl Copy for MODFAULT {}
+fn enable() {
+    // Enable SPI Clock
+    pm::enable_pba_clock(1);
 
-pub fn enable() {
-    unsafe {
-        volatile_store(&mut(*GSPI).cr, 1);
-    }
+    let nvic : &mut SpiRegisters = unsafe {
+        intrinsics::transmute(BASE_ADDRESS)
+    };
+    volatile!(nvic.cr = 1);
 }
 
-pub fn disable() {
-    unsafe {
-        volatile_store(&mut(*GSPI).cr, 2);
-    }
+fn disable() {
+    let nvic : &mut SpiRegisters = unsafe {
+        intrinsics::transmute(BASE_ADDRESS)
+    };
+    volatile!(nvic.cr = 2);
+
+    // Disable SPI Clock
+    pm::disable_pba_clock(1);
 }
 
-pub fn set_mode(mstr: MSTR, ps: PS, rxfifo: RXFIFO, modf: MODFAULT) {
-    let mode = (mstr as usize) | (ps as usize) << 1 | (rxfifo as usize) << 6 |
-                (modf as usize) << 4;
-    unsafe {
-        volatile_store(&mut(*GSPI).mr, mode);
-    }
-}
+impl spi::SPIMaster for SPI {
+    fn enable(&mut self) {
+        if self.enabled {
+            return
+        }
 
-impl spi::SPI for SPI {
-    fn set_baud_rate(&self, divisor: u8) {
-        unsafe {
-            let mut csr = volatile_load(&(*GSPI).csr[self.cs]);
-            csr = (divisor as usize) << 8 | (csr & 0xffff00ff);
-            volatile_store(&mut(*GSPI).csr[self.cs], csr);
+        let res = unsafe {
+            let num_enabled = &mut NUM_ENABLED as *mut isize;
+            intrinsics::atomic_xadd(num_enabled, 1)
+        };
+        if res == 1 {
+            enable();
         }
     }
 
-    fn set_mode(&self, mode: spi::Mode) {
-        unsafe {
-            let mut csr = volatile_load(&(*GSPI).csr[self.cs]);
-            csr = (mode as usize) | (csr & 0xfffffffc);
-            volatile_store(&mut(*GSPI).csr[self.cs], csr);
+    fn disable(&mut self) {
+        if !self.enabled {
+            return
+        }
+
+        let res = unsafe {
+            let num_enabled = &mut NUM_ENABLED as *mut isize;
+            intrinsics::atomic_xsub(num_enabled, 1)
+        };
+        if res == 0 {
+            disable();
         }
     }
 
-    fn write_read(&self, data: u16, lastxfer: bool) -> u16 {
-        unsafe {
-            let tdr = (!(1 << self.cs) & 0xf) << 16 |
-                      data as usize |
-                      (lastxfer as usize) << 24;
-            volatile_store(&mut(*GSPI).tdr, tdr);
+    fn set_baud_rate(&mut self, divisor: u8) {
+        let mut csr = volatile!(self.registers.csr[self.pcs]);
+        csr = (divisor as usize) << 8 | (csr & 0xffff00ff);
+        volatile!(self.registers.csr[self.pcs] = csr);
+    }
 
-            while (volatile_load(&(&*GSPI).sr) & 1) != 1 {}
-            volatile_load(&(*GSPI).rdr) as u16
-        }
+    fn set_mode(&mut self, mode: spi::Mode) {
+        let mut csr = volatile!(self.registers.csr[self.pcs]);
+        csr = (mode as usize) | (csr & 0xfffffffc);
+        volatile!(self.registers.csr[self.pcs] = csr);
+    }
+
+    fn write_read(&mut self, data: u16, lastxfer: bool) -> u16 {
+        // lastxfer in bit 24
+        // Peripheral Chip Select in bits 16-19
+        // data in bottom 16 bits
+        let tdr = (!(1 << self.pcs) & 0xf) << 16 |
+                  data as usize |
+                  (lastxfer as usize) << 24;
+        volatile!(self.registers.tdr = tdr);
+
+        while (volatile!(self.registers.sr) & 1) != 1 {}
+        volatile!(self.registers.rdr) as u16
     }
 }
 
