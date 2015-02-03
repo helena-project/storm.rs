@@ -77,13 +77,14 @@ pub fn init () {
 impl i2c::I2CSlaveFns for I2CSlave {
     fn write_sync (&self, data: &[u8]) {
         unsafe {
-            let command = (data.len() << 16) |  // NBYTES
-                          (0x1 << 15) |         // VALID
-                          (0x1 << 13) |         // START
-                          (0x0 << 11) |         // TENBIT
+            // Configure the command register to instruct the TWIM peripheral
+            // to execute the I2C transaction
+            let command = (data.len() << 16) |             // NBYTES
+                          (0x1 << 15) |                    // VALID
+                          (0x1 << 13) |                    // START
+                          (0x0 << 11) |                    // TENBIT
                           ((self.address as usize) << 1) | // SADR
-                          (0x0 << 0);           // READ
-
+                          (0x0 << 0);                      // READ
             intrinsics::volatile_store(&mut(*GI2C).command, command);
 
             // Write all bytes in the data buffer to the I2C peripheral
@@ -101,9 +102,33 @@ impl i2c::I2CSlaveFns for I2CSlave {
         }
     }
 
-    /*fn read_sync (&self, count: usize) -> &[u8] {
+    fn read_sync (&self, buffer: &mut[u8]) {
+        unsafe {
+            // Configure the command register to instruct the TWIM peripheral
+            // to execute the I2C transaction
+            let command = (buffer.len() << 16) |           // NBYTES
+                          (0x1 << 15) |                    // VALID
+                          (0x1 << 13) |                    // START
+                          (0x0 << 11) |                    // TENBIT
+                          ((self.address as usize) << 1) | // SADR
+                          (0x1 << 0);                      // READ
+            intrinsics::volatile_store(&mut(*GI2C).command, command);
 
-    }*/
+            // Read bytes in to the buffer
+            for i in 0..buffer.len() {
+                // Wait for the peripheral to tell us that we can
+                // read from the RX register
+                loop {
+                    let status = intrinsics::volatile_load(&(*GI2C).status);
+                    // TODO: define these constants somewhere
+                    if status & 0x00000001 == 0x00000001 {
+                        break;
+                    }
+                }
+                buffer[i] = intrinsics::volatile_load(&mut(*GI2C).receive_holding) as u8;
+            }
+        }
+    }
 }
 
 
