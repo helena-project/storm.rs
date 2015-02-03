@@ -54,6 +54,12 @@ struct GPIOPortRegisters {
     version: u32,
 }
 
+#[derive(Copy)]
+pub enum PeripheralFunction {
+    A, B, C, D, E, F, G, H
+}
+
+
 const BASE_ADDRESS: usize = 0x400E1000;
 const SIZE: usize = 0x200;
 
@@ -101,6 +107,19 @@ impl GPIOPin {
             pin_mask: 1 << (pin_number as u32)
         }
     }
+
+    pub fn select_peripheral(&mut self, function: PeripheralFunction) {
+        let (f, n) = (function as u32, self.number as u32);
+        let (bit0, bit1, bit2) = (f & 0b1, (f & 0b10) >> 1, (f & 0b100) >> 2);
+
+        // clear GPIO enable for pin
+        volatile!(self.port.gper.clear = self.pin_mask);
+
+        // Set PMR0-2 according to passed in peripheral
+        volatile!(self.port.pmr0.val = bit0 << n);
+        volatile!(self.port.pmr1.val = bit1 << n);
+        volatile!(self.port.pmr2.val = bit2 << n);
+    }
 }
 
 impl hil::GPIOPin for GPIOPin {
@@ -112,19 +131,6 @@ impl hil::GPIOPin for GPIOPin {
 
     fn read(&self) -> bool {
         (volatile!(self.port.pvr.val) & self.pin_mask) > 0
-    }
-
-    fn select_peripheral(&mut self, function: hil::PeripheralFunction) {
-        let (f, n) = (function as u32, self.number as u32);
-        let (bit0, bit1, bit2) = (f & 0b1, (f & 0b10) >> 1, (f & 0b100) >> 2);
-
-        // clear GPIO enable for pin
-        volatile!(self.port.gper.clear = self.pin_mask);
-
-        // Set PMR0-2 according to passed in peripheral
-        volatile!(self.port.pmr0.val = bit0 << n);
-        volatile!(self.port.pmr1.val = bit1 << n);
-        volatile!(self.port.pmr2.val = bit2 << n);
     }
 
     port_register_fn!(toggle, ovr, toggle);
