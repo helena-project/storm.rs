@@ -14,9 +14,9 @@ println(const char const *str) {
   __command(CMD_PRINTC, '\n', 0);
 }
 
-uint8_t
-getchar() {
-  return (uint8_t) __command(CMD_GETC, 0, 0);
+void
+readc_subscribe(void (*f)(uint8_t)) {
+  __subscribe(SUB_READC, (uint32_t) f, 0);
 }
 
 void

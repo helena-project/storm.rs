@@ -25,9 +25,9 @@ SVC_ROUTINE(command, 2)
 // List of commands
 #define CMD_PRINTC 0
 #define CMD_TOGGLE_LED 1
-#define CMD_GETC 2
 
 // List of subscriptions
 #define SUB_TIMER 0
+#define SUB_READC 1
 
 #endif

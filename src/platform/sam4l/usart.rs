@@ -43,7 +43,8 @@ pub struct Params {
 }
 
 pub struct USART {
-    regs: &'static mut UsartRegisters
+    regs: &'static mut UsartRegisters,
+    location: Location
 }
 
 impl USART {
@@ -51,7 +52,8 @@ impl USART {
         let address = BASE_ADDRESS + (params.location as usize) * SIZE;
 
         USART {
-            regs: unsafe { intrinsics::transmute(address) }
+            regs: unsafe { intrinsics::transmute(address) },
+            location: params.location
         }
     }
 
@@ -75,6 +77,21 @@ impl USART {
     pub fn tx_ready(&self) -> bool {
         volatile!(self.regs.csr) & 0b10 != 0
     }
+
+    fn enable_nvic(&self) {
+        use super::nvic;
+        match self.location {
+            Location::USART0 => nvic::enable(nvic::NvicIdx::USART0),
+            Location::USART1 => nvic::enable(nvic::NvicIdx::USART1),
+            Location::USART2 => nvic::enable(nvic::NvicIdx::USART2),
+            Location::USART3 => nvic::enable(nvic::NvicIdx::USART3)
+        }
+    }
+
+    fn enable_rx_interrupts(&mut self) {
+        self.enable_nvic();
+        volatile!(self.regs.ier = 1 as u32);
+    }
 }
 
 impl uart::UART for USART {
@@ -83,7 +100,6 @@ impl uart::UART for USART {
         let mode = 0 /* mode */
             | 0 << 4 /*USCLKS*/
             | chrl << 6 /* Character Length */
-            // | 1 << 8 /* synchronous receive mode */
             | (params.parity as u32) << 9 /* Parity */
             | 0 << 12; /* Number of stop bits = 1 */;
 
@@ -109,6 +125,7 @@ impl uart::UART for USART {
     fn toggle_rx(&mut self, enable: bool) {
         if enable {
             volatile!(self.regs.cr = 1 << 4);
+            self.enable_rx_interrupts();
         } else {
             volatile!(self.regs.cr = 1 << 5);
         }

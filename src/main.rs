@@ -15,7 +15,7 @@ mod std {
     pub use core::*;
 }
 
-mod config;
+pub mod config;
 mod task;
 mod ringbuf;
 pub mod syscall;
