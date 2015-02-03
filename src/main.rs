@@ -1,7 +1,7 @@
 #![no_main]
 #![no_std]
-#![allow(dead_code, unstable)]
-#![feature(asm)]
+#![allow(dead_code)]
+#![feature(asm,core,core)]
 
 extern crate core;
 extern crate drivers;

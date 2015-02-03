@@ -42,7 +42,7 @@ $(BUILD_DIR):
 
 # Compiles and adds to $(APP_OBJECTS)
 -include apps/c/apps.mk
-#
+
 # Compiles and adds to $(APP_OBJECTS)
 -include apps/rust/apps.mk
 

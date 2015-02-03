@@ -13,6 +13,7 @@ $(EXTERN_SRCS)/rustc-$(RUSTC_VERSION)-src.tar.gz: | $(EXTERN_SRCS)
 
 $(EXTERN_SRCS)/rustc/src/libcore/lib.rs: $(EXTERN_SRCS)/rustc-$(RUSTC_VERSION)-src.tar.gz
 	@echo "Untarring $(<F)"
+	@rm -rf $(EXTERN_SRCS)/rustc
 	@mkdir -p $(EXTERN_SRCS)/rustc
 	@tar -C $(EXTERN_SRCS)/rustc -zx --strip-components=1 -f $^
 	@touch $@ # Touch so lib.rs appears newer than tarball
