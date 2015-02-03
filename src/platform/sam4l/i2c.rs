@@ -6,7 +6,7 @@
 // extern crate core;
 
 
-use core::prelude::*;
+use core::prelude::SliceExt;
 use core::intrinsics;
 
 use hil::i2c;
