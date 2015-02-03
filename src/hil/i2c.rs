@@ -18,7 +18,10 @@ pub trait I2CSlaveFns {
     /// This call is synchronous and will block until all bytes have written
     fn write_sync (&self, data: &[u8]);
 
-    /// Read count bytes from a slave.
-    /// This call is synchronous and will block until all bits have been read.
-    fn read_sync (&self, count: usize) -> &[u8];
+    // Read count bytes from a slave.
+    // This call is synchronous and will block until all bits have been read.
+    // TODO(alevy): commented out just to get a compiling version of I2C. This
+    // _may_ be a problematic type since it means allocating the slice
+    // somewhere. Perhaps passing in a buffer would be better?
+    //fn read_sync (&self, count: usize) -> &[u8];
 }

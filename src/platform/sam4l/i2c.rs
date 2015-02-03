@@ -6,7 +6,7 @@
 // extern crate core;
 
 
-
+use core::prelude::*;
 use core::intrinsics;
 
 use hil::i2c;
@@ -81,7 +81,7 @@ impl i2c::I2CSlaveFns for I2CSlave {
                           (0x1 << 15) |         // VALID
                           (0x1 << 13) |         // START
                           (0x0 << 11) |         // TENBIT
-                          (self.address << 1) | // SADR
+                          ((self.address as usize) << 1) | // SADR
                           (0x0 << 0);           // READ
 
             intrinsics::volatile_store(&mut(*GI2C).command, command);
@@ -96,14 +96,14 @@ impl i2c::I2CSlaveFns for I2CSlave {
                         break;
                     }
                 }
-                intrinsics::volatile_store(&mut(*GI2C).transmit_holding, data[i]);
+                intrinsics::volatile_store(&mut(*GI2C).transmit_holding, data[i] as usize);
             }
         }
     }
 
-    fn read_sync (&self, count: usize) -> &[u8] {
+    /*fn read_sync (&self, count: usize) -> &[u8] {
 
-    }
+    }*/
 }
 
 
