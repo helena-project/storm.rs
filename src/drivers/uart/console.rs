@@ -15,9 +15,11 @@ pub struct Console<T: UART> {
 
 impl<T: UART> Console<T> {
     pub fn uart_interrupt(&mut self) {
-        if let Some(ref callback) = self.read_callback {
-            callback(self.uart.read_byte());
-        }
+        let byte = self.uart.read_byte();
+        self.putc(byte);
+        // if let Some(ref callback) = self.read_callback {
+        //     callback(self.uart.read_byte());
+        // }
     }
 
     pub fn putc(&mut self, byte: u8) {
