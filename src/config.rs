@@ -72,7 +72,8 @@ fn init_led() -> drivers::gpio::led::LED<gpio::GPIOPin> {
 
     let pin_10 = gpio::GPIOPin::new(gpio::Params {
         location: gpio::Location::GPIOPin10,
-        port: gpio::GPIOPort::GPIO2
+        port: gpio::GPIOPort::GPIO2,
+        function: None
     });
 
     drivers::gpio::led::init(pin_10,
@@ -90,19 +91,17 @@ fn init_console() -> drivers::uart::console::Console<usart::USART> {
         location: usart::Location::USART3
     });
 
-    let mut pin_9 = gpio::GPIOPin::new(gpio::Params {
+    let _ = gpio::GPIOPin::new(gpio::Params {
         location: gpio::Location::GPIOPin9,
-        port: gpio::GPIOPort::GPIO1
+        port: gpio::GPIOPort::GPIO1,
+        function: Some(gpio::PeripheralFunction::A)
     });
 
-    let mut pin_10 = gpio::GPIOPin::new(gpio::Params {
+    let _ = gpio::GPIOPin::new(gpio::Params {
         location: gpio::Location::GPIOPin10,
-        port: gpio::GPIOPort::GPIO1
+        port: gpio::GPIOPort::GPIO1,
+        function: Some(gpio::PeripheralFunction::A)
     });
-
-    // Set pins to peripheral function USART3
-    pin_9.select_peripheral(gpio::PeripheralFunction::A);
-    pin_10.select_peripheral(gpio::PeripheralFunction::A);
 
 
     // USART3 clock; this should probably be in USART's init, and should likely

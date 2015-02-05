@@ -1,5 +1,5 @@
+use core::prelude::*;
 use core::intrinsics;
-use core::marker::Copy;
 use hil;
 
 #[repr(C, packed)]
@@ -77,6 +77,7 @@ pub enum Location {
 pub struct Params {
     pub location: Location,
     pub port: GPIOPort,
+    pub function: Option<PeripheralFunction>
 }
 
 pub struct GPIOPin {
@@ -101,11 +102,17 @@ impl GPIOPin {
         let address = BASE_ADDRESS + (params.port as usize) * SIZE;
         let pin_number = params.location as u8;
 
-        GPIOPin {
+        let mut pin = GPIOPin {
             port: unsafe { intrinsics::transmute(address) },
             number: pin_number,
             pin_mask: 1 << (pin_number as u32)
+        };
+
+        if params.function.is_some() {
+            pin.select_peripheral(params.function.unwrap());
         }
+
+        pin
     }
 
     pub fn select_peripheral(&mut self, function: PeripheralFunction) {
