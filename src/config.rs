@@ -90,21 +90,26 @@ fn init_console() -> drivers::uart::console::Console<usart::USART> {
         location: usart::Location::USART3
     });
 
-    let pin_9 = gpio::GPIOPin::new(gpio::Params {
+    let mut pin_9 = gpio::GPIOPin::new(gpio::Params {
         location: gpio::Location::GPIOPin9,
         port: gpio::GPIOPort::GPIO1
     });
 
-    let pin_10 = gpio::GPIOPin::new(gpio::Params {
+    let mut pin_10 = gpio::GPIOPin::new(gpio::Params {
         location: gpio::Location::GPIOPin10,
         port: gpio::GPIOPort::GPIO1
     });
+
+    // Set pins to peripheral function USART3
+    pin_9.select_peripheral(gpio::PeripheralFunction::A);
+    pin_10.select_peripheral(gpio::PeripheralFunction::A);
+
 
     // USART3 clock; this should probably be in USART's init, and should likely
     // depend on the location.
     pm::enable_pba_clock(11);
 
-    drivers::uart::console::init(uart_3, pin_9, pin_10,
+    drivers::uart::console::init(uart_3,
         drivers::uart::console::InitParams {
             baud_rate: 115200,
             data_bits: 8,
@@ -112,3 +117,4 @@ fn init_console() -> drivers::uart::console::Console<usart::USART> {
         }
     )
 }
+

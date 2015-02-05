@@ -1,4 +1,4 @@
-use hil::{GPIOPin, UART, UARTParams, Parity, PeripheralFunction};
+use hil::{UART, UARTParams, Parity};
 use core::prelude::*;
 
 #[derive(Copy)]
@@ -29,12 +29,8 @@ impl<T: UART> Console<T> {
     }
 }
 
-pub fn init<U,P>(mut uart: U, mut pin1: P, mut pin2: P, params: InitParams)
-        -> Console<U> where U: UART, P: GPIOPin {
-    // Setup pins to function as USB device
-    pin1.select_peripheral(PeripheralFunction::A);
-    pin2.select_peripheral(PeripheralFunction::A);
-
+pub fn init<U>(mut uart: U, params: InitParams)
+        -> Console<U> where U: UART {
     uart.init(UARTParams {
         baud_rate: params.baud_rate,
         data_bits: params.data_bits,
