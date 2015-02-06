@@ -1,3 +1,4 @@
+use sam4l::pm::{self, Clock, PBAClock};
 use core::marker::Copy;
 use core::intrinsics;
 use hil::uart;
@@ -43,7 +44,8 @@ pub struct Params {
 }
 
 pub struct USART {
-    regs: &'static mut UsartRegisters
+    regs: &'static mut UsartRegisters,
+    location: Location
 }
 
 impl USART {
@@ -51,7 +53,8 @@ impl USART {
         let address = BASE_ADDRESS + (params.location as usize) * SIZE;
 
         USART {
-            regs: unsafe { intrinsics::transmute(address) }
+            regs: unsafe { intrinsics::transmute(address) },
+            location: params.location
         }
     }
 
@@ -66,6 +69,17 @@ impl USART {
     unsafe fn set_mode(&mut self, mode: u32) {
         #![allow(unused_unsafe)]
         volatile!(self.regs.mr = mode);
+    }
+
+    fn enable_clock(&self) {
+        let pba_clock = match self.location {
+            Location::USART0 => PBAClock::USART0,
+            Location::USART1 => PBAClock::USART1,
+            Location::USART2 => PBAClock::USART2,
+            Location::USART3 => PBAClock::USART3,
+        };
+
+        pm::enable_clock(Clock::PBA(pba_clock));
     }
 
     pub fn rx_ready(&self) -> bool {
@@ -86,9 +100,9 @@ impl uart::UART for USART {
             | (params.parity as u32) << 9 /* Parity */
             | 0 << 12; /* Number of stop bits = 1 */;
 
-        unsafe { self.set_mode(mode); }
+        self.enable_clock();
         self.set_baud_rate(params.baud_rate);
-        // Copied from TinyOS, not exactly sure how to generalize
+        unsafe { self.set_mode(mode); }
         volatile!(self.regs.ttgr = 4);
     }
 

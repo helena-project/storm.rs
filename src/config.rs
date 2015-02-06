@@ -84,7 +84,6 @@ fn init_led() -> drivers::gpio::led::LED<gpio::GPIOPin> {
 }
 
 fn init_console() -> drivers::uart::console::Console<usart::USART> {
-    use platform::sam4l::pm;
     use hil::uart;
 
     let uart_3 = usart::USART::new(usart::Params {
@@ -102,11 +101,6 @@ fn init_console() -> drivers::uart::console::Console<usart::USART> {
         port: gpio::GPIOPort::GPIO1,
         function: Some(gpio::PeripheralFunction::A)
     });
-
-
-    // USART3 clock; this should probably be in USART's init, and should likely
-    // depend on the location.
-    pm::enable_pba_clock(11);
 
     drivers::uart::console::init(uart_3,
         drivers::uart::console::InitParams {

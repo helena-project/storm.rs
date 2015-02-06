@@ -1,6 +1,6 @@
 use core::intrinsics;
 use hil::spi;
-use sam4l::pm;
+use sam4l::pm::{self, Clock, PBAClock};
 
 #[repr(C, packed)]
 #[allow(dead_code,missing_copy_implementations)]
@@ -60,22 +60,22 @@ pub enum MODFAULT {
 
 fn enable() {
     // Enable SPI Clock
-    pm::enable_pba_clock(1);
+    pm::enable_clock(Clock::PBA(PBAClock::SPI));
 
-    let nvic : &mut SpiRegisters = unsafe {
+    let nvic: &mut SpiRegisters = unsafe {
         intrinsics::transmute(BASE_ADDRESS)
     };
     volatile!(nvic.cr = 1);
 }
 
 fn disable() {
-    let nvic : &mut SpiRegisters = unsafe {
+    let nvic: &mut SpiRegisters = unsafe {
         intrinsics::transmute(BASE_ADDRESS)
     };
     volatile!(nvic.cr = 2);
 
     // Disable SPI Clock
-    pm::disable_pba_clock(1);
+    pm::disable_clock(Clock::PBA(PBAClock::SPI));
 }
 
 impl spi::SPIMaster for SPI {
