@@ -4,12 +4,36 @@
 .text
 
 /*; Exported functions*/
+.global SVC_Handler
+.global PendSV_Handler
+
 .globl __prepare_user_stack
 .globl __ctx_to_master
-.globl __ctx_to_user
 .globl __subscribe
 .globl __command
 .globl __wait
+
+/* svc_rust_handler returns 0 to return to unprivileged stack (process) and 1
+  to switch to privileged stack (kernel) */
+.extern svc_rust_handler
+.thumb_func
+SVC_Handler:
+  push {lr}
+  mrs r0, PSP
+  bl svc_rust_handler
+  pop {lr}
+  cmp r0, 0
+  bne __ctx_to_master
+  bx lr
+
+.thumb_func
+PendSV_Handler:
+    mov r1, #0x2
+    msr CONTROL, r1
+    movw LR, #0xFFFD
+    movt LR, #0xFFFF
+    bx lr
+
 
 .thumb_func
 /* r0 is start address and r1 is top of user stack */
@@ -22,14 +46,6 @@ __prepare_user_stack:
 
     /* Load bottom of stack into Process Stack Pointer */
     msr psp, r1
-    bx lr
-
-.thumb_func
-__ctx_to_user:
-    mov r1, #0x2
-    msr CONTROL, r1
-    movw LR, #0xFFFD
-    movt LR, #0xFFFF
     bx lr
 
 .thumb_func
