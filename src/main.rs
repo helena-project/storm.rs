@@ -1,8 +1,10 @@
 #![no_main]
 #![no_std]
 #![allow(dead_code)]
-#![feature(asm,core,core)]
+#![feature(asm,core,core,plugin)]
 
+#[plugin] #[no_link]
+extern crate plugins;
 extern crate core;
 extern crate drivers;
 extern crate platform;
@@ -50,6 +52,9 @@ fn launch_task(task: task::Task) {
 
 #[no_mangle]
 pub extern fn main() {
+    device_tree!(
+        red_led: gpio::led::LED(GPIOPin@10);
+    );
 
     unsafe {
         task::setup();

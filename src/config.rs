@@ -91,7 +91,7 @@ fn init_led() -> drivers::gpio::led::LED<gpio::GPIOPin> {
         function: None
     });
 
-    drivers::gpio::led::init(pin_10,
+    drivers::gpio::led::LED::new(pin_10,
         drivers::gpio::led::InitParams {
             start_status: drivers::gpio::led::LEDStatus::On
         }

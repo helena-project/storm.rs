@@ -4,7 +4,6 @@ use syntax::parse::token;
 use syntax::ast::{TokenTree, Lit_, Item_, Variant, Visibility};
 use syntax::ext::base::{ExtCtxt, MacResult, DummyResult, MacItems};
 use syntax::ext::build::AstBuilder;
-use rustc::plugin::Registry;
 
 type VariantVec = Vec<ptr::P<Variant>>;
 
@@ -22,7 +21,7 @@ fn gen_variants(cx: &ExtCtxt, sp: Span,
     }
 }
 
-fn expand_repeat(cx: &mut ExtCtxt, sp: Span, args: &[TokenTree])
+pub fn expand(cx: &mut ExtCtxt, sp: Span, args: &[TokenTree])
         -> Box<MacResult + 'static> {
     let mut parser = cx.new_parser_from_tts(args);
 
@@ -37,14 +36,7 @@ fn expand_repeat(cx: &mut ExtCtxt, sp: Span, args: &[TokenTree])
     loop {
         let ident = String::from_str(parser.parse_ident().as_str());
         parser.expect(&token::BinOp(token::BinOpToken::Star));
-
-        let number = match parser.parse_lit().node {
-            Lit_::LitInt(n, _) => n,
-            _ => {
-                cx.span_err(sp, "Argument must be an interger literal.");
-                return DummyResult::any(sp);
-            }
-        };
+        let number = parse_int_lit!(parser, cx, sp);
 
         // Adds all of the requested variants to the 'variants' array.
         gen_variants(cx, sp, &mut variants, ident, number);
@@ -70,9 +62,4 @@ fn expand_repeat(cx: &mut ExtCtxt, sp: Span, args: &[TokenTree])
 
     let copy_derive = quote_item!(cx, impl Copy for $enum_name {}).unwrap();
     MacItems::new(vec![enum_id, copy_derive].into_iter())
-}
-
-#[plugin_registrar]
-pub fn plugin_registrar(reg: &mut Registry) {
-    reg.register_macro("repeated_enum", expand_repeat);
 }
