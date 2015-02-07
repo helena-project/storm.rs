@@ -8,7 +8,7 @@ struct Nvic {
 #[repr(C)]
 #[derive(Copy)]
 pub enum NvicIdx {
-    HFLASHC = 0,
+    HFLASHC,
     PDCA0,
     PDCA1,
     PDCA2,
@@ -88,13 +88,12 @@ pub enum NvicIdx {
     LCDCA
 }
 
-pub fn enable(signal: NvicIdx) {
-    let nvic_addr: u32 = 0xe000e100;
-    let nvic = unsafe { &mut *(nvic_addr as *mut Nvic)};
-    let int = signal as usize;
+pub const BASE_ADDRESS : usize = 0xe000e100;
 
-    unsafe {
-        intrinsics::volatile_store(&mut nvic.iser[int / 32], 1 << (int & 31));
-    }
+pub fn enable(signal: NvicIdx) {
+    let nvic : &mut Nvic = unsafe { intrinsics::transmute(BASE_ADDRESS) };
+    let interrupt = signal as usize;
+
+    volatile!(nvic.iser[interrupt / 32] = 1 << (interrupt & 31));
 }
 
