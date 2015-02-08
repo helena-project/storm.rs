@@ -8,8 +8,8 @@ $(CORE_DIR) $(EXTERN_SRCS):
 	@mkdir -p $@
 
 $(EXTERN_SRCS)/rustc-$(RUSTC_VERSION)-src.tar.gz: | $(EXTERN_SRCS)
-	@echo "Fetching $(@F)"
-	@wget -q -O $@ https://github.com/rust-lang/rust/archive/$(RUSTC_VERSION).tar.gz
+	@echo "Need libcore to compile Tock: fetching source $(@F)"
+	wget -q -O $@ https://github.com/rust-lang/rust/archive/$(RUSTC_VERSION).tar.gz
 
 $(EXTERN_SRCS)/rustc/src/libcore/lib.rs: $(EXTERN_SRCS)/rustc-$(RUSTC_VERSION)-src.tar.gz
 	@echo "Untarring $(<F)"
