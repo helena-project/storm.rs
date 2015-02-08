@@ -9,10 +9,10 @@ CC = arm-none-eabi-gcc
 CFLAGS += -g -O3 -std=gnu99 -mcpu=cortex-m4 -mthumb -nostdlib
 LDFLAGS += -Tconfig/stormpayload.ld
 
-C_SOURCES=c/stormcrt1.c
+C_SOURCES=$(call rwildcard,src/support/,*.c)
 C_OBJECTS=$(C_SOURCES:c/%.c=build/%.o)
 
-ASM_SOURCES=c/ctx_switch.S
+ASM_SOURCES=$(call rwildcard,src/support/,*.S)
 ASM_OBJECTS=$(ASM_SOURCES:S/%.c=build/%.o)
 
 RUST_SOURCES=$(wildcard src/*.rs)
@@ -42,7 +42,7 @@ $(BUILD_DIR):
 
 # Compiles and adds to $(APP_OBJECTS)
 -include apps/c/apps.mk
-#
+
 # Compiles and adds to $(APP_OBJECTS)
 -include apps/rust/apps.mk
 

@@ -1,8 +1,6 @@
 #![crate_name = "plugins"]
 #![crate_type = "dylib"]
-
-#![allow(unstable)]
-#![feature(plugin_registrar, quote)]
+#![feature(plugin_registrar,quote,rustc_private,core,collections)]
 
 extern crate syntax;
 extern crate rustc;

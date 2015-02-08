@@ -1,4 +1,5 @@
 use core::prelude::*;
+use core::intrinsics;
 use platform::sam4l::{usart, ast, gpio};
 use hil::timer::AlarmHandler;
 use drivers;
@@ -38,6 +39,17 @@ pub fn console_driver_writec_svc(r1: usize, _: usize) -> isize {
     0
 }
 
+pub fn console_driver_readc_sub(callback: usize, _: usize) -> isize {
+    let mut console = unsafe {
+        Console.as_mut().expect("Console is None!")
+    };
+
+    // !! SO very unsafe! See the note at the bottom of this document.
+    let callback_fn: fn(u8) = unsafe { intrinsics::transmute(callback) };
+    console.read_subscribe(callback_fn);
+    0
+}
+
 pub static mut LED:
     Option<drivers::gpio::led::LED<gpio::GPIOPin>> = None;
 
@@ -62,6 +74,9 @@ pub unsafe fn config() {
     syscall::CMD_DRIVERS[0] = console_driver_writec_svc;
     syscall::NUM_CMD_DRIVERS += 1;
 
+    syscall::SUBSCRIBE_DRIVERS[1] = console_driver_readc_sub;
+    syscall::NUM_SUBSCRIBE_DRIVERS += 1;
+
     LED = Some(init_led());
     syscall::CMD_DRIVERS[1] = led_driver_toggle_svc;
     syscall::NUM_CMD_DRIVERS += 1;
@@ -72,7 +87,8 @@ fn init_led() -> drivers::gpio::led::LED<gpio::GPIOPin> {
 
     let pin_10 = gpio::GPIOPin::new(gpio::Params {
         location: gpio::Location::GPIOPin10,
-        port: gpio::GPIOPort::GPIO2
+        port: gpio::GPIOPort::GPIO2,
+        function: None
     });
 
     drivers::gpio::led::init(pin_10,
@@ -83,32 +99,44 @@ fn init_led() -> drivers::gpio::led::LED<gpio::GPIOPin> {
 }
 
 fn init_console() -> drivers::uart::console::Console<usart::USART> {
-    use platform::sam4l::pm;
     use hil::uart;
 
     let uart_3 = usart::USART::new(usart::Params {
         location: usart::Location::USART3
     });
 
-    let pin_9 = gpio::GPIOPin::new(gpio::Params {
+    let _ = gpio::GPIOPin::new(gpio::Params {
         location: gpio::Location::GPIOPin9,
-        port: gpio::GPIOPort::GPIO1
+        port: gpio::GPIOPort::GPIO1,
+        function: Some(gpio::PeripheralFunction::A)
     });
 
-    let pin_10 = gpio::GPIOPin::new(gpio::Params {
+    let _ = gpio::GPIOPin::new(gpio::Params {
         location: gpio::Location::GPIOPin10,
-        port: gpio::GPIOPort::GPIO1
+        port: gpio::GPIOPort::GPIO1,
+        function: Some(gpio::PeripheralFunction::A)
     });
 
-    // USART3 clock; this should probably be in USART's init, and should likely
-    // depend on the location.
-    pm::enable_pba_clock(11);
-
-    drivers::uart::console::init(uart_3, pin_9, pin_10,
+    drivers::uart::console::init(uart_3,
         drivers::uart::console::InitParams {
             baud_rate: 115200,
             data_bits: 8,
             parity: uart::Parity::None
         }
     )
+}
+
+#[no_mangle]
+#[allow(non_snake_case)]
+pub extern fn USART3_Handler() {
+    let mut console = unsafe {
+        Console.as_mut().expect("Console is None!")
+    };
+
+    // This is totally unsafe right now. The UART interrupt handler stored a
+    // pointer to user space and calls it in kernel space. This is definitely
+    // not what should be hapenning! We could use 'task.post', but then we can't
+    // pass parameters to user space. We'll need a better mechanism to invoke
+    // user functions.
+    console.uart_interrupt();
 }

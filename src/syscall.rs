@@ -3,7 +3,6 @@ use core::intrinsics::*;
 #[allow(improper_ctypes)]
 extern {
     fn __prepare_user_stack(start: usize, user_stack: *mut usize);
-    fn __ctx_to_user();
     fn __ctx_to_master();
 }
 
@@ -26,17 +25,23 @@ pub unsafe extern fn switch_to_user(pc: usize, sp: *mut usize) {
     volatile_store(icsr, volatile_load(icsr as *const usize) | 1<<28);
 }
 
-#[no_mangle]
-#[allow(non_snake_case)]
-#[allow(unused_assignments)]
-pub unsafe extern fn SVC_Handler() {
-    use core::intrinsics::volatile_load;
+#[derive(Copy)]
+pub enum ReturnTo {
+  Process = 0,
+  Kernel = 1
+}
 
-    let mut psp: usize = 0;
-    asm!("mrs $0, PSP" :"=r"(psp)::: "volatile");
+#[no_mangle]
+#[allow(unused_assignments)]
+/// Called from the SVC handler.
+pub unsafe extern fn svc_rust_handler(psp: usize) -> ReturnTo {
+    use core::intrinsics::volatile_load;
 
     /* Find process PC on stack */
     let user_pc = volatile_load((psp + 24) as *const usize);
+    let r0 = volatile_load(psp as *const usize);
+    let r1 = volatile_load((psp + 4) as *const usize);
+    let r2 = volatile_load((psp + 8) as *const usize);
 
     /* SVC is one instruction before current PC. The low byte is the opcode */
     let svc = volatile_load((user_pc - 2) as *const u16) & 0xff;
@@ -45,39 +50,27 @@ pub unsafe extern fn SVC_Handler() {
             volatile_store(psp as *mut isize, 0);
         },
         SUBSCRIBE => {
-            let r0 = volatile_load((psp) as *const usize);
             if r0 > NUM_SUBSCRIBE_DRIVERS {
                 volatile_store(psp as *mut isize, -1);
             }
-            let r1 = volatile_load((psp + 4) as *const usize);
-            let r2 = volatile_load((psp + 8) as *const usize);
 
-            let res: isize = SUBSCRIBE_DRIVERS[r0](r1, r2);
+            let res = SUBSCRIBE_DRIVERS[r0](r1, r2);
             volatile_store(psp as *mut isize, res);
-            return;
+            return ReturnTo::Process;
         },
         COMMAND => {
-            let r0 = volatile_load((psp) as *const usize);
             if r0 > NUM_CMD_DRIVERS {
                 volatile_store(psp as *mut isize, -1);
             }
-            let r1 = volatile_load((psp + 4) as *const usize);
-            let r2 = volatile_load((psp + 8) as *const usize);
 
-            let res: isize = CMD_DRIVERS[r0](r1, r2);
+            let res = CMD_DRIVERS[r0](r1, r2);
             volatile_store(psp as *mut isize, res);
-            return;
+            return ReturnTo::Process;
         },
         _ => {
             volatile_store(psp as *mut isize, -1);
         }
     }
-    __ctx_to_master();
-}
-
-#[no_mangle]
-#[allow(non_snake_case)]
-pub unsafe extern fn PendSV_Handler() {
-    __ctx_to_user();
+    return ReturnTo::Kernel;
 }
 

@@ -1,9 +1,7 @@
 #![crate_name = "platform"]
 #![crate_type = "rlib"]
 #![no_std]
-
-#![allow(unstable)]
-#![feature(plugin)]
+#![feature(plugin,core)]
 
 extern crate core;
 extern crate hil;

@@ -1,6 +1,6 @@
 #![crate_name = "hil"]
 #![crate_type = "rlib"]
-#![allow(unstable)]
+#![feature(core)]
 #![no_std]
 
 extern crate core;
@@ -13,6 +13,7 @@ mod std {
 }
 
 pub mod gpio;
+pub mod i2c;
 pub mod spi;
 pub mod timer;
 pub mod uart;

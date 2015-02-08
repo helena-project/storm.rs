@@ -1,5 +1,5 @@
+use core::prelude::*;
 use core::intrinsics;
-use core::marker::Copy;
 use hil;
 
 #[repr(C, packed)]
@@ -54,6 +54,12 @@ struct GPIOPortRegisters {
     version: u32,
 }
 
+#[derive(Copy)]
+pub enum PeripheralFunction {
+    A, B, C, D, E, F, G, H
+}
+
+
 const BASE_ADDRESS: usize = 0x400E1000;
 const SIZE: usize = 0x200;
 
@@ -71,6 +77,7 @@ pub enum Location {
 pub struct Params {
     pub location: Location,
     pub port: GPIOPort,
+    pub function: Option<PeripheralFunction>
 }
 
 pub struct GPIOPin {
@@ -95,11 +102,30 @@ impl GPIOPin {
         let address = BASE_ADDRESS + (params.port as usize) * SIZE;
         let pin_number = params.location as u8;
 
-        GPIOPin {
+        let mut pin = GPIOPin {
             port: unsafe { intrinsics::transmute(address) },
             number: pin_number,
             pin_mask: 1 << (pin_number as u32)
+        };
+
+        if params.function.is_some() {
+            pin.select_peripheral(params.function.unwrap());
         }
+
+        pin
+    }
+
+    pub fn select_peripheral(&mut self, function: PeripheralFunction) {
+        let (f, n) = (function as u32, self.number as u32);
+        let (bit0, bit1, bit2) = (f & 0b1, (f & 0b10) >> 1, (f & 0b100) >> 2);
+
+        // clear GPIO enable for pin
+        volatile!(self.port.gper.clear = self.pin_mask);
+
+        // Set PMR0-2 according to passed in peripheral
+        volatile!(self.port.pmr0.val = bit0 << n);
+        volatile!(self.port.pmr1.val = bit1 << n);
+        volatile!(self.port.pmr2.val = bit2 << n);
     }
 }
 
@@ -112,19 +138,6 @@ impl hil::GPIOPin for GPIOPin {
 
     fn read(&self) -> bool {
         (volatile!(self.port.pvr.val) & self.pin_mask) > 0
-    }
-
-    fn select_peripheral(&mut self, function: hil::PeripheralFunction) {
-        let (f, n) = (function as u32, self.number as u32);
-        let (bit0, bit1, bit2) = (f & 0b1, (f & 0b10) >> 1, (f & 0b100) >> 2);
-
-        // clear GPIO enable for pin
-        volatile!(self.port.gper.clear = self.pin_mask);
-
-        // Set PMR0-2 according to passed in peripheral
-        volatile!(self.port.pmr0.val = bit0 << n);
-        volatile!(self.port.pmr1.val = bit1 << n);
-        volatile!(self.port.pmr2.val = bit2 << n);
     }
 
     port_register_fn!(toggle, ovr, toggle);

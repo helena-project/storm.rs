@@ -19,6 +19,7 @@ pub struct UARTParams {
 pub trait UART {
     fn init(&mut self, params: UARTParams);
     fn send_byte(&mut self, byte: u8);
+    fn read_byte(&self) -> u8;
     fn toggle_rx(&mut self, enable: bool);
     fn toggle_tx(&mut self, enable: bool);
 }

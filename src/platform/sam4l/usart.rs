@@ -1,3 +1,4 @@
+use sam4l::pm::{self, Clock, PBAClock};
 use core::marker::Copy;
 use core::intrinsics;
 use hil::uart;
@@ -43,7 +44,8 @@ pub struct Params {
 }
 
 pub struct USART {
-    regs: &'static mut UsartRegisters
+    regs: &'static mut UsartRegisters,
+    location: Location
 }
 
 impl USART {
@@ -51,7 +53,8 @@ impl USART {
         let address = BASE_ADDRESS + (params.location as usize) * SIZE;
 
         USART {
-            regs: unsafe { intrinsics::transmute(address) }
+            regs: unsafe { intrinsics::transmute(address) },
+            location: params.location
         }
     }
 
@@ -68,12 +71,38 @@ impl USART {
         volatile!(self.regs.mr = mode);
     }
 
+    fn enable_clock(&self) {
+        let pba_clock = match self.location {
+            Location::USART0 => PBAClock::USART0,
+            Location::USART1 => PBAClock::USART1,
+            Location::USART2 => PBAClock::USART2,
+            Location::USART3 => PBAClock::USART3,
+        };
+
+        pm::enable_clock(Clock::PBA(pba_clock));
+    }
+
     pub fn rx_ready(&self) -> bool {
         volatile!(self.regs.csr) & 0b1 != 0
     }
 
     pub fn tx_ready(&self) -> bool {
         volatile!(self.regs.csr) & 0b10 != 0
+    }
+
+    fn enable_nvic(&self) {
+        use super::nvic;
+        match self.location {
+            Location::USART0 => nvic::enable(nvic::NvicIdx::USART0),
+            Location::USART1 => nvic::enable(nvic::NvicIdx::USART1),
+            Location::USART2 => nvic::enable(nvic::NvicIdx::USART2),
+            Location::USART3 => nvic::enable(nvic::NvicIdx::USART3)
+        }
+    }
+
+    fn enable_rx_interrupts(&mut self) {
+        self.enable_nvic();
+        volatile!(self.regs.ier = 1 as u32);
     }
 }
 
@@ -86,9 +115,9 @@ impl uart::UART for USART {
             | (params.parity as u32) << 9 /* Parity */
             | 0 << 12; /* Number of stop bits = 1 */;
 
-        unsafe { self.set_mode(mode); }
+        self.enable_clock();
         self.set_baud_rate(params.baud_rate);
-        // Copied from TinyOS, not exactly sure how to generalize
+        unsafe { self.set_mode(mode); }
         volatile!(self.regs.ttgr = 4);
     }
 
@@ -97,9 +126,18 @@ impl uart::UART for USART {
         volatile!(self.regs.thr = byte as u32);
     }
 
+    fn read_byte(&self) -> u8 {
+        if self.rx_ready() {
+            volatile!(self.regs.rhr) as u8
+        } else {
+            '\0' as u8
+        }
+    }
+
     fn toggle_rx(&mut self, enable: bool) {
         if enable {
             volatile!(self.regs.cr = 1 << 4);
+            self.enable_rx_interrupts();
         } else {
             volatile!(self.regs.cr = 1 << 5);
         }
