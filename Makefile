@@ -46,6 +46,9 @@ $(BUILD_DIR):
 # Compiles and adds to $(APP_OBJECTS)
 -include apps/rust/apps.mk
 
+platform_docs:
+	rustdoc $(RUSTC_FLAGS) src/platform/lib.rs
+
 $(BUILD_DIR)/libplugins.dylib: $(call rwildcard,src/plugins/,*.rs) | $(BUILD_DIR)
 	@echo "Building $@"
 	@$(RUSTC) --out-dir $(BUILD_DIR) src/plugins/lib.rs
