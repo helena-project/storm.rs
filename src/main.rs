@@ -52,8 +52,37 @@ fn launch_task(task: task::Task) {
 
 #[no_mangle]
 pub extern fn main() {
+    // Here's an ideal platform + device tree. It's a bit complicated, mostly
+    // owing to the locations + sublocations.
+    // platform_tree!(sam4l,
+    //     gpiopin@[1..3][0..32]: gpio::GPIOPin {
+    //         function: None;
+    //     }
+
+    //     // Overriding function on pins 9 and 10 on port 1
+    //     gpiopin@1.[9..11]: gpio::GPIOPin {
+    //         function: Some(gpio::PeripheralFunction::A);
+    //     }
+
+    //     usart@[0..4]: usart::USART;
+    // );
+
+    // device_tree!(
+    //     console: uart::Console(USART@3) {
+    //         baud_rate: 115200;
+    //         data_bits: 8;
+    //         parity: Parity::None;
+    //     }
+
+    //     led: gpio::LED(GPIOPin@2.10) {
+    //         start_status: LEDStatus::On;
+    //     }
+    // );
+
+    // This, on the other hand, parses.
     device_tree!(
-        red_led: gpio::led::LED(GPIOPin@10);
+        first_led: gpio::LED(GPIOPin@22);
+        second_led: gpio::LED(GPIOPin@2);
     );
 
     unsafe {

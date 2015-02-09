@@ -4,7 +4,7 @@
 
 use rustc::plugin::Registry;
 
-#[macro_use(span_note)]
+#[macro_use(span_note,span_err,__diagnostic_used)]
 extern crate syntax;
 extern crate rustc;
 
@@ -13,8 +13,9 @@ macro_rules! parse_int_lit {
         match $parser.parse_lit().node {
             Lit_::LitInt(n, _) => n,
             _ => {
-                $cx.span_err($sp, "Argument must be an interger literal.");
-                return DummyResult::any($sp);
+                ($cx).span_err(($parser).last_span,
+                    "Expected an integer literal.");
+                0
             }
         }
     );
