@@ -2,7 +2,7 @@ use core::intrinsics::*;
 
 #[allow(improper_ctypes)]
 extern {
-    fn __prepare_user_stack(start: usize, user_stack: *mut usize);
+    fn __prepare_user_stack(start: usize, user_stack: *mut u8);
     fn __ctx_to_master();
 }
 
@@ -19,7 +19,7 @@ pub const SUBSCRIBE: u16 = 1;
 pub const COMMAND: u16 = 2;
 
 #[no_mangle]
-pub unsafe extern fn switch_to_user(pc: usize, sp: *mut usize) {
+pub unsafe extern fn switch_to_user(pc: usize, sp: *mut u8) {
     __prepare_user_stack(pc, sp);
     let icsr: *mut usize = 0xE000ED04 as *mut usize;
     volatile_store(icsr, volatile_load(icsr as *const usize) | 1<<28);

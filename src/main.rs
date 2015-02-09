@@ -19,21 +19,30 @@ mod std {
 pub mod config;
 mod task;
 mod ringbuf;
+mod process;
 pub mod syscall;
 
-static mut PSTACKS: [[usize; 256]; 16] = [[0; 256]; 16];
+static mut PSTACKS: [[u8; 1024]; 8] = [[0; 1024]; 8];
 
+#[allow(improper_ctypes)]
 extern {
-    static _sapps: u32;
-    static _eapps: u32;
+    static _sapps: fn();
+    static _eapps: fn();
 }
 
 unsafe fn schedule_external_apps() {
-    let (start_ptr, end_ptr) = (&_sapps as *const u32, &_eapps as *const u32);
+
+    let (start_ptr, end_ptr) = (&_sapps as *const fn(), &_eapps as *const fn());
 
     let mut ptr = start_ptr;
     while ptr < end_ptr {
-        task::Task::UserTask(*ptr as usize).post();
+        match process::Process::create(*ptr) {
+            Err(_) => { return; },
+            Ok(process) => {
+                task::Task::Process(process).post();
+            }
+        }
+        //task::Task::UserTask(*ptr as usize).post();
         ptr = ptr.offset(1);
     }
 }
@@ -41,7 +50,10 @@ unsafe fn schedule_external_apps() {
 fn launch_task(task: task::Task) {
     match task {
         task::Task::UserTask(task_addr) => unsafe {
-            syscall::switch_to_user(task_addr, &mut PSTACKS[0][255]);
+            syscall::switch_to_user(task_addr, &mut PSTACKS[0][1020] as *mut u8);
+        },
+        task::Task::Process(process) => unsafe {
+            syscall::switch_to_user(process.pc, &mut process.memory[process.cur_stack]);
         },
         task::Task::KernelTask(task) => {
             task();

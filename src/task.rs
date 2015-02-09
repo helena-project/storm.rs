@@ -1,15 +1,15 @@
 use core::prelude::*;
 use ringbuf::RingBuf;
+use process;
 
 pub enum Task {
+    Process(process::Process),
     UserTask(usize),
     KernelTask(fn())
 }
 
-impl Copy for Task {}
-
 const MAX_TASKS: usize = 10;
-static mut TASK_BUF: [Option<Task>; MAX_TASKS] = [None; MAX_TASKS];
+static mut TASK_BUF: [Option<Task>; MAX_TASKS] = [None, None, None, None, None, None, None, None, None, None];
 
 pub static mut MANAGER: RingBuf<Task> =
     RingBuf { head: 0, tail: 0, cap: MAX_TASKS,
