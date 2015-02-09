@@ -1,6 +1,6 @@
 #![crate_name = "plugins"]
 #![crate_type = "dylib"]
-#![feature(plugin_registrar,quote,rustc_private,core,collections)]
+#![feature(plugin_registrar,quote,rustc_private,core,collections,std_misc)]
 
 use rustc::plugin::Registry;
 
@@ -8,19 +8,8 @@ use rustc::plugin::Registry;
 extern crate syntax;
 extern crate rustc;
 
-macro_rules! parse_int_lit {
-    ($parser:expr, $cx:expr, $sp:expr) => (
-        match $parser.parse_lit().node {
-            Lit_::LitInt(n, _) => n,
-            _ => {
-                ($cx).span_err(($parser).last_span,
-                    "Expected an integer literal.");
-                0
-            }
-        }
-    );
-}
-
+#[macro_use]
+mod plugin_lib;
 mod repeated_enum;
 mod device_tree;
 

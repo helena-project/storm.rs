@@ -56,12 +56,12 @@ pub extern fn main() {
     // owing to the locations + sublocations.
     // platform_tree!(sam4l,
     //     gpiopin@[1..3][0..32]: gpio::GPIOPin {
-    //         function: None;
+    //         function: None
     //     }
 
     //     // Overriding function on pins 9 and 10 on port 1
     //     gpiopin@1.[9..11]: gpio::GPIOPin {
-    //         function: Some(gpio::PeripheralFunction::A);
+    //         function: Some(gpio::PeripheralFunction::A)
     //     }
 
     //     usart@[0..4]: usart::USART;
@@ -69,20 +69,41 @@ pub extern fn main() {
 
     // device_tree!(
     //     console: uart::Console(USART@3) {
-    //         baud_rate: 115200;
-    //         data_bits: 8;
-    //         parity: Parity::None;
+    //         baud_rate: 115200,
+    //         data_bits: 8,
+    //         parity: Parity::None
     //     }
 
     //     led: gpio::LED(GPIOPin@2.10) {
-    //         start_status: LEDStatus::On;
+    //         start_status: LEDStatus::On
     //     }
     // );
 
-    // This, on the other hand, parses.
+    // This, on the other hand, should parse soon.
+    // device_tree!(
+    //     console: uart::Console(USART@3) {
+    //         baud_rate: 115200,
+    //         data_bits: 8,
+    //         parity: Parity::None
+    //     }
+
+    //     /*
+    //      * let console = drivers::uart::Console::new(uart_3,
+    //      *     drivers::uart::ConsoleParams {
+    //      *         baud_rate: 115200,
+    //      *         data_bits: 8,
+    //      *         parity: drivers::uart::Parity::None
+    //      *     }
+    //      *  );
+    //      */
+    // );
+
     device_tree!(
-        first_led: gpio::LED(GPIOPin@22);
-        second_led: gpio::LED(GPIOPin@2);
+        first_led: gpio::LED(GPIOPin@10);
+
+        /*
+         * let first_led = drivers::gpio::LED::new(gpiopin_10);
+         */
     );
 
     unsafe {

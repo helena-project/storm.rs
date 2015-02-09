@@ -51,7 +51,7 @@ pub fn console_driver_readc_sub(callback: usize, _: usize) -> isize {
 }
 
 pub static mut LED:
-    Option<drivers::gpio::led::LED<gpio::GPIOPin>> = None;
+    Option<drivers::gpio::LED<gpio::GPIOPin>> = None;
 
 pub fn led_driver_toggle_svc(_: usize, _: usize) -> isize {
     let mut led = unsafe {
@@ -82,7 +82,7 @@ pub unsafe fn config() {
     syscall::NUM_CMD_DRIVERS += 1;
 }
 
-fn init_led() -> drivers::gpio::led::LED<gpio::GPIOPin> {
+fn init_led() -> drivers::gpio::LED<gpio::GPIOPin> {
     use platform::sam4l::gpio;
 
     let pin_10 = gpio::GPIOPin::new(gpio::Params {
@@ -91,9 +91,9 @@ fn init_led() -> drivers::gpio::led::LED<gpio::GPIOPin> {
         function: None
     });
 
-    drivers::gpio::led::LED::new(pin_10,
-        drivers::gpio::led::InitParams {
-            start_status: drivers::gpio::led::LEDStatus::On
+    drivers::gpio::LED::new(pin_10,
+        drivers::gpio::InitParams {
+            start_status: drivers::gpio::LEDStatus::On
         }
     )
 }
