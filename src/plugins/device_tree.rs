@@ -1,11 +1,12 @@
 use syntax;
 use syntax::codemap::Span;
 use syntax::parse::{token, parser};
-use syntax::ast::{self, TokenTree, Lit_, Ident, Field, PathSegment};
+use syntax::ast::{self, TokenTree, Lit_, Ident, PathSegment};
 use syntax::ext::base::{ExtCtxt, MacResult, MacExpr};
 use syntax::ext::quote::rt::{ToTokens, ExtParseUtils};
 use std::ascii::OwnedAsciiExt;
 use syntax::fold::Folder;
+use std::fmt::{Display, Formatter, Error};
 use plugin_util::*;
 
 type QuoteStmt = syntax::ptr::P<ast::Stmt>;
@@ -18,8 +19,8 @@ struct Resource {
     location: Option<usize>
 }
 
-impl ToString for Resource {
-    fn to_string(&self) -> String {
+impl Display for Resource {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         let mut string = String::from_str(self.name.as_str());
         string = string.into_ascii_lowercase();
         if self.location.is_some() {
@@ -27,7 +28,7 @@ impl ToString for Resource {
             string.push_str(&self.location.unwrap().to_string());
         }
 
-        string
+        string.fmt(f)
     }
 }
 
@@ -42,7 +43,7 @@ struct Node {
     name: Ident,
     path: SimplePath,
     resources: Vec<Resource>,
-    fields: Option<Vec<Field>>
+    fields: Option<Vec<SimpleField>>
 }
 
 fn parse_resources(parser: &mut parser::Parser, cx: &mut ExtCtxt) -> Vec<Resource> {
@@ -68,10 +69,10 @@ fn parse_resources(parser: &mut parser::Parser, cx: &mut ExtCtxt) -> Vec<Resourc
     resources
 }
 
-fn parse_fields(parser: &mut parser::Parser) -> Vec<Field> {
+fn parse_fields(parser: &mut parser::Parser) -> Vec<SimpleField> {
     let mut fields = vec![];
     loop {
-        fields.push(parser.parse_field());
+        fields.push(SimpleField(parser.parse_field()));
         if !parser.eat(&token::Comma) {
             break;
         }
@@ -82,12 +83,12 @@ fn parse_fields(parser: &mut parser::Parser) -> Vec<Field> {
 
 fn parse_node(parser: &mut parser::Parser, cx: &mut ExtCtxt) -> Node {
     let item_name = parser.parse_ident();
-    parser.expect(&token::Token::Colon);
+    parser.expect(&token::Colon);
     span_note!(cx, parser.last_span, "Item Name: {}", item_name);
 
     let path = parser.parse_path(parser::PathParsingMode::NoTypesAllowed);
     parser.expect(&token::OpenDelim(token::DelimToken::Paren));
-    span_note!(cx, parser.last_span, "Path: {}", SimplePath(path.clone()).to_string());
+    span_note!(cx, parser.last_span, "Path: {}", SimplePath(path.clone()));
 
     let resources = parse_resources(parser, cx);
     span_note!(cx, parser.last_span, "Resources: {:?}", resources);
@@ -95,7 +96,7 @@ fn parse_node(parser: &mut parser::Parser, cx: &mut ExtCtxt) -> Node {
     parser.expect(&token::CloseDelim(token::DelimToken::Paren));
     let fields = if parser.eat(&token::OpenDelim(token::DelimToken::Brace)) {
         let parsed_fields = parse_fields(parser);
-        span_note!(cx, parser.last_span, "Fields: {:?}", parsed_fields);
+        // span_note!(cx, parser.last_span, "Fields: {:?}", parsed_fields);
         parser.expect(&token::CloseDelim(token::DelimToken::Brace));
         Some(parsed_fields)
     } else {
@@ -113,10 +114,15 @@ fn parse_node(parser: &mut parser::Parser, cx: &mut ExtCtxt) -> Node {
 
 fn statement_from_node(node: &Node, cx: &mut ExtCtxt) -> QuoteStmt {
     let name = node.name;
-    let ref path = node.path;
+    let path = &node.path;
     let resources = connect_tokens(&node.resources, token::Comma, cx);
-    // let fields = node.fields.unwrap();
-    quote_stmt!(cx, let $name = $path::simple_new($resources);)
+
+    let node_fields = node.fields.as_ref().unwrap();
+    let fields = connect_tokens(&node_fields, token::Comma, cx);
+    let params_path = path.clone_with_concat_terminal("Params");
+
+    let params = quote_expr!(cx, $params_path { $fields });
+    quote_stmt!(cx, let $name = $path::new($resources, $params);)
 }
 
 fn canonicalize_node_paths(base_segment: &PathSegment, node: &mut Node) {
@@ -126,7 +132,7 @@ fn canonicalize_node_paths(base_segment: &PathSegment, node: &mut Node) {
         let device_segments = node.path.without_terminal().0.segments;
         let mut prepender = PathPrepender::new(device_segments);
         let new_fields = fields.map_in_place(|field| {
-            prepender.fold_field(field)
+            SimpleField(prepender.fold_field(field.0))
         });
 
         node.fields = Some(new_fields);
@@ -143,7 +149,7 @@ pub fn expand(cx: &mut ExtCtxt, _: Span, args: &[TokenTree])
     while !parser.check(&token::Eof) {
         let mut node = parse_node(&mut parser, cx);
         canonicalize_node_paths(&base_path_segment, &mut node);
-        span_note!(cx, parser.last_span, "Node: {:?}", node);
+        // span_note!(cx, parser.last_span, "Node: {:?}", node);
         statements.push(statement_from_node(&node, cx));
     }
 
@@ -151,11 +157,15 @@ pub fn expand(cx: &mut ExtCtxt, _: Span, args: &[TokenTree])
         use $driver_path_id;
 
         // Need to get around hygenic stuff for this to work without:
-        use platform::sam4l::gpio;
+        use platform::sam4l::{gpio, usart};
         let gpiopin_10 = gpio::GPIOPin::new(gpio::Params {
             location: gpio::Location::GPIOPin10,
             port: gpio::GPIOPort::GPIO2,
             function: None
+        });
+
+        let uart_3 = usart::USART::new(usart::Params {
+            location: usart::Location::USART3
         });
         // End of undoing needed.
 

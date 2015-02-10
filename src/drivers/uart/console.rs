@@ -14,6 +14,20 @@ pub struct Console<T: UART> {
 }
 
 impl<T: UART> Console<T> {
+    pub fn new(mut uart: T, params: ConsoleParams) -> Console<T> {
+        uart.init(UARTParams {
+            baud_rate: params.baud_rate,
+            data_bits: params.data_bits,
+            parity: params.parity
+        });
+
+        uart.toggle_tx(true);
+        Console {
+            uart: uart,
+            read_callback: None
+        }
+    }
+
     pub fn uart_interrupt(&mut self) {
         let byte = self.uart.read_byte();
         self.putc(byte);
@@ -43,20 +57,5 @@ impl<T: UART> Console<T> {
     pub fn writeln(&mut self, content: &str) {
         self.write(content);
         self.putc('\n' as u8);
-    }
-}
-
-pub fn init<U>(mut uart: U, params: ConsoleParams)
-        -> Console<U> where U: UART {
-    uart.init(UARTParams {
-        baud_rate: params.baud_rate,
-        data_bits: params.data_bits,
-        parity: params.parity
-    });
-
-    uart.toggle_tx(true);
-    Console {
-        uart: uart,
-        read_callback: None
     }
 }

@@ -99,8 +99,6 @@ fn init_led() -> drivers::gpio::LED<gpio::GPIOPin> {
 }
 
 fn init_console() -> drivers::uart::Console<usart::USART> {
-    use hil::uart;
-
     let uart_3 = usart::USART::new(usart::Params {
         location: usart::Location::USART3
     });
@@ -117,13 +115,16 @@ fn init_console() -> drivers::uart::Console<usart::USART> {
         function: Some(gpio::PeripheralFunction::A)
     });
 
-    drivers::uart::init(uart_3,
-        drivers::uart::ConsoleParams {
-            baud_rate: 115200,
-            data_bits: 8,
-            parity: uart::Parity::None
-        }
-    )
+    let console: drivers::uart::Console<usart::USART> =
+        drivers::uart::Console::new(uart_3,
+            drivers::uart::ConsoleParams {
+                baud_rate: 115200,
+                data_bits: 8,
+                parity: drivers::uart::Parity::None
+            }
+        );
+
+    console
 }
 
 #[no_mangle]

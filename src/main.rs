@@ -79,36 +79,16 @@ pub extern fn main() {
     //     }
     // );
 
-    // This, on the other hand, should parse soon.
-    // device_tree!(
-    //     console: uart::Console(USART@3) {
-    //         baud_rate: 115200,
-    //         data_bits: 8,
-    //         parity: Parity::None
-    //     }
-
-    //     /*
-    //      * let console = drivers::uart::Console::new(uart_3,
-    //      *     drivers::uart::ConsoleParams {
-    //      *         baud_rate: 115200,
-    //      *         data_bits: 8,
-    //      *         parity: drivers::uart::Parity::None
-    //      *     }
-    //      *  );
-    //      */
-    // );
-
     device_tree!(
-        // first_led: gpio::LED(GPIOPin@10);
-
         first_led: gpio::LED(GPIOPin@10) {
-            start_status: LEDStatus::On,
-            end_status: LEDStatus::Off
+            start_status: LEDStatus::On
         }
 
-        /*
-         * let first_led = drivers::gpio::LED::new(gpiopin_10);
-         */
+        console: uart::Console(UART@3) {
+            baud_rate: 115200,
+            data_bits: 8,
+            parity: Parity::None
+        }
     );
 
     unsafe {

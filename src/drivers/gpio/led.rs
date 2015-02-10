@@ -16,15 +16,6 @@ pub struct LED<P: GPIOPin> {
 }
 
 impl<P: GPIOPin> LED<P> {
-    pub fn simple_new(mut pin: P) -> LED<P> {
-        pin.enable_output();
-
-        LED {
-            pin: pin,
-            status: LEDStatus::Off
-        }
-    }
-
     pub fn new(mut pin: P, params: LEDParams) -> LED<P> {
         pin.enable_output();
         if let LEDStatus::On = params.start_status {
