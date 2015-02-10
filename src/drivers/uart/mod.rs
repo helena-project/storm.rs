@@ -1,1 +1,3 @@
-pub mod console;
+pub use self::console::*;
+
+mod console;

@@ -28,7 +28,7 @@ pub fn virtual_timer_driver_svc(r1: usize, r2: usize) -> isize {
 }
 
 pub static mut Console:
-    Option<drivers::uart::console::Console<usart::USART>> = None;
+    Option<drivers::uart::Console<usart::USART>> = None;
 
 pub fn console_driver_writec_svc(r1: usize, _: usize) -> isize {
     let mut console = unsafe {
@@ -92,13 +92,13 @@ fn init_led() -> drivers::gpio::LED<gpio::GPIOPin> {
     });
 
     drivers::gpio::LED::new(pin_10,
-        drivers::gpio::InitParams {
+        drivers::gpio::LEDParams {
             start_status: drivers::gpio::LEDStatus::On
         }
     )
 }
 
-fn init_console() -> drivers::uart::console::Console<usart::USART> {
+fn init_console() -> drivers::uart::Console<usart::USART> {
     use hil::uart;
 
     let uart_3 = usart::USART::new(usart::Params {
@@ -117,8 +117,8 @@ fn init_console() -> drivers::uart::console::Console<usart::USART> {
         function: Some(gpio::PeripheralFunction::A)
     });
 
-    drivers::uart::console::init(uart_3,
-        drivers::uart::console::InitParams {
+    drivers::uart::init(uart_3,
+        drivers::uart::ConsoleParams {
             baud_rate: 115200,
             data_bits: 8,
             parity: uart::Parity::None

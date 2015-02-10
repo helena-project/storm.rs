@@ -6,7 +6,7 @@ pub enum LEDStatus {
 }
 
 #[derive(Copy)]
-pub struct InitParams {
+pub struct LEDParams {
     pub start_status: LEDStatus,
 }
 
@@ -25,7 +25,7 @@ impl<P: GPIOPin> LED<P> {
         }
     }
 
-    pub fn new(mut pin: P, params: InitParams) -> LED<P> {
+    pub fn new(mut pin: P, params: LEDParams) -> LED<P> {
         pin.enable_output();
         if let LEDStatus::On = params.start_status {
             pin.toggle();

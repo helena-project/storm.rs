@@ -99,7 +99,12 @@ pub extern fn main() {
     // );
 
     device_tree!(
-        first_led: gpio::LED(GPIOPin@10);
+        // first_led: gpio::LED(GPIOPin@10);
+
+        first_led: gpio::LED(GPIOPin@10) {
+            start_status: LEDStatus::On,
+            end_status: LEDStatus::Off
+        }
 
         /*
          * let first_led = drivers::gpio::LED::new(gpiopin_10);
