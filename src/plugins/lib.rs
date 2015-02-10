@@ -9,7 +9,7 @@ extern crate syntax;
 extern crate rustc;
 
 #[macro_use]
-mod plugin_lib;
+mod plugin_util;
 mod repeated_enum;
 mod device_tree;
 

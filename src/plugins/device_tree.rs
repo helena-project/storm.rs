@@ -1,12 +1,12 @@
 use syntax;
 use syntax::codemap::Span;
 use syntax::parse::{token, parser};
-use syntax::ast::{self, TokenTree, Lit_, Expr_, Ident, Field, PathSegment};
+use syntax::ast::{self, TokenTree, Lit_, Ident, Field, PathSegment};
 use syntax::ext::base::{ExtCtxt, MacResult, MacExpr};
 use syntax::ext::quote::rt::{ToTokens, ExtParseUtils};
 use std::ascii::OwnedAsciiExt;
 use syntax::fold::Folder;
-use plugin_lib::*;
+use plugin_util::*;
 
 type QuoteStmt = syntax::ptr::P<ast::Stmt>;
 
@@ -68,7 +68,7 @@ fn parse_resources(parser: &mut parser::Parser, cx: &mut ExtCtxt) -> Vec<Resourc
     resources
 }
 
-fn parse_fields(parser: &mut parser::Parser, cx: &mut ExtCtxt) -> Vec<Field> {
+fn parse_fields(parser: &mut parser::Parser) -> Vec<Field> {
     let mut fields = vec![];
     loop {
         fields.push(parser.parse_field());
@@ -94,7 +94,7 @@ fn parse_node(parser: &mut parser::Parser, cx: &mut ExtCtxt) -> Node {
 
     parser.expect(&token::CloseDelim(token::DelimToken::Paren));
     let fields = if parser.eat(&token::OpenDelim(token::DelimToken::Brace)) {
-        let parsed_fields = parse_fields(parser, cx);
+        let parsed_fields = parse_fields(parser);
         span_note!(cx, parser.last_span, "Fields: {:?}", parsed_fields);
         parser.expect(&token::CloseDelim(token::DelimToken::Brace));
         Some(parsed_fields)
@@ -133,7 +133,7 @@ fn canonicalize_node_paths(base_segment: &PathSegment, node: &mut Node) {
     }
 }
 
-pub fn expand(cx: &mut ExtCtxt, sp: Span, args: &[TokenTree])
+pub fn expand(cx: &mut ExtCtxt, _: Span, args: &[TokenTree])
         -> Box<MacResult + 'static> {
     let mut parser = cx.new_parser_from_tts(args);
     let driver_path_id = token::str_to_ident(DRIVER_PATH);

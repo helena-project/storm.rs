@@ -4,7 +4,7 @@ use syntax::parse::token;
 use syntax::ast::{TokenTree, Lit_, Item_, Variant, Ident, Visibility};
 use syntax::ext::base::{ExtCtxt, MacResult, MacItems};
 use syntax::ext::build::AstBuilder;
-use plugin_lib::*;
+use plugin_util::*;
 
 type VariantVec = Vec<ptr::P<Variant>>;
 
