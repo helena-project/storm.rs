@@ -1,5 +1,5 @@
-use syntax::parse::{token};
-use syntax::ast::{self, TokenTree, Ident};
+use syntax::parse::{token, parser};
+use syntax::ast::{self, TokenTree, Lit_, Ident};
 use syntax::ext::base::{ExtCtxt};
 use syntax::ext::quote::rt::{ToTokens, ExtParseUtils};
 use syntax::fold::Folder;
@@ -97,18 +97,14 @@ impl Folder for PathPrepender {
     }
 }
 
-#[macro_export]
-macro_rules! parse_int_lit {
-    ($parser:expr, $cx:expr, $sp:expr) => (
-        match $parser.parse_lit().node {
-            Lit_::LitInt(n, _) => n,
-            _ => {
-                ($cx).span_err(($parser).last_span,
-                    "Expected an integer literal.");
-                0
-            }
+pub fn parse_int_lit(parser: &mut parser::Parser, cx: &mut ExtCtxt) -> u64 {
+    match parser.parse_lit().node {
+        Lit_::LitInt(n, _) => n,
+        _ => {
+            cx.span_err(parser.last_span, "Expected an integer literal.");
+            0
         }
-    );
+    }
 }
 
 pub fn concat_ident<T: ToString>(ident: &Ident, other: T) -> Ident {

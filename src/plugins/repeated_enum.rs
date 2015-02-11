@@ -4,7 +4,7 @@ use syntax::parse::token;
 use syntax::ast::{TokenTree, Lit_, Item_, Variant, Ident, Visibility};
 use syntax::ext::base::{ExtCtxt, MacResult, MacItems};
 use syntax::ext::build::AstBuilder;
-use plugin_util::*;
+use plugin_utils::*;
 
 type VariantVec = Vec<ptr::P<Variant>>;
 
@@ -33,7 +33,7 @@ pub fn expand(cx: &mut ExtCtxt, sp: Span, args: &[TokenTree])
     loop {
         let ident = parser.parse_ident();
         parser.expect(&token::BinOp(token::BinOpToken::Star));
-        let number = parse_int_lit!(parser, cx, sp);
+        let number = parse_int_lit(&mut parser, cx);
 
         // Adds all of the requested variants to the 'variants' array.
         gen_variants(cx, sp, &mut variants, ident, number);

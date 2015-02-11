@@ -8,7 +8,7 @@ use tree_plugin_utils::*;
 
 type QuoteStmt = syntax::ptr::P<ast::Stmt>;
 
-const DRIVER_PATH: &'static str = "drivers";
+const PLATFORM_PATH: &'static str = "platform";
 
 fn statement_from_node(node: &Node, cx: &mut ExtCtxt) -> QuoteStmt {
     let name = node.name;
@@ -20,14 +20,18 @@ fn statement_from_node(node: &Node, cx: &mut ExtCtxt) -> QuoteStmt {
     let params_path = path.clone_with_concat_terminal("Params");
 
     let params = quote_expr!(cx, $params_path { $fields });
-    quote_stmt!(cx, let $name = $path::simple_new($resources, $params);)
+    quote_stmt!(cx, let $name = $path::new($resources, $params);)
 }
 
 pub fn expand(cx: &mut ExtCtxt, _: Span, args: &[TokenTree])
         -> Box<MacResult + 'static> {
     let mut parser = cx.new_parser_from_tts(args);
-    let driver_path_id = token::str_to_ident(DRIVER_PATH);
+    let driver_path_id = token::str_to_ident(PLATFORM_PATH);
+    let platform_name = parser.parse_ident();
+    parser.expect(&token::Comma);
+
     let base_path_segment = ident_to_segment(&driver_path_id);
+    let platform_path_segments = ident_to_segment(&platform_name);
 
     let mut statements = vec![];
     while !parser.check(&token::Eof) {
@@ -43,12 +47,6 @@ pub fn expand(cx: &mut ExtCtxt, _: Span, args: &[TokenTree])
         // Need to get around hygenic stuff for this to work without:
         use platform::sam4l::{gpio, usart};
         let gpiopin_10 = gpio::GPIOPin::new(gpio::Params {
-            location: gpio::Location::GPIOPin10,
-            port: gpio::GPIOPort::GPIO2,
-            function: None
-        });
-
-        let gpiopin_11 = gpio::GPIOPin::new(gpio::Params {
             location: gpio::Location::GPIOPin10,
             port: gpio::GPIOPort::GPIO2,
             function: None

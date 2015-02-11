@@ -115,16 +115,13 @@ fn init_console() -> drivers::uart::Console<usart::USART> {
         function: Some(gpio::PeripheralFunction::A)
     });
 
-    let console: drivers::uart::Console<usart::USART> =
-        drivers::uart::Console::new(uart_3,
-            drivers::uart::ConsoleParams {
-                baud_rate: 115200,
-                data_bits: 8,
-                parity: drivers::uart::Parity::None
-            }
-        );
-
-    console
+    drivers::uart::Console::new(uart_3,
+        drivers::uart::ConsoleParams {
+            baud_rate: 115200,
+            data_bits: 8,
+            parity: drivers::uart::Parity::None
+        }
+    )
 }
 
 #[no_mangle]
