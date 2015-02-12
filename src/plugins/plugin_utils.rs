@@ -74,19 +74,19 @@ impl ToTokens for SimpleField {
     }
 }
 
-pub struct PathPrepender {
-    base_path_segments: Vec<ast::PathSegment>
+pub struct PathPrepender<'a> {
+    base_path_segments: &'a Vec<ast::PathSegment>
 }
 
-impl PathPrepender {
-    pub fn new(base_path_segments: Vec<ast::PathSegment>) -> PathPrepender {
+impl<'a> PathPrepender<'a> {
+    pub fn new(base_path_segments: &'a Vec<ast::PathSegment>) -> PathPrepender {
         PathPrepender {
             base_path_segments: base_path_segments
         }
     }
 }
 
-impl Folder for PathPrepender {
+impl<'a> Folder for PathPrepender<'a> {
     fn fold_path(&mut self, mut p: ast::Path) -> ast::Path {
         let mut segments = self.base_path_segments.clone();
         segments.append(&mut p.segments);

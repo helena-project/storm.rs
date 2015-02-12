@@ -85,7 +85,7 @@ pub unsafe fn config() {
 fn init_led() -> drivers::gpio::LED<gpio::GPIOPin> {
     use platform::sam4l::gpio;
 
-    let pin_10 = gpio::GPIOPin::new(gpio::Params {
+    let pin_10 = gpio::GPIOPin::new(gpio::GPIOPinParams {
         location: gpio::Location::GPIOPin10,
         port: gpio::GPIOPort::GPIO2,
         function: None
@@ -99,17 +99,17 @@ fn init_led() -> drivers::gpio::LED<gpio::GPIOPin> {
 }
 
 fn init_console() -> drivers::uart::Console<usart::USART> {
-    let uart_3 = usart::USART::new(usart::Params {
+    let uart_3 = usart::USART::new(usart::USARTParams {
         location: usart::Location::USART3
     });
 
-    let _ = gpio::GPIOPin::new(gpio::Params {
+    let _ = gpio::GPIOPin::new(gpio::GPIOPinParams {
         location: gpio::Location::GPIOPin9,
         port: gpio::GPIOPort::GPIO1,
         function: Some(gpio::PeripheralFunction::A)
     });
 
-    let _ = gpio::GPIOPin::new(gpio::Params {
+    let _ = gpio::GPIOPin::new(gpio::GPIOPinParams {
         location: gpio::Location::GPIOPin10,
         port: gpio::GPIOPort::GPIO1,
         function: Some(gpio::PeripheralFunction::A)

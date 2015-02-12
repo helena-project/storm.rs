@@ -79,20 +79,20 @@ pub extern fn main() {
     //     }
     // );
 
-    // platform_tree!(sam4l,
-    //     usart@[0..4]: usart::USART;
-    // );
+    platform_tree!(sam4l,
+        gpiopin@[0..32]: gpio::GPIOPin;
+    );
 
     device_tree! {
-        first_led: gpio::LED(GPIOPin@[10..12]) {
+        first_led: gpio::LED(GPIOPin@10) {
             start_status: LEDStatus::On
         }
 
-        // console: uart::Console(UART@3) {
-        //     baud_rate: 115200,
-        //     data_bits: 8,
-        //     parity: Parity::None
-        // }
+        console: uart::Console(UART@3) {
+            baud_rate: 115200,
+            data_bits: 8,
+            parity: Parity::None
+        }
     };
 
     unsafe {

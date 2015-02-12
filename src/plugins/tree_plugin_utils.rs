@@ -1,11 +1,12 @@
 use syntax::codemap::Span;
 use syntax::parse::{token, parser};
-use syntax::ast::{TokenTree, Lit_, Ident, PathSegment};
+use syntax::ast::{TokenTree, Ident, PathSegment};
 use syntax::ext::base::{ExtCtxt};
 use syntax::ext::quote::rt::{ToTokens, ExtParseUtils};
 use std::ascii::OwnedAsciiExt;
 use syntax::fold::Folder;
 use std::fmt::{Display, Formatter, Error};
+use std::mem;
 use plugin_utils::*;
 
 #[derive(Debug)]
@@ -17,9 +18,9 @@ pub enum ResourceLocation {
 
 #[derive(Debug)]
 pub struct Resource {
-    name: Ident,
-    span: Span,
-    location: ResourceLocation
+    pub name: Ident,
+    pub span: Span,
+    pub location: ResourceLocation
 }
 
 impl Display for Resource {
@@ -74,7 +75,7 @@ pub struct Node {
 
 pub fn parse_resource_location(parser: &mut parser::Parser, cx: &mut ExtCtxt)
         -> ResourceLocation {
-    // TODO: This should be possible without the clone.
+    // This clone isn't needed...except that Rust doesn't support non-lexical borrows.
     let current_token = parser.token.clone();
     match &current_token {
         t@&token::OpenDelim(token::DelimToken::Bracket) => {
@@ -93,24 +94,27 @@ pub fn parse_resource_location(parser: &mut parser::Parser, cx: &mut ExtCtxt)
     }
 }
 
+pub fn parse_resource(parser: &mut parser::Parser, cx: &mut ExtCtxt) -> Resource {
+    let mut resource_span = parser.span.clone();
+    let resource_name = parser.parse_ident();
+    let resource_location = if parser.eat(&token::At) {
+        parse_resource_location(parser, cx)
+    } else {
+        ResourceLocation::None
+    };
+
+    resource_span.hi = parser.span.lo;
+    Resource {
+        name: resource_name,
+        span: resource_span,
+        location: resource_location
+    }
+}
+
 pub fn parse_resources(parser: &mut parser::Parser, cx: &mut ExtCtxt) -> Vec<Resource> {
     let mut resources = vec![];
     loop {
-        let mut resource_span = parser.span.clone();
-        let resource_name = parser.parse_ident();
-        let resource_location = if parser.eat(&token::At) {
-            parse_resource_location(parser, cx)
-        } else {
-            ResourceLocation::None
-        };
-
-        resource_span.hi = parser.span.lo;
-        resources.push(Resource {
-            name: resource_name,
-            span: resource_span,
-            location: resource_location
-        });
-
+        resources.push(parse_resource(parser, cx));
         if !parser.eat(&token::Comma) {
             break;
         }
@@ -131,44 +135,13 @@ pub fn parse_fields(parser: &mut parser::Parser) -> Vec<SimpleField> {
     fields
 }
 
-pub fn parse_node(parser: &mut parser::Parser, cx: &mut ExtCtxt) -> Node {
-    let item_name = parser.parse_ident();
-    parser.expect(&token::Colon);
-    span_note!(cx, parser.last_span, "Item Name: {}", item_name);
-
-    let path = parser.parse_path(parser::PathParsingMode::NoTypesAllowed);
-    parser.expect(&token::OpenDelim(token::DelimToken::Paren));
-    span_note!(cx, parser.last_span, "Path: {}", SimplePath(path.clone()));
-
-    let resources = parse_resources(parser, cx);
-    span_note!(cx, parser.last_span, "Resources: {:?}", resources);
-    span_note!(cx, resources[0].span, "Resource[0]: {}", resources[0]);
-
-    parser.expect(&token::CloseDelim(token::DelimToken::Paren));
-    let fields = if parser.eat(&token::OpenDelim(token::DelimToken::Brace)) {
-        let parsed_fields = parse_fields(parser);
-        // span_note!(cx, parser.last_span, "Fields: {:?}", parsed_fields);
-        parser.expect(&token::CloseDelim(token::DelimToken::Brace));
-        Some(parsed_fields)
-    } else {
-        parser.expect(&token::Semi);
-        None
-    };
-
-    Node {
-        name: item_name,
-        path: SimplePath(path),
-        resources: resources,
-        fields: fields
-    }
-}
-
-pub fn canonicalize_node_paths(base_segment: &PathSegment, node: &mut Node) {
-    node.path.0.segments.insert(0, base_segment.clone());
+pub fn canonicalize_node_paths(base_segments: &Vec<PathSegment>, node: &mut Node) {
+    let mut base_prepender = PathPrepender::new(base_segments);
+    node.path = SimplePath(base_prepender.fold_path(node.path.0.clone()));
 
     if let Some(fields) = node.fields.take() {
         let device_segments = node.path.without_terminal().0.segments;
-        let mut prepender = PathPrepender::new(device_segments);
+        let mut prepender = PathPrepender::new(&device_segments);
         let new_fields = fields.map_in_place(|field| {
             SimpleField(prepender.fold_field(field.0))
         });
