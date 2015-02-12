@@ -6,7 +6,6 @@ use syntax::ext::quote::rt::{ToTokens, ExtParseUtils};
 use std::ascii::OwnedAsciiExt;
 use syntax::fold::Folder;
 use std::fmt::{Display, Formatter, Error};
-use std::mem;
 use plugin_utils::*;
 
 #[derive(Debug)]
@@ -16,11 +15,51 @@ pub enum ResourceLocation {
     Range { from: usize, to: usize }
 }
 
+impl ResourceLocation {
+    pub fn is_some(&self) -> bool {
+        if let &ResourceLocation::None = self {
+            false
+        } else {
+            true
+        }
+    }
+
+    pub fn to_singles(self) -> Option<Vec<ResourceLocation>> {
+        match self {
+            ResourceLocation::None => None,
+            loc@ResourceLocation::Single(_) => Some(vec![loc]),
+            ResourceLocation::Range { from, to } => {
+                Some((from..to).map(|i| {
+                    ResourceLocation::Single(i)
+                }).collect())
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Resource {
     pub name: Ident,
     pub span: Span,
     pub location: ResourceLocation
+}
+
+impl Resource {
+    pub fn to_singles(self) -> Vec<Resource> {
+        let mut output = vec![];
+        if self.location.is_some() {
+            let new_locations = self.location.to_singles().unwrap();
+            for location in new_locations.into_iter() {
+                output.push(Resource {
+                    name: self.name.clone(),
+                    span: self.span.clone(),
+                    location: location
+                });
+            }
+        }
+
+        output
+    }
 }
 
 impl Display for Resource {

@@ -81,6 +81,7 @@ pub extern fn main() {
 
     platform_tree!(sam4l,
         gpiopin@[0..32]: gpio::GPIOPin;
+        gpiopin@[32..64]: gpio::GPIOPin;
     );
 
     device_tree! {
