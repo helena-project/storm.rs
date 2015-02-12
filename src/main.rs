@@ -52,36 +52,20 @@ fn launch_task(task: task::Task) {
 
 #[no_mangle]
 pub extern fn main() {
-    // Here's an ideal platform + device tree. It's a bit complicated, mostly
-    // owing to the locations + sublocations.
-    // platform_tree!(sam4l,
-    //     gpiopin@[1..3][0..32]: gpio::GPIOPin {
-    //         function: None
-    //     }
-
-    //     // Overriding function on pins 9 and 10 on port 1
-    //     gpiopin@1.[9..11]: gpio::GPIOPin {
-    //         function: Some(gpio::PeripheralFunction::A)
-    //     }
-
-    //     usart@[0..4]: usart::USART;
-    // );
-
-    // device_tree!(
-    //     console: uart::Console(USART@3) {
-    //         baud_rate: 115200,
-    //         data_bits: 8,
-    //         parity: Parity::None
-    //     }
-
-    //     led: gpio::LED(GPIOPin@2.10) {
-    //         start_status: LEDStatus::On
-    //     }
-    // );
-
+    // TODO: Sublocations? IE: gpiopin@1.[32..64], or gpiopin@[1..3][0..32];
     platform_tree!(sam4l,
-        gpiopin@[0..32]: gpio::GPIOPin;
-        gpiopin@[32..64]: gpio::GPIOPin;
+        gpiopin@[41..43]: gpio::GPIOPin {
+            port: GPIOPort::GPIO1,
+            function: ::Some(PeripheralFunction::A)
+        }
+
+        gpiopin@[64..96]: gpio::GPIOPin {
+            port: GPIOPort::GPIO2,
+            function: ::None
+        }
+
+        // TODO: need to allow fieldless (but with location) drivers
+        // usart@[0..4]: usart::USART;
     );
 
     device_tree! {

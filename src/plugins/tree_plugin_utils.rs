@@ -1,4 +1,4 @@
-use syntax::codemap::Span;
+use syntax::codemap::{Span};
 use syntax::parse::{token, parser};
 use syntax::ast::{TokenTree, Ident, PathSegment};
 use syntax::ext::base::{ExtCtxt};
@@ -188,4 +188,3 @@ pub fn canonicalize_node_paths(base_segments: &Vec<PathSegment>, node: &mut Node
         node.fields = Some(new_fields);
     }
 }
-

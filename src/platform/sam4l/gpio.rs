@@ -68,9 +68,10 @@ pub enum GPIOPort {
     GPIO * 3
 });
 
+// TODO: Should probably rename to GPIOPinLocation or something.
 repeated_enum!(
 pub enum Location {
-    GPIOPin * 32
+    GPIOPin * 96
 });
 
 #[derive(Copy)]

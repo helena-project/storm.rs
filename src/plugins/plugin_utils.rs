@@ -1,9 +1,10 @@
+use syntax::codemap::{Span, Spanned};
 use syntax::parse::{token, parser};
 use syntax::ast::{self, TokenTree, Lit_, Ident};
 use syntax::ext::base::{ExtCtxt};
 use syntax::ext::quote::rt::{ToTokens, ExtParseUtils};
 use syntax::fold::Folder;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::fmt::{Display, Formatter, Error};
 
 #[derive(Debug, Clone)]
@@ -32,6 +33,19 @@ impl SimplePath {
     }
 }
 
+impl Deref for SimplePath {
+    type Target = ast::Path;
+
+    fn deref<'a>(&'a self) -> &'a ast::Path {
+        &self.0
+    }
+}
+
+impl DerefMut for SimplePath {
+    fn deref_mut<'a>(&'a mut self) -> &'a mut ast::Path {
+        &mut self.0
+    }
+}
 // Also implements ToString since impl<T: Display + ?Sized> ToString for T
 impl Display for SimplePath {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
@@ -88,6 +102,11 @@ impl<'a> PathPrepender<'a> {
 
 impl<'a> Folder for PathPrepender<'a> {
     fn fold_path(&mut self, mut p: ast::Path) -> ast::Path {
+        if p.global {
+            p.global = false;
+            return p;
+        }
+
         let mut segments = self.base_path_segments.clone();
         segments.append(&mut p.segments);
 
@@ -131,4 +150,11 @@ pub fn connect_tokens<T: ToTokens>(items: &Vec<T>, token: token::Token,
 
     tokens.pop();
     tokens
+}
+
+pub fn span_item<T>(to_span: T, with_span: Span) -> Spanned<T> {
+    Spanned {
+        node: to_span,
+        span: with_span
+    }
 }

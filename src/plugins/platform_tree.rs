@@ -10,23 +10,64 @@ type QuoteStmt = syntax::ptr::P<ast::Stmt>;
 
 const PLATFORM_PATH: &'static str = "platform";
 
-// TODO: Use resource location as paramter to struct::new.
+fn mk_location_field(path: &SimplePath, span: &Span, number: usize,
+                         cx: &mut ExtCtxt) -> SimpleField {
+    let loc_segment = ident_to_segment(&token::str_to_ident("Location"));
+    let (_, terminal) = path.split_terminal();
+    let base_path = SimplePath(ast::Path {
+        global: false,
+        segments: vec![loc_segment, terminal.unwrap()],
+        span: span.clone()
+    });
+
+    let location_path = base_path.clone_with_concat_terminal(number);
+    SimpleField(ast::Field {
+        ident: span_item(token::str_to_ident("location"), span.clone()),
+        expr: quote_expr!(cx, $location_path),
+        span: span.clone()
+    })
+}
+
 fn parse_nodes(parser: &mut parser::Parser, cx: &mut ExtCtxt) -> Vec<Node> {
     let resource = parse_resource(parser, cx);
     parser.expect(&token::Colon);
     span_note!(cx, resource.span, "Resource: {}", resource);
 
     let path = parser.parse_path(parser::PathParsingMode::NoTypesAllowed);
-    parser.expect(&token::Semi);
     span_note!(cx, parser.last_span, "Path: {}", SimplePath(path.clone()));
+
+    let fields = if parser.eat(&token::OpenDelim(token::DelimToken::Brace)) {
+        let parsed_fields = parse_fields(parser);
+        span_note!(cx, parser.last_span, "Fields: {:?}", parsed_fields);
+        parser.expect(&token::CloseDelim(token::DelimToken::Brace));
+        Some(parsed_fields)
+    } else {
+        parser.expect(&token::Semi);
+        None
+    };
 
     let single_resources = resource.to_singles();
     single_resources.into_iter().map(|resource| {
+        let simple_path = SimplePath(path.clone());
+
+        // TODO: do this when the platform driver has only the location param
+        // that, it has no fields when parsed (so, create array here, etc.)
+        // issue: where to get span from?
+        let mut fields = fields.clone();
+        if fields.is_some() {
+            if let ResourceLocation::Single(n) = resource.location {
+                let fields_ref = fields.as_mut().unwrap();
+                let field_span = fields_ref[0].ident.span;
+                let field = mk_location_field(&simple_path, &field_span, n, cx);
+                fields_ref.push(field);
+            }
+        }
+
         Node {
             name: token::str_to_ident(&resource.to_string()),
-            path: SimplePath(path.clone()),
+            path: simple_path,
             resources: vec![],
-            fields: None
+            fields: fields
         }
     }).collect()
 }
@@ -43,6 +84,7 @@ fn statement_from_node(node: &Node, cx: &mut ExtCtxt) -> QuoteStmt {
         let params = quote_expr!(cx, $params_path { $fields });
         quote_stmt!(cx, let $name = $path::new($params);)
     } else {
+        // TODO: Error is fields is none.
         quote_stmt!(cx, let $name = $path::simple_new();)
     }
 }
@@ -63,7 +105,6 @@ pub fn expand(cx: &mut ExtCtxt, _: Span, args: &[TokenTree])
         let mut nodes = parse_nodes(&mut parser, cx);
         for node in nodes.iter_mut() {
             canonicalize_node_paths(&base_segments, node);
-            span_note!(cx, parser.last_span, "Node: {:?}", node);
             statements.push(statement_from_node(node, cx));
         }
     }
