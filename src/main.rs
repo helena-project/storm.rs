@@ -64,8 +64,7 @@ pub extern fn main() {
             function: ::None
         }
 
-        // TODO: need to allow fieldless (but with location) drivers
-        // usart@[0..4]: usart::USART;
+        usart@[0..4]: usart::USART;
     );
 
     device_tree! {

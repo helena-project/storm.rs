@@ -99,18 +99,9 @@ macro_rules! port_register_fn {
 // checks as soon as possible. Here, for example, we chould check that 'pin' is
 // valid and panic before continuing to boot.
 impl GPIOPin {
-    // TODO: REMOVE!
-    pub fn simple_new() -> GPIOPin {
-        GPIOPin {
-            port: unsafe { intrinsics::transmute(BASE_ADDRESS) },
-            number: 1,
-            pin_mask: 1 << (1 as u32)
-        }
-    }
-
     pub fn new(params: GPIOPinParams) -> GPIOPin {
         let address = BASE_ADDRESS + (params.port as usize) * SIZE;
-        let pin_number = params.location as u8;
+        let pin_number = ((params.location as usize) % 32) as u8;
 
         let mut pin = GPIOPin {
             port: unsafe { intrinsics::transmute(address) },

@@ -11,6 +11,7 @@ type QuoteStmt = syntax::ptr::P<ast::Stmt>;
 const DRIVER_PATH: &'static str = "drivers";
 
 fn parse_node(parser: &mut parser::Parser, cx: &mut ExtCtxt) -> Node {
+    let mut node_span = parser.span.clone();
     let item_name = parser.parse_ident();
     parser.expect(&token::Colon);
     span_note!(cx, parser.last_span, "Item Name: {}", item_name);
@@ -34,14 +35,16 @@ fn parse_node(parser: &mut parser::Parser, cx: &mut ExtCtxt) -> Node {
         None
     };
 
+    node_span.hi = parser.span.lo;
+
     Node {
         name: item_name,
         path: SimplePath(path),
         resources: resources,
-        fields: fields
+        fields: fields,
+        span: node_span
     }
 }
-
 
 fn statement_from_node(node: &Node, cx: &mut ExtCtxt) -> QuoteStmt {
     let name = node.name;

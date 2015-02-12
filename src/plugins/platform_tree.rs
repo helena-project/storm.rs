@@ -29,6 +29,7 @@ fn mk_location_field(path: &SimplePath, span: &Span, number: usize,
 }
 
 fn parse_nodes(parser: &mut parser::Parser, cx: &mut ExtCtxt) -> Vec<Node> {
+    let mut node_span = parser.span.clone();
     let resource = parse_resource(parser, cx);
     parser.expect(&token::Colon);
     span_note!(cx, resource.span, "Resource: {}", resource);
@@ -46,28 +47,23 @@ fn parse_nodes(parser: &mut parser::Parser, cx: &mut ExtCtxt) -> Vec<Node> {
         None
     };
 
+    node_span.hi = parser.span.lo;
     let single_resources = resource.to_singles();
     single_resources.into_iter().map(|resource| {
         let simple_path = SimplePath(path.clone());
-
-        // TODO: do this when the platform driver has only the location param
-        // that, it has no fields when parsed (so, create array here, etc.)
-        // issue: where to get span from?
-        let mut fields = fields.clone();
-        if fields.is_some() {
-            if let ResourceLocation::Single(n) = resource.location {
-                let fields_ref = fields.as_mut().unwrap();
-                let field_span = fields_ref[0].ident.span;
-                let field = mk_location_field(&simple_path, &field_span, n, cx);
-                fields_ref.push(field);
-            }
+        let mut node_fields = fields.clone().unwrap_or(vec![]);
+        if let ResourceLocation::Single(n) = resource.location {
+            let field_span = node_span.clone();
+            let field = mk_location_field(&simple_path, &field_span, n, cx);
+            node_fields.push(field);
         }
 
         Node {
             name: token::str_to_ident(&resource.to_string()),
             path: simple_path,
             resources: vec![],
-            fields: fields
+            fields: Some(node_fields),
+            span: node_span
         }
     }).collect()
 }

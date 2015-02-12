@@ -109,7 +109,8 @@ pub struct Node {
     pub name: Ident,
     pub path: SimplePath,
     pub resources: Vec<Resource>,
-    pub fields: Option<Vec<SimpleField>>
+    pub fields: Option<Vec<SimpleField>>,
+    pub span: Span
 }
 
 pub fn parse_resource_location(parser: &mut parser::Parser, cx: &mut ExtCtxt)
