@@ -1,16 +1,18 @@
 use syntax;
 use syntax::codemap::Span;
 use syntax::parse::{token, parser};
+use syntax::parse::parser::{Parser};
 use syntax::ast::{self, TokenTree};
 use syntax::ext::base::{ExtCtxt, MacResult, MacExpr};
+use std::num::Int;
 use plugin_utils::*;
 use tree_plugin_utils::*;
 
 type QuoteStmt = syntax::ptr::P<ast::Stmt>;
 
-const DRIVER_PATH: &'static str = "drivers";
+pub const DRIVER_PATH: &'static str = "drivers";
 
-fn parse_node(parser: &mut parser::Parser, cx: &mut ExtCtxt) -> Node {
+fn parse_node(parser: &mut Parser, cx: &mut ExtCtxt) -> Node {
     let mut node_span = parser.span.clone();
     let item_name = parser.parse_ident();
     parser.expect(&token::Colon);
@@ -62,20 +64,29 @@ fn statement_from_node(node: &Node, cx: &mut ExtCtxt) -> QuoteStmt {
     }
 }
 
-pub fn expand(cx: &mut ExtCtxt, _: Span, args: &[TokenTree])
-        -> Box<MacResult + 'static> {
-    let mut parser = cx.new_parser_from_tts(args);
+pub fn parse(parser: &mut Parser, cx: &mut ExtCtxt, start: usize, end: usize)
+        -> Vec<QuoteStmt> {
+    bump_parser(parser, start);
     let driver_path_id = token::str_to_ident(DRIVER_PATH);
     let base_path_segment = ident_to_segment(&driver_path_id);
     let base_segments = vec![base_path_segment];
 
     let mut statements = vec![];
-    while !parser.check(&token::Eof) {
-        let mut node = parse_node(&mut parser, cx);
+    while parser.tokens_consumed < end && !parser.check(&token::Eof) {
+        let mut node = parse_node(parser, cx);
         canonicalize_node_paths(&base_segments, &mut node);
         // span_note!(cx, parser.last_span, "Node: {:?}", node);
         statements.push(statement_from_node(&node, cx));
     }
+
+    statements
+}
+
+pub fn expand(cx: &mut ExtCtxt, _: Span, args: &[TokenTree])
+        -> Box<MacResult + 'static> {
+    let driver_path_id = token::str_to_ident(DRIVER_PATH);
+    let mut parser = cx.new_parser_from_tts(args);
+    let statements = parse(&mut parser, cx, 0, Int::max_value());
 
     let decl = quote_expr!(cx, {
         use $driver_path_id;

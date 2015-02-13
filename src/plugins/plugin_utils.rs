@@ -158,3 +158,7 @@ pub fn span_item<T>(to_span: T, with_span: Span) -> Spanned<T> {
         span: with_span
     }
 }
+
+pub fn bump_parser(parser: &mut parser::Parser, to: usize) {
+    while parser.tokens_consumed < to { parser.bump() }
+}

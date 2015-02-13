@@ -120,10 +120,18 @@ pub fn parse_resource_location(parser: &mut parser::Parser, cx: &mut ExtCtxt)
     match &current_token {
         t@&token::OpenDelim(token::DelimToken::Bracket) => {
             parser.eat(t);
+            let mut range_span = parser.span;
             let from = parse_int_lit(parser, cx) as usize;
             parser.expect(&token::DotDot);
-            let to = parse_int_lit(parser, cx) as usize;
+            let mut to = parse_int_lit(parser, cx) as usize;
+            range_span.hi = parser.span.lo;
+
             parser.eat(&token::CloseDelim(token::DelimToken::Bracket));
+            if to <= from {
+                cx.span_err(range_span, "Range must be non-empty positive.");
+                // Make it valid so we can keep parsing.
+                to = from + 1;
+            }
 
             ResourceLocation::Range { from: from, to: to }
         },

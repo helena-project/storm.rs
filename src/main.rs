@@ -52,32 +52,61 @@ fn launch_task(task: task::Task) {
 
 #[no_mangle]
 pub extern fn main() {
-    // TODO: Sublocations? IE: gpiopin@1.[32..64], or gpiopin@[1..3][0..32];
-    platform_tree!(sam4l,
-        gpiopin@[41..43]: gpio::GPIOPin {
-            port: GPIOPort::GPIO1,
-            function: ::Some(PeripheralFunction::A)
+    config_tree!(
+        platform {sam4l,
+            gpiopin@[41..43]: gpio::GPIOPin {
+                port: GPIOPort::GPIO1,
+                function: ::Some(PeripheralFunction::A)
+            }
+
+            gpiopin@[64..96]: gpio::GPIOPin {
+                port: GPIOPort::GPIO2,
+                function: ::None
+            }
+
+            uart@[0..4]: usart::USART;
         }
 
-        gpiopin@[64..96]: gpio::GPIOPin {
-            port: GPIOPort::GPIO2,
-            function: ::None
-        }
+        devices {
+            first_led: gpio::LED(GPIOPin@74) {
+                start_status: LEDStatus::On
+            }
 
-        usart@[0..4]: usart::USART;
+            console: uart::Console(UART@3) {
+                baud_rate: 115200,
+                data_bits: 8,
+                parity: Parity::None
+            }
+        }
     );
 
-    device_tree! {
-        first_led: gpio::LED(GPIOPin@10) {
-            start_status: LEDStatus::On
-        }
+    // TODO: Sublocations? IE: gpiopin@1.[32..64], or gpiopin@[1..3][0..32];
+    // platform_tree!(sam4l,
+    //     gpiopin@[41..43]: gpio::GPIOPin {
+    //         port: GPIOPort::GPIO1,
+    //         function: ::Some(PeripheralFunction::A)
+    //     }
 
-        console: uart::Console(UART@3) {
-            baud_rate: 115200,
-            data_bits: 8,
-            parity: Parity::None
-        }
-    };
+    //     gpiopin@[64..96]: gpio::GPIOPin {
+    //         port: GPIOPort::GPIO2,
+    //         function: ::None
+    //     }
+
+    //     usart@0: usart::USART;
+    //     usart@[1..4]: usart::USART;
+    // );
+
+    // device_tree! {
+    //     first_led: gpio::LED(GPIOPin@10) {
+    //         start_status: LEDStatus::On
+    //     }
+
+    //     console: uart::Console(UART@3) {
+    //         baud_rate: 115200,
+    //         data_bits: 8,
+    //         parity: Parity::None
+    //     }
+    // };
 
     unsafe {
         task::setup();

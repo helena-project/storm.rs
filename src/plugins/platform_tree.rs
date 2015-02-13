@@ -1,14 +1,16 @@
 use syntax;
 use syntax::codemap::Span;
 use syntax::parse::{token, parser};
+use syntax::parse::parser::{Parser};
 use syntax::ast::{self, TokenTree};
 use syntax::ext::base::{ExtCtxt, MacResult, MacExpr};
+use std::num::Int;
 use plugin_utils::*;
 use tree_plugin_utils::*;
 
 type QuoteStmt = syntax::ptr::P<ast::Stmt>;
 
-const PLATFORM_PATH: &'static str = "platform";
+pub const PLATFORM_PATH: &'static str = "platform";
 
 fn mk_location_field(path: &SimplePath, span: &Span, number: usize,
                          cx: &mut ExtCtxt) -> SimpleField {
@@ -28,7 +30,7 @@ fn mk_location_field(path: &SimplePath, span: &Span, number: usize,
     })
 }
 
-fn parse_nodes(parser: &mut parser::Parser, cx: &mut ExtCtxt) -> Vec<Node> {
+fn parse_nodes(parser: &mut Parser, cx: &mut ExtCtxt) -> Vec<Node> {
     let mut node_span = parser.span.clone();
     let resource = parse_resource(parser, cx);
     parser.expect(&token::Colon);
@@ -80,33 +82,42 @@ fn statement_from_node(node: &Node, cx: &mut ExtCtxt) -> QuoteStmt {
         let params = quote_expr!(cx, $params_path { $fields });
         quote_stmt!(cx, let $name = $path::new($params);)
     } else {
-        // TODO: Error is fields is none.
-        quote_stmt!(cx, let $name = $path::simple_new();)
+        cx.span_err(node.span, "The syntax extension failed.");
+        quote_stmt!(cx, let $name = $path::new();)
     }
 }
 
-pub fn expand(cx: &mut ExtCtxt, _: Span, args: &[TokenTree])
-        -> Box<MacResult + 'static> {
-    let mut parser = cx.new_parser_from_tts(args);
-    let driver_path_id = token::str_to_ident(PLATFORM_PATH);
+pub fn parse(parser: &mut Parser, cx: &mut ExtCtxt, start: usize, end: usize)
+        -> Vec<QuoteStmt> {
+    bump_parser(parser, start);
+    let platform_path_id = token::str_to_ident(PLATFORM_PATH);
     let platform_name = parser.parse_ident();
     parser.expect(&token::Comma);
 
-    let base_path_segment = ident_to_segment(&driver_path_id);
+    let base_path_segment = ident_to_segment(&platform_path_id);
     let platform_path_segments = ident_to_segment(&platform_name);
     let base_segments = vec![base_path_segment, platform_path_segments];
 
     let mut statements = vec![];
-    while !parser.check(&token::Eof) {
-        let mut nodes = parse_nodes(&mut parser, cx);
+    while parser.tokens_consumed < end && !parser.check(&token::Eof) {
+        let mut nodes = parse_nodes(parser, cx);
         for node in nodes.iter_mut() {
             canonicalize_node_paths(&base_segments, node);
             statements.push(statement_from_node(node, cx));
         }
     }
 
+    statements
+}
+
+pub fn expand(cx: &mut ExtCtxt, _: Span, args: &[TokenTree])
+        -> Box<MacResult + 'static> {
+    let platform_path_id = token::str_to_ident(PLATFORM_PATH);
+    let mut parser = cx.new_parser_from_tts(args);
+    let statements = parse(&mut parser, cx, 0, Int::max_value());
+
     let decl = quote_expr!(cx, {
-        use $driver_path_id;
+        use $platform_path_id;
         $statements
     });
 

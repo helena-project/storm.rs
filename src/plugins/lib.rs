@@ -14,10 +14,12 @@ mod tree_plugin_utils;
 mod repeated_enum;
 mod device_tree;
 mod platform_tree;
+mod config_tree;
 
 #[plugin_registrar]
 pub fn plugin_registrar(reg: &mut Registry) {
     reg.register_macro("repeated_enum", repeated_enum::expand);
     reg.register_macro("device_tree", device_tree::expand);
     reg.register_macro("platform_tree", platform_tree::expand);
+    reg.register_macro("config_tree", config_tree::expand);
 }
