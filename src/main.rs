@@ -78,25 +78,22 @@ pub extern fn main() {
         list
     };
 
-    let subscribe_drivers = unsafe { syscall::SUBSCRIBE_DRIVERS };
-    let cmd_drivers = unsafe { syscall::CMD_DRIVERS };
+    //let subscribe_drivers = unsafe { syscall::SUBSCRIBE_DRIVERS };
+    //let cmd_drivers = unsafe { syscall::CMD_DRIVERS };
 
-    unsafe {
-        config::Console.as_mut().unwrap().putc(proc_list.len() as u8 + 48);
-        config::Console.as_mut().unwrap().writeln(" procs");
-    }
+    let mut console = unsafe { config::Console.as_mut().unwrap() };
 
+    console.putc(proc_list.len() as u8 + 48);
+    console.writeln(" procs");
     loop {
         for i in range(0, proc_list.len()) {
-            unsafe {
-                config::Console.as_mut().unwrap().write("proc ");
-                config::Console.as_mut().unwrap().putc(i as u8 + 48);
-                config::Console.as_mut().unwrap().writeln("");
-            }
+            console.write("proc ");
+            console.putc(i as u8 + 48);
+            console.writeln("");
             let process = &mut proc_list[i];
             let svc = unsafe {
                 syscall::switch_to_user(process.pc,
-                    &mut process.memory[process.cur_stack] as *mut u8)
+                    &mut process.memory[process.cur_stack])
             };
             match svc {
                 syscall::WAIT => {

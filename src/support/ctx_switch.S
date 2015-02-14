@@ -24,7 +24,15 @@ SVC_Handler:
   pop {lr}
   cmp r0, 0
   bne __ctx_to_master
-  bx lr*/
+  bx lr
+*/
+
+  cmp lr, #0xfffffff9
+  bne to_user
+  movw lr, #0xfffd
+  movt lr, #0xffff
+  bx lr
+to_user:
   mrs r0, PSP
   ldr r1, [r0, #24]
   ldr r2, [r1, #-2]
@@ -47,6 +55,8 @@ PendSV_Handler:
 .thumb_func
 /* r0 is start address and r1 is top of user stack */
 __ctx_to_user:
+    push {r4-r11}
+
     /* Load the first stack frame */
     movw r2, #0      /* xPSR --> set thumb mode in EPSR (bit-24) */
     movt r2, #0x100
@@ -56,15 +66,9 @@ __ctx_to_user:
     /* Load bottom of stack into Process Stack Pointer */
     msr psp, r1
 
-    /* let r0 = &ICSR */
-    movw r0, 0xED04
-    movt r0, 0xE000
+    svc 0xff
 
-    /* *r0 = *r0 | 1 << 28 */
-    ldr r1, [r0, #0]
-    orr r1, 0x10000000
-    str r1, [r0, #0]
-
+    pop {r4-r11}
     bx lr
 
 .thumb_func
