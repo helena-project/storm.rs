@@ -57,6 +57,10 @@ $ apt-get install gcc-arm-none-eabi
 For Windows and other operating systems, download site is
 [here](https://launchpad.net/gcc-arm-embedded/+download).
 
+Alternatively, if you would like simulator mode in `arm-none-eabi-gdb`,
+you can use the build scripts in the `tools` directory, in this order:
+`build-arm-binutils` then `build-arm-gcc` then `build-arm-gdb`.
+
 ### Stormloader
 
 You'll need to install
