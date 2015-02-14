@@ -7,6 +7,8 @@ pub const PROC_MEMORY_SIZE : usize = 2048;
 static mut MEMORIES: [[u8; PROC_MEMORY_SIZE]; 8] = [[0; PROC_MEMORY_SIZE]; 8];
 static mut FREE_MEMORY_IDX: usize = 0;
 
+static mut CURRENT_PROCESS : Option<Process> = None;
+
 pub struct Process {
     /// The process's memory.
     pub memory: &'static mut [u8; PROC_MEMORY_SIZE],
@@ -16,6 +18,12 @@ pub struct Process {
 
     /// The next instruction to invoke when returning to the process.
     pub pc: usize
+}
+
+pub unsafe fn swap_current_process(process: Option<Process>) -> Option<Process> {
+    let res = CURRENT_PROCESS.take();
+    CURRENT_PROCESS = process;
+    return res;
 }
 
 impl Process {

@@ -7,7 +7,7 @@
 .global SVC_Handler
 .global PendSV_Handler
 
-.globl __prepare_user_stack
+.globl __ctx_to_user
 .globl __ctx_to_master
 .globl __subscribe
 .globl __command
@@ -18,13 +18,22 @@
 .extern svc_rust_handler
 .thumb_func
 SVC_Handler:
-  push {lr}
+/*  push {lr}
   mrs r0, PSP
   bl svc_rust_handler
   pop {lr}
   cmp r0, 0
   bne __ctx_to_master
-  bx lr
+  bx lr*/
+  mrs r0, PSP
+  ldr r1, [r0, #24]
+  ldr r2, [r1, #-2]
+  ldr r1, [r0, #0]
+  and r2, r2, #0xff
+  str r2, [sp, #0]
+  str r1, [sp, #4]
+  b __ctx_to_master
+
 
 .thumb_func
 PendSV_Handler:
@@ -37,7 +46,7 @@ PendSV_Handler:
 
 .thumb_func
 /* r0 is start address and r1 is top of user stack */
-__prepare_user_stack:
+__ctx_to_user:
     /* Load the first stack frame */
     movw r2, #0      /* xPSR --> set thumb mode in EPSR (bit-24) */
     movt r2, #0x100
@@ -46,6 +55,16 @@ __prepare_user_stack:
 
     /* Load bottom of stack into Process Stack Pointer */
     msr psp, r1
+
+    /* let r0 = &ICSR */
+    movw r0, 0xED04
+    movt r0, 0xE000
+
+    /* *r0 = *r0 | 1 << 28 */
+    ldr r1, [r0, #0]
+    orr r1, 0x10000000
+    str r1, [r0, #0]
+
     bx lr
 
 .thumb_func

@@ -4,8 +4,8 @@ use process;
 
 pub enum Task {
     Process(process::Process),
-    UserTask(usize),
-    KernelTask(fn())
+    UserTask(usize)
+//    KernelTask(fn())
 }
 
 const MAX_TASKS: usize = 10;
