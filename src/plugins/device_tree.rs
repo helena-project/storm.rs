@@ -11,25 +11,26 @@ use tree_plugin_utils::*;
 type QuoteStmt = syntax::ptr::P<ast::Stmt>;
 
 pub const DRIVER_PATH: &'static str = "drivers";
+const DEBUG: bool = false;
 
 fn parse_node(parser: &mut Parser, cx: &mut ExtCtxt) -> Node {
     let mut node_span = parser.span.clone();
     let item_name = parser.parse_ident();
     parser.expect(&token::Colon);
-    span_note!(cx, parser.last_span, "Item Name: {}", item_name);
+    debug!(cx, parser.last_span, "Item Name: {}", item_name);
 
     let path = parser.parse_path(parser::PathParsingMode::NoTypesAllowed);
     parser.expect(&token::OpenDelim(token::DelimToken::Paren));
-    span_note!(cx, parser.last_span, "Path: {}", SimplePath(path.clone()));
+    debug!(cx, parser.last_span, "Path: {}", SimplePath(path.clone()));
 
     let resources = parse_resources(parser, cx);
-    span_note!(cx, parser.last_span, "Resources: {:?}", resources);
-    span_note!(cx, resources[0].span, "Resource[0]: {}", resources[0]);
+    debug!(cx, parser.last_span, "Resources: {:?}", resources);
+    debug!(cx, resources[0].span, "Resource[0]: {}", resources[0]);
 
     parser.expect(&token::CloseDelim(token::DelimToken::Paren));
     let fields = if parser.eat(&token::OpenDelim(token::DelimToken::Brace)) {
         let parsed_fields = parse_fields(parser);
-        // span_note!(cx, parser.last_span, "Fields: {:?}", parsed_fields);
+        debug!(cx, parser.last_span, "Fields: {:?}", parsed_fields);
         parser.expect(&token::CloseDelim(token::DelimToken::Brace));
         Some(parsed_fields)
     } else {
@@ -75,7 +76,7 @@ pub fn parse(parser: &mut Parser, cx: &mut ExtCtxt, start: usize, end: usize)
     while parser.tokens_consumed < end && !parser.check(&token::Eof) {
         let mut node = parse_node(parser, cx);
         canonicalize_node_paths(&base_segments, &mut node);
-        // span_note!(cx, parser.last_span, "Node: {:?}", node);
+        // debug!(cx, parser.last_span, "Node: {:?}", node);
         statements.push(statement_from_node(&node, cx));
     }
 

@@ -5,6 +5,8 @@ use syntax::parse::{token, parser};
 use syntax::ast::{TokenTree};
 use syntax::ext::base::{ExtCtxt, MacResult, MacExpr};
 
+const DEBUG: bool = false;
+
 // Returns the indexes of matching braces, one after the opening brace and one
 // at the closing braces { here ... to_}_here
 fn find_matching_braces(parser: &mut parser::Parser) -> (usize, usize) {
@@ -37,7 +39,7 @@ pub fn expand(cx: &mut ExtCtxt, _: Span, args: &[TokenTree])
         let item_name = item_ident.as_str();
         let (start, end) = find_matching_braces(&mut parser);
 
-        span_note!(cx, parser.last_span, "Range: ({}, {})", start, end);
+        debug!(cx, parser.last_span, "Range: ({}, {})", start, end);
         let mut new_parser = cx.new_parser_from_tts(args);
         let parsed_sub_tree = match item_name {
             "platform" => platform_tree::parse(&mut new_parser, cx, start, end),

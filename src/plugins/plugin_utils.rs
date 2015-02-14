@@ -7,6 +7,15 @@ use syntax::fold::Folder;
 use std::ops::{Deref, DerefMut};
 use std::fmt::{Display, Formatter, Error};
 
+macro_rules! debug {
+    ($session:expr, $span:expr, $($message:tt)*) => ({
+        if DEBUG {
+            ($session).span_note($span, &format!("{}:{}", file!(), line!()));
+            ($session).span_note($span, &format!($($message)*));
+        }
+    })
+}
+
 #[derive(Debug, Clone)]
 pub struct SimplePath(pub ast::Path);
 

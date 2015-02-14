@@ -11,6 +11,7 @@ use tree_plugin_utils::*;
 type QuoteStmt = syntax::ptr::P<ast::Stmt>;
 
 pub const PLATFORM_PATH: &'static str = "platform";
+const DEBUG: bool = false;
 
 fn mk_location_field(path: &SimplePath, span: &Span, number: usize,
                          cx: &mut ExtCtxt) -> SimpleField {
@@ -34,14 +35,14 @@ fn parse_nodes(parser: &mut Parser, cx: &mut ExtCtxt) -> Vec<Node> {
     let mut node_span = parser.span.clone();
     let resource = parse_resource(parser, cx);
     parser.expect(&token::Colon);
-    span_note!(cx, resource.span, "Resource: {}", resource);
+    debug!(cx, resource.span, "Resource: {}", resource);
 
     let path = parser.parse_path(parser::PathParsingMode::NoTypesAllowed);
-    span_note!(cx, parser.last_span, "Path: {}", SimplePath(path.clone()));
+    debug!(cx, parser.last_span, "Path: {}", SimplePath(path.clone()));
 
     let fields = if parser.eat(&token::OpenDelim(token::DelimToken::Brace)) {
         let parsed_fields = parse_fields(parser);
-        span_note!(cx, parser.last_span, "Fields: {:?}", parsed_fields);
+        debug!(cx, parser.last_span, "Fields: {:?}", parsed_fields);
         parser.expect(&token::CloseDelim(token::DelimToken::Brace));
         Some(parsed_fields)
     } else {
