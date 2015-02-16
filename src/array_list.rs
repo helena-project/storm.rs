@@ -26,13 +26,24 @@ impl <T> ArrayList<T> {
         self.len += 1;
         return true;
     }
+
+    pub fn iterator(&mut self) -> ArrayListIterator<T> {
+        ArrayListIterator{list: self, cur_index: 0}
+    }
+
+    pub fn circular_iterator(&mut self) -> CircularArrayListIterator<T> {
+        CircularArrayListIterator{list: self, cur_index: 0}
+    }
 }
 
 impl <T> Index<usize> for ArrayList<T> {
     type Output = T;
 
     fn index(&self, index: &usize) -> &T {
-        let idx = index % self.len;
+        let idx = *index;
+        if idx >= self.len {
+            panic!("Index out of bounds");
+        }
         unsafe { &*self.buf.offset(idx as isize) }
     }
 }
@@ -41,8 +52,54 @@ impl <T> IndexMut<usize> for ArrayList<T> {
     type Output = T;
 
     fn index_mut(&mut self, index: &usize) -> &mut T {
-        let idx = index % self.len;
+        let idx = *index;
+        if idx >= self.len {
+            panic!("Index out of bounds");
+        }
         unsafe { &mut *self.buf.offset(idx as isize) }
+    }
+}
+
+pub struct ArrayListIterator<'a, T: 'a> {
+    list: &'a mut ArrayList<T>,
+    cur_index: usize
+}
+
+impl<'a, T: 'a> Iterator for ArrayListIterator<'a, T> {
+    type Item = &'a mut T;
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.list.len - self.cur_index;
+        (remaining, Some(remaining))
+    }
+
+    fn next(&mut self) -> Option<&'a mut T> {
+        unsafe {
+            let idx = self.cur_index;
+            if idx >= self.list.len {
+                None
+            } else {
+                self.cur_index += 1;
+                Some(&mut *self.list.buf.offset(idx as isize))
+            }
+        }
+    }
+}
+
+pub struct CircularArrayListIterator<'a, T: 'a> {
+    list: &'a mut ArrayList<T>,
+    cur_index: usize
+}
+
+impl<'a, T: 'a> Iterator for CircularArrayListIterator<'a, T> {
+    type Item = &'a mut T;
+
+    fn next(&mut self) -> Option<&'a mut T> {
+        unsafe {
+            let idx = self.cur_index;
+            self.cur_index = (self.cur_index + 1) % self.list.len;
+            Some(&mut *self.list.buf.offset(idx as isize))
+        }
     }
 }
 
