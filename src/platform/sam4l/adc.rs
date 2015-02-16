@@ -1,3 +1,4 @@
+/*
 use core::intrinsics;
 use hil::adc;
 use sam4l::pm::{self, Clock, PBAClock};
@@ -127,4 +128,4 @@ impl adc::ADCMaster for ADC {
         }
     }
 }
-
+*/
