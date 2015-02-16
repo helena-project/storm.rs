@@ -53,6 +53,7 @@ unsafe fn schedule_external_apps(proc_arr: &mut ArrayList<Process>) {
     }
 }
 
+#[inline(never)]
 fn do_syscall(svc_num: u16, r0: usize, r1: usize, _: usize) {
     let cmd_drivers = unsafe { syscall::CMD_DRIVERS };
     match svc_num {
