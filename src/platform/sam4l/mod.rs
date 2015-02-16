@@ -5,4 +5,4 @@ pub mod nvic;
 pub mod pm;
 pub mod spi;
 pub mod usart;
-pub mod adc;
+// pub mod adc;

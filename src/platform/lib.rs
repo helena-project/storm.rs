@@ -3,9 +3,10 @@
 #![no_std]
 #![feature(plugin,core)]
 
+#[plugin] #[no_link]
+extern crate plugins;
 extern crate core;
 extern crate hil;
-#[plugin] #[no_link] extern crate plugins;
 
 macro_rules! volatile {
     ($item:expr) => ({
@@ -18,7 +19,6 @@ macro_rules! volatile {
         unsafe { volatile_store(&mut $item, $value); }
     });
 }
-
 
 mod std {
     pub use core::*;

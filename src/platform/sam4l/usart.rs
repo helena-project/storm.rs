@@ -39,7 +39,7 @@ pub enum Location {
 });
 
 #[derive(Copy)]
-pub struct Params {
+pub struct USARTParams {
     pub location: Location,
 }
 
@@ -49,7 +49,7 @@ pub struct USART {
 }
 
 impl USART {
-    pub fn new(params: Params) -> USART {
+    pub fn new(params: USARTParams) -> USART {
         let address = BASE_ADDRESS + (params.location as usize) * SIZE;
 
         USART {

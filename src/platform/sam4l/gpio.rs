@@ -68,13 +68,14 @@ pub enum GPIOPort {
     GPIO * 3
 });
 
+// TODO: Should probably rename to GPIOPinLocation or something.
 repeated_enum!(
 pub enum Location {
-    GPIOPin * 32
+    GPIOPin * 96
 });
 
 #[derive(Copy)]
-pub struct Params {
+pub struct GPIOPinParams {
     pub location: Location,
     pub port: GPIOPort,
     pub function: Option<PeripheralFunction>
@@ -98,9 +99,9 @@ macro_rules! port_register_fn {
 // checks as soon as possible. Here, for example, we chould check that 'pin' is
 // valid and panic before continuing to boot.
 impl GPIOPin {
-    pub fn new(params: Params) -> GPIOPin {
+    pub fn new(params: GPIOPinParams) -> GPIOPin {
         let address = BASE_ADDRESS + (params.port as usize) * SIZE;
-        let pin_number = params.location as u8;
+        let pin_number = ((params.location as usize) % 32) as u8;
 
         let mut pin = GPIOPin {
             port: unsafe { intrinsics::transmute(address) },

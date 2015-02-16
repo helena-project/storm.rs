@@ -1,1 +1,3 @@
-pub mod led;
+pub use self::led::*;
+
+mod led;

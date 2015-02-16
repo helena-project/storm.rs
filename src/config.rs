@@ -28,7 +28,7 @@ pub fn virtual_timer_driver_svc(r1: usize, r2: usize) -> isize {
 }
 
 pub static mut Console:
-    Option<drivers::uart::console::Console<usart::USART>> = None;
+    Option<drivers::uart::Console<usart::USART>> = None;
 
 pub fn console_driver_writec_svc(r1: usize, _: usize) -> isize {
     let mut console = unsafe {
@@ -51,7 +51,7 @@ pub fn console_driver_readc_sub(callback: usize, _: usize) -> isize {
 }
 
 pub static mut LED:
-    Option<drivers::gpio::led::LED<gpio::GPIOPin>> = None;
+    Option<drivers::gpio::LED<gpio::GPIOPin>> = None;
 
 pub fn led_driver_toggle_svc(_: usize, _: usize) -> isize {
     let mut led = unsafe {
@@ -80,48 +80,81 @@ pub unsafe fn config() {
     LED = Some(init_led());
     syscall::CMD_DRIVERS[1] = led_driver_toggle_svc;
     syscall::NUM_CMD_DRIVERS += 1;
+
+    // In the near future, all config will be handled by a config_tree
+    // similar to the one below.
+    // TODO(SergioBenitez): Sublocations?
+    // IE: gpiopin@1.[0..32], or gpiopin@[1..3][0..32];
+    // TODO(SergioBenitez): Two Macro Split through structs? File Inlining?
+    // #![allow(unused_variables)] // Can't do this per block YET
+    // config_tree!(
+    //     platform {sam4l,
+    //         gpiopin@[41..43]: gpio::GPIOPin {
+    //             port: GPIOPort::GPIO1,
+    //             function: ::Some(PeripheralFunction::A)
+    //         }
+
+    //         gpiopin@[64..96]: gpio::GPIOPin {
+    //             port: GPIOPort::GPIO2,
+    //             function: ::None
+    //         }
+
+    //         uart@[0..4]: usart::USART;
+    //     }
+
+    //     devices {
+    //         first_led: gpio::LED(GPIOPin@74) {
+    //             start_status: LEDStatus::On
+    //         }
+
+    //         console: uart::Console(UART@3) {
+    //             baud_rate: 115200,
+    //             data_bits: 8,
+    //             parity: Parity::None
+    //         }
+    //     }
+    // );
+
 }
 
-fn init_led() -> drivers::gpio::led::LED<gpio::GPIOPin> {
+fn init_led() -> drivers::gpio::LED<gpio::GPIOPin> {
     use platform::sam4l::gpio;
 
-    let pin_10 = gpio::GPIOPin::new(gpio::Params {
+    let pin_10 = gpio::GPIOPin::new(gpio::GPIOPinParams {
         location: gpio::Location::GPIOPin10,
         port: gpio::GPIOPort::GPIO2,
         function: None
     });
 
-    drivers::gpio::led::init(pin_10,
-        drivers::gpio::led::InitParams {
-            start_status: drivers::gpio::led::LEDStatus::On
+    drivers::gpio::LED::new(pin_10,
+        drivers::gpio::LEDParams {
+            start_status: drivers::gpio::LEDStatus::On
         }
     )
 }
 
-fn init_console() -> drivers::uart::console::Console<usart::USART> {
-    use hil::uart;
-
-    let uart_3 = usart::USART::new(usart::Params {
+fn init_console() -> drivers::uart::Console<usart::USART> {
+    let uart_3 = usart::USART::new(usart::USARTParams {
         location: usart::Location::USART3
     });
 
-    let _ = gpio::GPIOPin::new(gpio::Params {
+    let _ = gpio::GPIOPin::new(gpio::GPIOPinParams {
         location: gpio::Location::GPIOPin9,
         port: gpio::GPIOPort::GPIO1,
         function: Some(gpio::PeripheralFunction::A)
     });
 
-    let _ = gpio::GPIOPin::new(gpio::Params {
+    let _ = gpio::GPIOPin::new(gpio::GPIOPinParams {
         location: gpio::Location::GPIOPin10,
         port: gpio::GPIOPort::GPIO1,
         function: Some(gpio::PeripheralFunction::A)
     });
 
-    drivers::uart::console::init(uart_3,
-        drivers::uart::console::InitParams {
+    drivers::uart::Console::new(uart_3,
+        drivers::uart::ConsoleParams {
             baud_rate: 115200,
             data_bits: 8,
-            parity: uart::Parity::None
+            parity: drivers::uart::Parity::None
         }
     )
 }
