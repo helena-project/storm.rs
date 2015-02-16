@@ -53,25 +53,6 @@ unsafe fn schedule_external_apps(proc_arr: &mut ArrayList<Process>) {
     }
 }
 
-#[inline(never)]
-fn do_syscall(svc_num: u16, r0: usize, r1: usize, _: usize) {
-    let cmd_drivers = unsafe { syscall::CMD_DRIVERS };
-    match svc_num {
-        syscall::WAIT => {
-            //unsafe { config::Console.as_mut().unwrap().writeln("wait") };
-        },
-        syscall::SUBSCRIBE => {
-            //unsafe { config::Console.as_mut().unwrap().writeln("subscribe") };
-        },
-        syscall::COMMAND => {
-            cmd_drivers[r0](r1, 0);
-        },
-        _ => {
-            //unsafe { config::Console.as_mut().unwrap().writeln("unrecognized") };
-        }
-    };
-}
-
 unsafe fn svc_and_registers(psp: *const usize) -> (u16, usize, usize, usize) {
     use core::intrinsics::volatile_load;
 
@@ -97,8 +78,8 @@ pub extern fn main() {
         list
     };
 
-    //let subscribe_drivers = unsafe { syscall::SUBSCRIBE_DRIVERS };
-    //let cmd_drivers = unsafe { syscall::CMD_DRIVERS };
+    let subscribe_drivers = unsafe { &syscall::SUBSCRIBE_DRIVERS };
+    let cmd_drivers = unsafe { &syscall::CMD_DRIVERS };
 
     loop {
         for i in range(0, proc_list.len()) {
@@ -108,7 +89,12 @@ pub extern fn main() {
                     &mut process.memory[process.cur_stack])
             };
             let (svc_num, r0, r1, r2) = unsafe { svc_and_registers(psp) };
-            do_syscall(svc_num, r0, r1, r2);
+            match svc_num {
+                syscall::WAIT => {},
+                syscall::SUBSCRIBE => { subscribe_drivers[r0](r1,r2); },
+                syscall::COMMAND => { cmd_drivers[r0](r1, r2); },
+                _ => {}
+            }
         }
     }
 }

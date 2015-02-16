@@ -3,12 +3,14 @@ extern {
     pub fn switch_to_user(start: usize, user_stack: *mut u8) -> *const usize;
 }
 
+pub type SyscallFunc = fn(usize, usize) -> isize;
+
 fn noop(_: usize, _: usize) -> isize { -1 }
 
-pub static mut SUBSCRIBE_DRIVERS: [fn(usize, usize) -> isize; 10] = [noop; 10];
+pub static mut SUBSCRIBE_DRIVERS: [SyscallFunc; 10] = [noop; 10];
 pub static mut NUM_SUBSCRIBE_DRIVERS: usize = 0;
 
-pub static mut CMD_DRIVERS: [fn(usize, usize) -> isize; 10] = [noop; 10];
+pub static mut CMD_DRIVERS: [SyscallFunc; 10] = [noop; 10];
 pub static mut NUM_CMD_DRIVERS: usize = 0;
 
 enum Syscalls {
