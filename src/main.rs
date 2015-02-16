@@ -53,21 +53,39 @@ unsafe fn schedule_external_apps(proc_arr: &mut ArrayList<Process>) {
     }
 }
 
-#[inline(never)]
-fn launch_task(task: task::Task) -> u16 {
-    match task {
-        task::Task::UserTask(task_addr) => unsafe {
-            syscall::switch_to_user(task_addr, &mut PSTACKS[0][1020] as *mut u8)
+fn do_syscall(svc_num: u16, r0: usize, r1: usize, _: usize) {
+    let cmd_drivers = unsafe { syscall::CMD_DRIVERS };
+    match svc_num {
+        syscall::WAIT => {
+            //unsafe { config::Console.as_mut().unwrap().writeln("wait") };
         },
-        task::Task::Process(process) => unsafe {
-            syscall::switch_to_user(process.pc,
-                &mut process.memory[process.cur_stack] as *mut u8)
+        syscall::SUBSCRIBE => {
+            //unsafe { config::Console.as_mut().unwrap().writeln("subscribe") };
+        },
+        syscall::COMMAND => {
+            cmd_drivers[r0](r1, 0);
+        },
+        _ => {
+            //unsafe { config::Console.as_mut().unwrap().writeln("unrecognized") };
         }
-    }
+    };
+}
+
+unsafe fn svc_and_registers(psp: *const usize) -> (u16, usize, usize, usize) {
+    use core::intrinsics::volatile_load;
+
+    let pcptr = volatile_load((psp as *const *const u16).offset(6));
+    let svc_instr = volatile_load(pcptr.offset(-1));
+    let r0 = volatile_load(psp);
+    let r1 = volatile_load(psp.offset(1));
+    let r2 = volatile_load(psp.offset(2));
+    (svc_instr & 0xff, r0, r1, r2)
 }
 
 #[no_mangle]
 pub extern fn main() {
+    use core::prelude::*;
+
     let mut proc_list = unsafe {
         task::setup();
         config::config();
@@ -81,52 +99,16 @@ pub extern fn main() {
     //let subscribe_drivers = unsafe { syscall::SUBSCRIBE_DRIVERS };
     //let cmd_drivers = unsafe { syscall::CMD_DRIVERS };
 
-    let mut console = unsafe { config::Console.as_mut().unwrap() };
-
-    console.putc(proc_list.len() as u8 + 48);
-    console.writeln(" procs");
     loop {
         for i in range(0, proc_list.len()) {
-            console.write("proc ");
-            console.putc(i as u8 + 48);
-            console.writeln("");
             let process = &mut proc_list[i];
-            let svc = unsafe {
+            let psp = unsafe {
                 syscall::switch_to_user(process.pc,
                     &mut process.memory[process.cur_stack])
             };
-            match svc {
-                syscall::WAIT => {
-                    unsafe { config::Console.as_mut().unwrap().writeln("wait") };
-                },
-                syscall::SUBSCRIBE => {
-                    unsafe { config::Console.as_mut().unwrap().writeln("subscribe") };
-                },
-                syscall::COMMAND => {
-                    unsafe { config::Console.as_mut().unwrap().writeln("command") };
-                },
-                _ => {
-                    unsafe { config::Console.as_mut().unwrap().writeln("unrecognized") };
-                }
-            };
+            let (svc_num, r0, r1, r2) = unsafe { svc_and_registers(psp) };
+            do_syscall(svc_num, r0, r1, r2);
         }
     }
-        /*match unsafe { task::dequeue() } {
-            None => {
-                support::wfi(); // Sleep!
-            },
-            Some(task) => {
-                let svc = launch_task(task);
-                let out = match svc {
-                    syscall::WAIT => "wait",
-                    syscall::SUBSCRIBE => "subscribe",
-                    syscall::COMMAND => "command",
-                    _ => "unrecognized"
-                };
-                unsafe {
-                    config::Console.as_mut().expect("").writeln(out);
-                }
-            }
-        }*/
 }
 

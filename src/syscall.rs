@@ -1,7 +1,6 @@
 #[allow(improper_ctypes)]
 extern {
-    fn __ctx_to_user(start: usize, user_stack: *mut u8) -> u16;
-    fn __ctx_to_master();
+    pub fn switch_to_user(start: usize, user_stack: *mut u8) -> *const usize;
 }
 
 fn noop(_: usize, _: usize) -> isize { -1 }
@@ -21,12 +20,6 @@ enum Syscalls {
 pub const WAIT: u16 = 0;
 pub const SUBSCRIBE: u16 = 1;
 pub const COMMAND: u16 = 2;
-
-pub unsafe fn switch_to_user(pc: usize, sp: *mut u8) -> u16 {
-    __ctx_to_user(pc, sp)
-    //let icsr: *mut usize = 0xE000ED04 as *mut usize;
-    //volatile_store(icsr, volatile_load(icsr as *const usize) | 1<<28);
-}
 
 #[derive(Copy)]
 pub enum ReturnTo {
