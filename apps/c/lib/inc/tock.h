@@ -10,7 +10,9 @@
     register uint32_t _c asm("r2") = c;               \
     int32_t result;                                   \
     asm volatile(                                     \
+        "push {r4-r11}\n\t"                           \
         "svc " #number "\n\t"                         \
+        "pop {r4-r11}\n\t"                           \
         "mov %[result], r0\n\t"                       \
         : [result]"=r" (result)                       \
         : "r" (_a), "r" (_b), "r" (_c)                \
