@@ -1,6 +1,9 @@
-use core::prelude::*;
 use core::intrinsics::{atomic_xadd, volatile_load, volatile_store};
+use core::mem;
+use core::prelude::*;
+use core::raw;
 
+use ring_buffer::RingBuffer;
 use syscall;
 
 /// Size of each processes's memory region in bytes
@@ -9,16 +12,39 @@ pub const PROC_MEMORY_SIZE : usize = 2048;
 static mut MEMORIES: [[u8; PROC_MEMORY_SIZE]; 8] = [[0; PROC_MEMORY_SIZE]; 8];
 static mut FREE_MEMORY_IDX: usize = 0;
 
-pub struct Process {
+#[derive(Copy,PartialEq,Eq)]
+pub enum State {
+    Running,
+    Waiting
+}
+
+
+#[derive(Copy)]
+pub struct Callback {
+    pub pc: usize,
+    pub r0: usize,
+    pub r1: usize,
+    pub r2: usize
+}
+
+pub struct Process<'a> {
     /// The process's memory.
-    pub memory: &'static mut [u8; PROC_MEMORY_SIZE],
+    pub memory: &'static mut [u8],
+
+    /// The process's memory exposed to the process (the rest is reserved for the
+    /// kernel, drivers, etc).
+    pub exposed_memory: &'static mut [u8],
 
     /// The offset in `memory` to use for the process stack.
     pub cur_stack: *mut u8,
+
+    pub state: State,
+
+    pub callbacks: RingBuffer<'a, Callback>
 }
 
-impl Process {
-    pub fn create(init_fn: fn()) -> Result<Process, ()> {
+impl<'a> Process<'a> {
+    pub fn create(init_fn: fn()) -> Result<Process<'a>, ()> {
         unsafe {
             let cur_idx = atomic_xadd(&mut FREE_MEMORY_IDX, 1);
             if cur_idx > MEMORIES.len() {
@@ -27,18 +53,52 @@ impl Process {
             } else {
                 let memory = &mut MEMORIES[cur_idx];
 
-                // Fill in initial stack expected by SVC handler
-                // Top minus 8 u32s for r0-r3, r12, lr, pc and xPSR
-                let stack_bottom : *mut usize =
-                    &mut memory[PROC_MEMORY_SIZE - 32] as *mut u8 as *mut usize;
-                volatile_store(stack_bottom.offset(7), 0x01000000);
-                volatile_store(stack_bottom.offset(6), init_fn as usize);
+                let stack_bottom = &mut memory[PROC_MEMORY_SIZE - 4] as *mut u8;
+
+                // Take callback buffer from bottom of process memory
+                let callback_len = 10;
+                let callback_buf = mem::transmute(raw::Slice {
+                    data: &mut memory[0] as *mut u8 as *mut Option<Callback>,
+                    len: callback_len
+                });
+                let callback_size = mem::size_of::<Option<Callback>>();
+
+                let mut callbacks = RingBuffer::new(callback_buf);
+                callbacks.enqueue(Callback {
+                    pc: init_fn as usize, r0: 0, r1: 0, r2:0
+                });
+
                 Ok(Process {
-                    memory: &mut MEMORIES[cur_idx],
-                    cur_stack: stack_bottom as *mut u8
+                    memory: memory,
+                    exposed_memory: &mut memory[callback_len * callback_size..],
+                    cur_stack: stack_bottom as *mut u8,
+                    state: State::Waiting,
+                    callbacks: callbacks
                 })
             }
         }
+    }
+
+    pub fn pop_syscall_stack(&mut self) {
+        unsafe {
+            self.cur_stack =
+                (self.cur_stack as *mut usize).offset(8) as *mut u8;
+        }
+    }
+
+    /// Context switch to the process.
+    pub unsafe fn switch_to_callback(&mut self, callback: Callback) {
+        // Fill in initial stack expected by SVC handler
+        // Top minus 8 u32s for r0-r3, r12, lr, pc and xPSR
+        let stack_bottom = (self.cur_stack as *mut usize).offset(-8);
+        volatile_store(stack_bottom.offset(7), 0x01000000);
+        volatile_store(stack_bottom.offset(6), callback.pc);
+        volatile_store(stack_bottom, callback.r0);
+        volatile_store(stack_bottom.offset(1), callback.r1);
+        volatile_store(stack_bottom.offset(2), callback.r2);
+
+        self.cur_stack = stack_bottom as *mut u8;
+        self.switch_to();
     }
 
     /// Context switch to the process.

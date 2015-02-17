@@ -5,6 +5,7 @@ struct Alarm {
     armed: bool,
     origin: u32,
     duration: u32,
+    cb_ptr: *mut (),
     cb_addr: usize
 }
 
@@ -17,14 +18,14 @@ pub struct VirtualTimer<T: Timer> {
 }
 
 impl <T: Timer> AlarmHandler for VirtualTimer<T> {
-    fn fire_alarm<F: FnMut(usize)>(&mut self, mut post: F) {
+    fn fire_alarm<F: FnMut(*mut (), usize, usize, usize, usize)>(&mut self, mut post: F) {
         //let now = self.timer.now();
         self.timer.disable_alarm();
         for i in range(0, 10) {
             let cur = &mut self.alarms[i];
             if cur.armed {
                 cur.armed = false;
-                post(cur.cb_addr);
+                post(cur.cb_ptr, cur.cb_addr, 0, 0, 0);
             }
             /*let remaining = cur.duration + cur.origin - now;
             if remaining <= 0 {
@@ -41,16 +42,18 @@ impl <T: Timer> VirtualTimer<T> {
             armed: false, 
             origin: 0, 
             duration: 0, 
+            cb_ptr: 0 as *mut (),
             cb_addr: 0
         };
         VirtualTimer {timer: timer, active: false, alarms: [base_alarm; 10]}
     }
 
-    pub fn set_user_alarm(&mut self, duration: u32, cb: usize) -> isize {
+    pub fn set_user_alarm(&mut self, cb_ptr: *mut (), duration: u32, cb: usize) -> isize {
         let now = self.timer.now();
         let alarm = Alarm { armed: true,
                             origin: now,
                             duration: duration,
+                            cb_ptr: cb_ptr,
                             cb_addr: cb
                           };
         if !self.add_alarm(alarm) {

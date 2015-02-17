@@ -1,11 +1,12 @@
+use core::mem;
 use core::prelude::*;
 use core::intrinsics;
 use platform::sam4l::{usart, ast, gpio};
 use platform::sam4l;
 use hil::timer::AlarmHandler;
 use drivers;
+use process;
 use syscall;
-use task::Task::UserTask;
 
 pub static mut VirtualTimer:
     Option<drivers::timer::VirtualTimer<ast::Ast>> = None;
@@ -15,23 +16,27 @@ pub fn virtual_timer_driver_callback() {
         VirtualTimer.as_mut().expect("VirtualTimer is None!")
     };
 
-    vt.fire_alarm(|&: addr| {
-        UserTask(addr).post();
+    vt.fire_alarm(|&: process_ptr, addr, r0, r1, r2| {
+        let process : &mut process::Process = unsafe { mem::transmute(process_ptr) };
+        process.callbacks.enqueue(
+            process::Callback{
+                pc: addr, r0: r0, r1: r1, r2: r2
+            });
     });
 }
 
-pub fn virtual_timer_driver_svc(r1: usize, r2: usize) -> isize {
+pub fn virtual_timer_driver_svc(process_ptr: *mut (), r1: usize, r2: usize) -> isize {
     let mut vt = unsafe {
         VirtualTimer.as_mut().expect("VirtualTimer is None!")
     };
 
-    vt.set_user_alarm(r1 as u32, r2)
+    vt.set_user_alarm(process_ptr, r1 as u32, r2)
 }
 
 pub static mut Console:
     Option<drivers::uart::Console<usart::USART>> = None;
 
-pub fn console_driver_writec_svc(r1: usize, _: usize) -> isize {
+pub fn console_driver_writec_svc(_: *mut (), r1: usize, _: usize) -> isize {
     let mut console = unsafe {
         Console.as_mut().expect("Console is None!")
     };
@@ -40,7 +45,7 @@ pub fn console_driver_writec_svc(r1: usize, _: usize) -> isize {
     0
 }
 
-pub fn console_driver_readc_sub(callback: usize, _: usize) -> isize {
+pub fn console_driver_readc_sub(_: *mut (), callback: usize, _: usize) -> isize {
     let mut console = unsafe {
         Console.as_mut().expect("Console is None!")
     };
@@ -54,7 +59,7 @@ pub fn console_driver_readc_sub(callback: usize, _: usize) -> isize {
 pub static mut LED:
     Option<drivers::gpio::LED<gpio::GPIOPin>> = None;
 
-pub fn led_driver_toggle_svc(_: usize, _: usize) -> isize {
+pub fn led_driver_toggle_svc(_: *mut (), _: usize, _: usize) -> isize {
     let mut led = unsafe {
         LED.as_mut().expect("LED is None!")
     };

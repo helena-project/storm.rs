@@ -23,8 +23,7 @@ mod std {
 
 mod array_list;
 pub mod config;
-mod task;
-mod ringbuf;
+mod ring_buffer;
 mod process;
 mod syscall;
 
@@ -57,7 +56,6 @@ unsafe fn load_apps(proc_arr: &mut ArrayList<Process>) {
 #[no_mangle]
 pub extern fn main() {
     let mut proc_list = unsafe {
-        task::setup();
         config::config();
 
         let mut buf : [u8; 1024] = [0; 1024];
@@ -69,20 +67,45 @@ pub extern fn main() {
     let subscribe_drivers = unsafe { &syscall::SUBSCRIBE_DRIVERS };
     let cmd_drivers = unsafe { &syscall::CMD_DRIVERS };
 
+    // Circular iterator is temporary. We actually want a run queue so we can
+    // sleep when there is no work to be done.
     let mut iter = proc_list.circular_iterator();
     let mut process = iter.next().unwrap();
     loop {
-        unsafe { process.switch_to() };
+        match process.state {
+            process::State::Running => {
+                unsafe { process.switch_to(); }
+            },
+            process::State::Waiting => {
+                unsafe {
+                    match process.callbacks.dequeue() {
+                        None => {
+                            process = iter.next().unwrap();
+                            continue;
+                        },
+                        Some(cb) => {
+                            process.state = process::State::Running;
+                            process.switch_to_callback(cb);
+                        }
+                    }
+                };
+            }
+        }
+        let process_ptr = process as *mut Process as *mut ();
         match process.svc_number() {
             Some(syscall::WAIT) => {
+                process.state = process::State::Waiting;
+                process.pop_syscall_stack();
                 process = iter.next().unwrap();
             },
             Some(syscall::SUBSCRIBE) => {
-                let res = subscribe_drivers[process.r0()](process.r1(),process.r2());
+                let driver = subscribe_drivers[process.r0()];
+                let res = driver(process_ptr, process.r1(),process.r2());
                 process.set_r0(res);
             },
             Some(syscall::COMMAND) => {
-                let res = cmd_drivers[process.r0()](process.r1(), process.r2());
+                let driver = cmd_drivers[process.r0()];
+                let res = driver(process_ptr, process.r1(), process.r2());
                 process.set_r0(res);
             },
             _ => {}

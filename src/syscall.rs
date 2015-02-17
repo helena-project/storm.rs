@@ -3,9 +3,9 @@ extern {
     pub fn switch_to_user(user_stack: *mut u8) -> *mut u8;
 }
 
-pub type SyscallFunc = fn(usize, usize) -> isize;
+pub type SyscallFunc = fn(*mut (), usize, usize) -> isize;
 
-fn noop(_: usize, _: usize) -> isize { -1 }
+fn noop(_: *mut (), _: usize, _: usize) -> isize { -1 }
 
 pub static mut SUBSCRIBE_DRIVERS: [SyscallFunc; 10] = [noop; 10];
 pub static mut NUM_SUBSCRIBE_DRIVERS: usize = 0;
