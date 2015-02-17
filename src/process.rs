@@ -15,10 +15,6 @@ pub struct Process {
 
     /// The offset in `memory` to use for the process stack.
     pub cur_stack: *mut u8,
-
-    pub registers: [usize; 4],
-
-    pub svc_number: Option<u8>
 }
 
 impl Process {
@@ -39,9 +35,7 @@ impl Process {
                 volatile_store(stack_bottom.offset(6), init_fn as usize);
                 Ok(Process {
                     memory: &mut MEMORIES[cur_idx],
-                    cur_stack: stack_bottom as *mut u8,
-                    registers: [0; 4],
-                    svc_number: None
+                    cur_stack: stack_bottom as *mut u8
                 })
             }
         }
