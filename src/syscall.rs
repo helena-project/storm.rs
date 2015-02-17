@@ -1,6 +1,6 @@
 #[allow(improper_ctypes)]
 extern {
-    pub fn switch_to_user(start: usize, user_stack: *mut u8) -> *const usize;
+    pub fn switch_to_user(user_stack: *mut u8) -> *mut u8;
 }
 
 pub type SyscallFunc = fn(usize, usize) -> isize;
@@ -13,15 +13,9 @@ pub static mut NUM_SUBSCRIBE_DRIVERS: usize = 0;
 pub static mut CMD_DRIVERS: [SyscallFunc; 10] = [noop; 10];
 pub static mut NUM_CMD_DRIVERS: usize = 0;
 
-enum Syscalls {
-    WAIT = 0,
-    SUBSCRIBE = 1,
-    COMMAND = 2
-}
-
-pub const WAIT: u16 = 0;
-pub const SUBSCRIBE: u16 = 1;
-pub const COMMAND: u16 = 2;
+pub const WAIT: u8 = 0;
+pub const SUBSCRIBE: u8 = 1;
+pub const COMMAND: u8 = 2;
 
 #[derive(Copy)]
 pub enum ReturnTo {

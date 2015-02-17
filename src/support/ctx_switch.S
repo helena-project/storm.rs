@@ -33,35 +33,33 @@ to_kernel:
 .thumb_func
 /* r0 is start address and r1 is top of user stack */
 switch_to_user:
-    push {r4-r11}
-
-    mov r4, r1
-    /* Load the first stack frame */
-    movw r5, #0      /* xPSR --> set thumb mode in EPSR (bit-24) */
-    movt r5, #0x100
-    stmdb r4!,  {r0, r5}  /* PC, xPSR */
-    sub r4, r4, 24 /* Don't care about the next 6 registers */
-
     /* Load bottom of stack into Process Stack Pointer */
-    msr psp, r4
+    msr psp, r0
 
+    push {r4-r11}
     svc 0xff
-
     pop {r4-r11}
+
     bx lr
 
 .thumb_func
 __wait:
+    push {r4-r11}
     svc 0
+    pop {r4-r11}
     bx lr
 
 .thumb_func
 __subscribe:
+    push {r4-r11}
     svc 1
+    pop {r4-r11}
     bx lr
 
 .thumb_func
 __command:
+    push {r4-r11}
     svc 2
+    pop {r4-r11}
     bx lr
 
