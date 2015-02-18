@@ -14,3 +14,4 @@ mod std {
 pub mod timer;
 pub mod uart;
 pub mod gpio;
+pub mod i2c;
