@@ -93,7 +93,7 @@ If all the tools are in your `$PATH`, you should be good to go. Otherwise set th
 * `CC` - `arm-none-eabi-gcc`
 * `OBJCOPY` - `arm-none-eabi-objcopy`
 
-You're now ready to build!
+Simply call make:
 
 ```bash
 make
