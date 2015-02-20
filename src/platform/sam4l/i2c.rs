@@ -162,7 +162,7 @@ impl hil::i2c::I2C for I2CDevice {
         // to execute the I2C transaction
         let command = (data.len() << 16) |             // NBYTES
                       (0x1 << 15) |                    // VALID
-                      (0x0 << 14) |                    // STOP
+                      (0x1 << 14) |                    // STOP
                       (0x1 << 13) |                    // START
                       (0x0 << 11) |                    // TENBIT
                       ((addr as usize) << 1) |         // SADR
@@ -186,6 +186,13 @@ impl hil::i2c::I2C for I2CDevice {
     }
 
     fn read_sync (&mut self, addr: u16, buffer: &mut[u8]) {
+
+        // enable, reset, disable
+        volatile!(self.registers.control = buffer[0] as usize);
+        volatile!(self.registers.control = 0x1 << 7);
+        volatile!(self.registers.control = 0x1 << 1);
+
+
         // Configure the command register to instruct the TWIM peripheral
         // to execute the I2C transaction
         let command = (buffer.len() << 16) |           // NBYTES
@@ -195,6 +202,8 @@ impl hil::i2c::I2C for I2CDevice {
                       ((addr as usize) << 1) |         // SADR
                       (0x1 << 0);                      // READ
         volatile!(self.registers.command = command);
+
+        volatile!(self.registers.control = 0x1 << 0);
 
         // Read bytes in to the buffer
         for i in 0..buffer.len() {
