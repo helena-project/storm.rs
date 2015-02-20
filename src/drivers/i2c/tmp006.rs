@@ -1,5 +1,7 @@
 use hil;
 
+use core::prelude::SliceExt;
+
 ///
 /// Device driver for the TI TMP006 contactless temperature sensor
 ///
@@ -44,6 +46,8 @@ impl <I2C: hil::i2c::I2C> TMP006 <I2C> {
 		let mut buf: [u8; 3] = [0; 3];
 		let mut config: u16;
 
+		self.i2c.enable();
+
 		// Start by enabling the sensor
 		config = 0x7 << 12;
 		buf[0] = TMP006Registers::Configuration as u8;
@@ -54,7 +58,7 @@ impl <I2C: hil::i2c::I2C> TMP006 <I2C> {
 		// Now wait until a sensor reading is ready
 		loop {
 			self.i2c.read_sync(self.addr, &mut buf[1..2]);
-			// Check the DRDY ready bit in the config register
+			Check the DRDY ready bit in the config register
 			if (buf[1] & 0x80) == 0x80 {
 				break;
 			}
@@ -74,16 +78,3 @@ impl <I2C: hil::i2c::I2C> TMP006 <I2C> {
 	}
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

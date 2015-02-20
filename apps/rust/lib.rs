@@ -14,6 +14,7 @@ macro_rules! register_app {
 }
 
 pub mod boop;
+pub mod test_tmp006;
 mod commands;
 mod std {
     pub use core::*;

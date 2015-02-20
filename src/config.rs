@@ -1,6 +1,7 @@
 use core::prelude::*;
 use core::intrinsics;
 use platform::sam4l::{usart, ast, gpio};
+use platform::sam4l;
 use hil::timer::AlarmHandler;
 use drivers;
 use syscall;
@@ -62,6 +63,21 @@ pub fn led_driver_toggle_svc(_: usize, _: usize) -> isize {
     0
 }
 
+pub static mut TMP006:
+    Option<drivers::i2c::tmp006::TMP006<sam4l::i2c::I2CDevice>> = None;
+
+
+// bradjc: this should be temporary until we have a better app<->device driver
+//         interface
+pub fn tmp006_driver_read_svc(_: usize, _: usize) -> isize {
+    let mut tmp006 = unsafe {
+        TMP006.as_mut().expect("TMP006 is None!")
+    };
+
+    // return
+    tmp006.read_sync() as isize
+}
+
 pub unsafe fn config() {
     let mut ast = ast::Ast::new(virtual_timer_driver_callback);
     ast.setup();
@@ -79,6 +95,10 @@ pub unsafe fn config() {
 
     LED = Some(init_led());
     syscall::CMD_DRIVERS[1] = led_driver_toggle_svc;
+    syscall::NUM_CMD_DRIVERS += 1;
+
+    TMP006 = Some(init_tmp006());
+    syscall::CMD_DRIVERS[2] = tmp006_driver_read_svc;
     syscall::NUM_CMD_DRIVERS += 1;
 
     // In the near future, all config will be handled by a config_tree
@@ -157,6 +177,34 @@ fn init_console() -> drivers::uart::Console<usart::USART> {
             parity: drivers::uart::Parity::None
         }
     )
+}
+
+fn init_tmp006() -> drivers::i2c::tmp006::TMP006<sam4l::i2c::I2CDevice> {
+
+    // Create the I2C device with the correct parameters for firestorm
+    let i2c_device = sam4l::i2c::I2CDevice::new(sam4l::i2c::I2CParams {
+        location:  sam4l::i2c::I2CLocation::I2CPeripheral02,
+        // bus_speed: sam4l::i2c::I2CSpeed::Fast400k
+        bus_speed: sam4l::i2c::I2CSpeed::Standard100k
+    });
+
+    // Configure the I2C pins to be in TWIM2 mode
+    let _ = gpio::GPIOPin::new(sam4l::gpio::GPIOPinParams {
+        location: sam4l::gpio::Location::GPIOPin21,
+        port: sam4l::gpio::GPIOPort::GPIO0,
+        function: Some(sam4l::gpio::PeripheralFunction::E)
+    });
+
+    let _ = gpio::GPIOPin::new(sam4l::gpio::GPIOPinParams {
+        location: sam4l::gpio::Location::GPIOPin22,
+        port: sam4l::gpio::GPIOPort::GPIO0,
+        function: Some(sam4l::gpio::PeripheralFunction::E)
+    });
+
+    // return
+    drivers::i2c::tmp006::TMP006::new(i2c_device, drivers::i2c::tmp006::TMP006Params {
+        addr: 0x40
+    })
 }
 
 #[no_mangle]

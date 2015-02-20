@@ -1,3 +1,3 @@
 pub use self::tmp006::*;
 
-mod tmp006;
+pub mod tmp006;
