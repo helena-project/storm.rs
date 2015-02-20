@@ -85,6 +85,13 @@ You can update stormloader via pip as well:
 sudo pip install -U stormloader
 ```
 
+Then add a udev rule (Ubuntu) for the FTDI chip:
+
+```bash
+sudo su
+echo 'ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6015", MODE="0666"' > /etc/udev/rules.d/99-storm.rules
+```
+
 ## Building
 
 If all the tools are in your `$PATH`, you should be good to go. Otherwise set the env variables:
@@ -114,4 +121,13 @@ directory:
 ```bash
 JLinkExe prog.jlink
 ```
+
+## Printf support
+
+To get the UART printf from firestorm:
+
+```bash
+sload tail
+```
+
 
