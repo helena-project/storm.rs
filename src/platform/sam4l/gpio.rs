@@ -124,9 +124,28 @@ impl GPIOPin {
         volatile!(self.port.gper.clear = self.pin_mask);
 
         // Set PMR0-2 according to passed in peripheral
-        volatile!(self.port.pmr0.val = bit0 << n);
-        volatile!(self.port.pmr1.val = bit1 << n);
-        volatile!(self.port.pmr2.val = bit2 << n);
+
+        // bradjc: This code doesn't look great, but actually works.
+        if bit0 == 0 {
+            volatile!(self.port.pmr0.clear = 1 << n);
+        } else {
+            volatile!(self.port.pmr0.set = 1 << n);
+        }
+        if bit1 == 0 {
+            volatile!(self.port.pmr1.clear = 1 << n);
+        } else {
+            volatile!(self.port.pmr1.set = 1 << n);
+        }
+        if bit2 == 0 {
+            volatile!(self.port.pmr2.clear = 1 << n);
+        } else {
+            volatile!(self.port.pmr2.set = 1 << n);
+        }
+        // bradjc: These register assigns erase previous settings and don't
+        //         work.
+        // volatile!(self.port.pmr0.val = bit0 << n);
+        // volatile!(self.port.pmr1.val = bit1 << n);
+        // volatile!(self.port.pmr2.val = bit2 << n);
     }
 }
 
