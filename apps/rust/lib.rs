@@ -1,7 +1,7 @@
 #![crate_name = "apps"]
 #![crate_type = "rlib"]
 #![allow(unused,unconditional_recursion)] // See Rust issue #21705
-#![feature(core)]
+#![feature(core,no_std)]
 #![no_std]
 
 extern crate core;

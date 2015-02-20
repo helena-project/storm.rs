@@ -1,10 +1,9 @@
 #![crate_name = "platform"]
 #![crate_type = "rlib"]
 #![no_std]
-#![feature(plugin,core)]
+#![feature(plugin,core,concat_idents,no_std)]
+#![plugin(plugins)]
 
-#[plugin] #[no_link]
-extern crate plugins;
 extern crate core;
 extern crate hil;
 

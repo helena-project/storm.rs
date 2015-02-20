@@ -134,7 +134,6 @@ pub unsafe fn config() {
     //         }
     //     }
     // );
-
 }
 
 fn init_led() -> drivers::gpio::LED<gpio::GPIOPin> {

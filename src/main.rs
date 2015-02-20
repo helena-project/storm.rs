@@ -1,10 +1,9 @@
+#![feature(asm,core,core,plugin,no_std)]
+#![allow(dead_code)]
 #![no_main]
 #![no_std]
-#![allow(dead_code)]
-#![feature(asm,core,core,plugin)]
+#![plugin(plugins)]
 
-#[plugin] #[no_link]
-extern crate plugins;
 extern crate core;
 extern crate drivers;
 extern crate platform;

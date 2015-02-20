@@ -1,6 +1,6 @@
 #![crate_name = "hil"]
 #![crate_type = "rlib"]
-#![feature(core)]
+#![feature(core,no_std)]
 #![no_std]
 
 extern crate core;
