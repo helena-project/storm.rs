@@ -58,7 +58,7 @@ impl <I2C: hil::i2c::I2C> TMP006 <I2C> {
 		// Now wait until a sensor reading is ready
 		loop {
 			self.i2c.read_sync(self.addr, &mut buf[1..2]);
-			Check the DRDY ready bit in the config register
+			// Check the DRDY ready bit in the config register
 			if (buf[1] & 0x80) == 0x80 {
 				break;
 			}
