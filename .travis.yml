@@ -1,5 +1,5 @@
 language: rust
-rust: alpha.2
+rust: 1.0.0-alpha.2
 
 before_install:
   - sudo add-apt-repository ppa:terry.guo/gcc-arm-embedded -y
