@@ -1,4 +1,4 @@
-/*
+
 use core::intrinsics;
 use hil::adc;
 use sam4l::pm::{self, Clock, PBAClock};
@@ -37,7 +37,7 @@ pub const BASE_ADDRESS: usize = 0x40038000;
 
 // -1 means no channel active
 static mut WHICH_ACTIVE : isize = -1;
-static mut BUSY: bool = false;
+static mut BUSY: isize = 0;
 
 #[allow(missing_copy_implementations)]
 pub struct ADC {
@@ -85,10 +85,10 @@ impl adc::ADCMaster for ADC {
             return true;
         } else {
             let busy = unsafe {
-                let state  = &mut BUSY as *mut bool;
-                intrinsics::atomic_xchg(state, true)
+                let state  = &mut BUSY as *mut isize;
+                intrinsics::atomic_xchg(state, 1)
             };
-            if busy == false {
+            if busy == 0 {
                 self.enabled = true;
                 unsafe {
                     let which_active = &mut WHICH_ACTIVE as *mut isize;
@@ -110,14 +110,14 @@ impl adc::ADCMaster for ADC {
         unsafe {
             let which_active = &mut WHICH_ACTIVE as *mut isize;
             intrinsics::atomic_store(which_active, -1);
-            let state  = &mut BUSY as *mut bool;
-            intrinsics::atomic_store(state, false)
+            let state  = &mut BUSY as *mut isize;
+            intrinsics::atomic_store(state, 0)
         };
         self.enabled = false;
     }
 
     fn is_enabled(&self) -> bool {
-       self.enabled
+        self.enabled
     }
 
     fn sample(&mut self) -> u16 {
@@ -128,4 +128,4 @@ impl adc::ADCMaster for ADC {
         }
     }
 }
-*/
+
