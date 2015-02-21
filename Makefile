@@ -1,12 +1,12 @@
 RUSTC ?= rustc
-RUSTC_FLAGS += -C opt-level=1 -Z no-landing-pads
+RUSTC_FLAGS += -C opt-level=2 -Z no-landing-pads
 RUSTC_FLAGS += --target config/thumbv7em-none-eabi
 RUSTC_FLAGS += -Ctarget-cpu=cortex-m4 -C relocation_model=static
 RUSTC_FLAGS += -g -C no-stack-check -Lbuild
 
 OBJCOPY ?= arm-none-eabi-objcopy
 CC = arm-none-eabi-gcc
-CFLAGS += -g -O0 -std=gnu99 -mcpu=cortex-m4 -mthumb -nostdlib
+CFLAGS += -g -O3 -std=gnu99 -mcpu=cortex-m4 -mthumb -nostdlib
 LDFLAGS += -Tconfig/stormpayload.ld
 
 C_SOURCES=$(call rwildcard,src/support/,*.c)
@@ -46,7 +46,7 @@ $(BUILD_DIR):
 # Compiles and adds to $(APP_OBJECTS)
 -include apps/rust/apps.mk
 
-$(BUILD_DIR)/libplugins.so: $(call rwildcard,src/plugins/,*.rs) | $(BUILD_DIR)
+$(BUILD_DIR)/libplugins.dylib: $(call rwildcard,src/plugins/,*.rs) | $(BUILD_DIR)
 	@echo "Building $@"
 	@$(RUSTC) --out-dir $(BUILD_DIR) src/plugins/lib.rs
 
@@ -54,7 +54,7 @@ $(BUILD_DIR)/libdrivers.rlib: $(call rwildcard,src/drivers/,*.rs) $(call libs,co
 	@echo "Building $@"
 	@$(RUSTC) $(RUSTC_FLAGS) -F unsafe-blocks --out-dir $(BUILD_DIR) src/drivers/lib.rs
 
-$(BUILD_DIR)/libplatform.rlib: $(call libs,core hil) $(BUILD_DIR)/libplugins.so
+$(BUILD_DIR)/libplatform.rlib: $(call libs,core hil) $(BUILD_DIR)/libplugins.dylib
 
 .SECONDEXPANSION:
 $(BUILD_DIR)/lib%.rlib: $$(call rwildcard,src/$$**/,*.rs) $(call libs,core) | $(BUILD_DIR)

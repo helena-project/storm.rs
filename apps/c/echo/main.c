@@ -14,4 +14,4 @@ init() {
   wait();
 }
 
-//REGISTER_APP(echo, init);
+REGISTER_APP(echo, init);
