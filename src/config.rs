@@ -66,7 +66,6 @@ pub fn led_driver_toggle_svc(_: usize, _: usize) -> isize {
 pub static mut TMP006:
     Option<drivers::i2c::tmp006::TMP006<sam4l::i2c::I2CDevice>> = None;
 
-
 // bradjc: this should be temporary until we have a better app<->device driver
 //         interface
 pub fn tmp006_driver_read_svc(_: usize, _: usize) -> isize {
@@ -76,6 +75,21 @@ pub fn tmp006_driver_read_svc(_: usize, _: usize) -> isize {
 
     // return
     tmp006.read_sync() as isize
+}
+
+
+pub static mut FXOS8700CQ:
+    Option<'i2clifetime, drivers::i2c::fxos8700cq::FXOS8700CQ<sam4l::i2c::I2CDevice>> = None;
+
+// bradjc: this should be temporary until we have a better app<->device driver
+//         interface
+pub fn fxos8700cq_driver_read_svc(_: usize, _: usize) -> isize {
+    let mut fxos8700cq = unsafe {
+        FXOS8700CQ.as_mut().expect("FXOS8700CQ is None!")
+    };
+
+    // return
+    fxos8700cq.read_whoami_sync() as isize
 }
 
 pub unsafe fn config() {
@@ -97,8 +111,19 @@ pub unsafe fn config() {
     syscall::CMD_DRIVERS[1] = led_driver_toggle_svc;
     syscall::NUM_CMD_DRIVERS += 1;
 
-    TMP006 = Some(init_tmp006());
+
+    // Create the I2C device with the correct parameters for firestorm
+    let mut i2c_device = sam4l::i2c::I2CDevice::new(sam4l::i2c::I2CParams {
+        location:  sam4l::i2c::I2CLocation::I2CPeripheral02,
+        bus_speed: sam4l::i2c::I2CSpeed::Fast400k
+    });
+
+    TMP006 = Some(init_tmp006(&i2c_device));
     syscall::CMD_DRIVERS[2] = tmp006_driver_read_svc;
+    syscall::NUM_CMD_DRIVERS += 1;
+
+    FXOS8700CQ = Some(init_fxos8700cq(&i2c_device));
+    syscall::CMD_DRIVERS[3] = fxos8700cq_driver_read_svc;
     syscall::NUM_CMD_DRIVERS += 1;
 
     // In the near future, all config will be handled by a config_tree
@@ -178,13 +203,7 @@ fn init_console() -> drivers::uart::Console<usart::USART> {
     )
 }
 
-fn init_tmp006() -> drivers::i2c::tmp006::TMP006<sam4l::i2c::I2CDevice> {
-
-    // Create the I2C device with the correct parameters for firestorm
-    let i2c_device = sam4l::i2c::I2CDevice::new(sam4l::i2c::I2CParams {
-        location:  sam4l::i2c::I2CLocation::I2CPeripheral02,
-        bus_speed: sam4l::i2c::I2CSpeed::Fast400k
-    });
+fn init_tmp006(i2c_device: &sam4l::i2c::I2CDevice) -> drivers::i2c::tmp006::TMP006<sam4l::i2c::I2CDevice> {
 
     // Configure the I2C pins to be in TWIM2 mode
     let _ = gpio::GPIOPin::new(sam4l::gpio::GPIOPinParams {
@@ -202,6 +221,13 @@ fn init_tmp006() -> drivers::i2c::tmp006::TMP006<sam4l::i2c::I2CDevice> {
     // return
     drivers::i2c::tmp006::TMP006::new(i2c_device, drivers::i2c::tmp006::TMP006Params {
         addr: 0x40
+    })
+}
+
+fn init_fxos8700cq <'i2clifetime> (i2c_device: &'i2clifetime mut sam4l::i2c::I2CDevice) -> drivers::i2c::fxos8700cq::FXOS8700CQ<sam4l::i2c::I2CDevice> {
+    // return
+    drivers::i2c::fxos8700cq::FXOS8700CQ::new( i2c_device, drivers::i2c::fxos8700cq::FXOS8700CQParams {
+        addr: 0x1e
     })
 }
 
