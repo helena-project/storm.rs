@@ -1,4 +1,4 @@
-use core::intrinsics::{atomic_xadd, volatile_load, volatile_store};
+use core::intrinsics::{atomic_xadd, volatile_load, volatile_store, breakpoint};
 use core::mem;
 use core::prelude::*;
 use core::raw;
@@ -21,10 +21,10 @@ pub enum State {
 
 #[derive(Copy)]
 pub struct Callback {
-    pub pc: usize,
     pub r0: usize,
     pub r1: usize,
-    pub r2: usize
+    pub r2: usize,
+    pub pc: usize
 }
 
 pub struct Process<'a> {
@@ -37,6 +37,8 @@ pub struct Process<'a> {
 
     /// The offset in `memory` to use for the process stack.
     pub cur_stack: *mut u8,
+
+    pub wait_pc: usize,
 
     pub state: State,
 
@@ -72,6 +74,7 @@ impl<'a> Process<'a> {
                     memory: memory,
                     exposed_memory: &mut memory[callback_len * callback_size..],
                     cur_stack: stack_bottom as *mut u8,
+                    wait_pc: 0,
                     state: State::Waiting,
                     callbacks: callbacks
                 })
@@ -80,7 +83,9 @@ impl<'a> Process<'a> {
     }
 
     pub fn pop_syscall_stack(&mut self) {
+        let pspr = self.cur_stack as *const usize;
         unsafe {
+            self.wait_pc = volatile_load(pspr.offset(6));
             self.cur_stack =
                 (self.cur_stack as *mut usize).offset(8) as *mut u8;
         }
@@ -93,6 +98,10 @@ impl<'a> Process<'a> {
         let stack_bottom = (self.cur_stack as *mut usize).offset(-8);
         volatile_store(stack_bottom.offset(7), 0x01000000);
         volatile_store(stack_bottom.offset(6), callback.pc);
+        // Set the LR register to the saved PC so the callback returns to
+        // wherever wait was called. Set lowest bit to one because of THUMB
+        // instruction requirements.
+        volatile_store(stack_bottom.offset(5), self.wait_pc | 0x1);
         volatile_store(stack_bottom, callback.r0);
         volatile_store(stack_bottom.offset(1), callback.r1);
         volatile_store(stack_bottom.offset(2), callback.r2);
@@ -102,7 +111,11 @@ impl<'a> Process<'a> {
     }
 
     /// Context switch to the process.
+    #[inline(never)]
     pub unsafe fn switch_to(&mut self) {
+        if self.cur_stack < (&mut self.exposed_memory[0] as *mut u8) {
+            asm!("bkpt" :::: "volatile");
+        }
         let psp = syscall::switch_to_user(self.cur_stack);
         self.cur_stack = psp;
     }
@@ -115,6 +128,12 @@ impl<'a> Process<'a> {
             Some((svc_instr & 0xff) as u8)
         }
     }
+
+    pub fn lr(&self) -> usize {
+        let pspr = self.cur_stack as *const usize;
+        unsafe { volatile_load(pspr.offset(5)) }
+    }
+
 
     pub fn r0(&self) -> usize {
         let pspr = self.cur_stack as *const usize;

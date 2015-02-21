@@ -44,9 +44,9 @@ switch_to_user:
 
 .thumb_func
 __wait:
-    push {r4-r11}
+    push {r4-r11,lr}
     svc 0
-    pop {r4-r11}
+    pop {r4-r11,lr}
     bx lr
 
 .thumb_func

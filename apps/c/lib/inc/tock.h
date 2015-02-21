@@ -20,7 +20,6 @@
     return result;                                    \
   }
 
-SVC_ROUTINE(wait, 0)
 SVC_ROUTINE(subscribe, 1)
 SVC_ROUTINE(command, 2)
 

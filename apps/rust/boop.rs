@@ -11,13 +11,14 @@ fn timer_fired() {
     }
 
     timer_subscribe(1 << 15, timer_fired);
-    wait();
 }
 
 fn initialize() {
     println("I'm in the Rust app!");
     timer_subscribe(1 << 15, timer_fired);
-    wait();
+    loop {
+        wait();
+    }
 }
 
 register_app!(".app.rust-boop", initialize);
