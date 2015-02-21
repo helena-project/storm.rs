@@ -1,4 +1,3 @@
-#include <commands.h>
 #include <tock.h>
 
 static void

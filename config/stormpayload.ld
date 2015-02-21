@@ -43,6 +43,9 @@ SECTIONS
         _textstart = .;
         KEEP(*(.vectors .vectors.*))
         *(.text .text.* .gnu.linkonce.t.*)
+        _apps = .;
+        KEEP(*(.app.*))
+        _eapps = .;
         *(.glue_7t) *(.glue_7)
         *(.rodata .rodata* .gnu.linkonce.r.*)
         *(.ARM.extab* .gnu.linkonce.armextab.*)
@@ -102,11 +105,6 @@ SECTIONS
         _srelocate = .;
         *(.ramfunc .ramfunc.*);
         *(.data .data.*);
-
-        . = ALIGN(4);
-        _sapps = .;
-        *(.app.*)
-        _eapps = .;
 
         . = ALIGN(4);
         _erelocate = .;

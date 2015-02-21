@@ -2,6 +2,8 @@
 #define TOCK_H
 
 #include <stdint.h>
+#include <commands.h>
+#include <loadable_app.h>
 
 #define SVC_ROUTINE(name, number) \
   static inline int32_t __##name(uint32_t a, uint32_t b, uint32_t c) {\

@@ -1,5 +1,5 @@
-#include <tock.h>
 #include <commands.h>
+#include <tock.h>
 
 void
 print(const char const *str) {

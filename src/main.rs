@@ -25,12 +25,12 @@ pub mod syscall;
 static mut PSTACKS: [[usize; 256]; 16] = [[0; 256]; 16];
 
 extern {
-    static _sapps: u32;
+    static _apps: u32;
     static _eapps: u32;
 }
 
 unsafe fn schedule_external_apps() {
-    let (start_ptr, end_ptr) = (&_sapps as *const u32, &_eapps as *const u32);
+    let (start_ptr, end_ptr) = (&_apps as *const u32, &_eapps as *const u32);
 
     let mut ptr = start_ptr;
     while ptr < end_ptr {

@@ -56,6 +56,7 @@ $ apt-get install gcc-arm-none-eabi
 
 For Windows and other operating systems, download site is
 [here](https://launchpad.net/gcc-arm-embedded/+download).
+Building apps requires that you use version 4.9-2014q4 or newer.
 
 Alternatively, if you would like simulator mode in `arm-none-eabi-gdb`,
 you can use the build scripts in the `tools` directory, in this order:

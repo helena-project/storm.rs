@@ -3,9 +3,6 @@
 
 #include <stdint.h>
 
-#define REGISTER_APP(name, init) \
-  void (*name)() __attribute__((section(".app." #name))) = init
-
 void toggle_led();
 void print(const char const *str);
 void println(const char const *str);
