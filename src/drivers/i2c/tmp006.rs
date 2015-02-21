@@ -1,7 +1,5 @@
 use hil;
 
-use core::prelude::SliceExt;
-
 ///
 /// Device driver for the TI TMP006 contactless temperature sensor
 ///
@@ -41,6 +39,8 @@ impl <I2C: hil::i2c::I2C> TMP006 <I2C> {
 
 	/// Returns a temperature reading by doing all synchronous (blocking) i2c
 	/// calls.
+	/// This is not a good function to call as it sits in a loop asking the
+	/// TMP006 sensor "do you have a reading yet?" via I2C.
 	pub fn read_sync (&mut self) -> i16 {
 
 		let mut buf: [u8; 3] = [0; 3];

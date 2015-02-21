@@ -183,8 +183,7 @@ fn init_tmp006() -> drivers::i2c::tmp006::TMP006<sam4l::i2c::I2CDevice> {
     // Create the I2C device with the correct parameters for firestorm
     let i2c_device = sam4l::i2c::I2CDevice::new(sam4l::i2c::I2CParams {
         location:  sam4l::i2c::I2CLocation::I2CPeripheral02,
-        // bus_speed: sam4l::i2c::I2CSpeed::Fast400k
-        bus_speed: sam4l::i2c::I2CSpeed::Standard100k
+        bus_speed: sam4l::i2c::I2CSpeed::Fast400k
     });
 
     // Configure the I2C pins to be in TWIM2 mode
