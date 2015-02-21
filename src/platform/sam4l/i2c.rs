@@ -142,6 +142,7 @@ impl hil::i2c::I2C for I2CDevice {
     /// This enables the entire I2C peripheral
     fn enable (&mut self) {
         volatile!(self.registers.control = 0x00000001);
+        // volatile!(self.registers.control = 0x1 << 7);
     }
 
     /// This disables the entire I2C peripheral
@@ -167,6 +168,15 @@ impl hil::i2c::I2C for I2CDevice {
                       (0x0 << 11) |                    // TENBIT
                       ((addr as usize) << 1) |         // SADR
                       (0x0 << 0);                      // READ
+
+        // loop {
+        //     let status = volatile!(self.registers.status);
+        //     // CRDY
+        //     if status & (1 << 2) == (1 << 2) {
+        //         break;
+        //     }
+        // }
+
         volatile!(self.registers.command = command);
 
         volatile!(self.registers.control = 0x1 << 0);
@@ -177,11 +187,29 @@ impl hil::i2c::I2C for I2CDevice {
             // write to the TX register
             loop {
                 let status = volatile!(self.registers.status);
+                // TXRDY
                 if status & 0x00000002 == 0x00000002 {
                     break;
                 }
+                // ANAK
+                if status & (1 << 8) == (1 << 8) {
+                    return;
+                }
+                // DNAK
+                if status & (1 << 9) == (1 << 9) {
+                    return;
+                }
             }
             volatile!(self.registers.transmit_holding = data[i] as usize);
+        }
+
+        // Wait for the end of the TWIM command
+        loop {
+            let status = volatile!(self.registers.status);
+            // CCOMP
+            if status & (1 << 3) == (1 << 3) {
+                break;
+            }
         }
     }
 
@@ -197,6 +225,7 @@ impl hil::i2c::I2C for I2CDevice {
         // to execute the I2C transaction
         let command = (buffer.len() << 16) |           // NBYTES
                       (0x1 << 15) |                    // VALID
+                      (0x1 << 14) |                    // STOP
                       (0x1 << 13) |                    // START
                       (0x0 << 11) |                    // TENBIT
                       ((addr as usize) << 1) |         // SADR
@@ -217,6 +246,15 @@ impl hil::i2c::I2C for I2CDevice {
                 }
             }
             buffer[i] = (volatile!(self.registers.receive_holding)) as u8;
+        }
+
+        // Wait for the end of the TWIM command
+        loop {
+            let status = volatile!(self.registers.status);
+            // CCOMP
+            if status & (1 << 3) == (1 << 3) {
+                break;
+            }
         }
     }
 }

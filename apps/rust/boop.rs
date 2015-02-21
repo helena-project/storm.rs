@@ -16,7 +16,7 @@ fn timer_fired() {
 
 fn initialize() {
     println("I'm in the Rust app!");
-    timer_subscribe(1 << 15, timer_fired);
+    timer_subscribe(1 << 11, timer_fired);
     wait();
 }
 

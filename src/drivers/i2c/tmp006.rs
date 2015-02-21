@@ -57,12 +57,15 @@ impl <I2C: hil::i2c::I2C> TMP006 <I2C> {
 
 		// Now wait until a sensor reading is ready
 		loop {
-			self.i2c.read_sync(self.addr, &mut buf[1..2]);
+			self.i2c.read_sync(self.addr, &mut buf[0..2]);
 			// Check the DRDY ready bit in the config register
 			if (buf[1] & 0x80) == 0x80 {
 				break;
 			}
 		}
+
+		let mut sensor_voltage: i16;
+		let mut die_temp: i16;
 
 		// Now set the correct register pointer value so we can issue a read
 		// to the sensor voltage register
@@ -71,10 +74,21 @@ impl <I2C: hil::i2c::I2C> TMP006 <I2C> {
 
 		// Now read the sensor reading
 		self.i2c.read_sync(self.addr, &mut buf[0..2]);
+		sensor_voltage = (((buf[0] as u16) << 8) | buf[1] as u16) as i16;
 
-		let ret: i16 = (((buf[0] as u16) << 8) | buf[1] as u16) as i16;
+		// Now move the register pointer to the die temp register
+		buf[0] = TMP006Registers::LocalTemperature as u8;
+		self.i2c.write_sync(self.addr, &buf[0..1]);
 
-		ret
+		// Now read the 14bit die temp
+		self.i2c.read_sync(self.addr, &mut buf[0..2]);
+		die_temp = (((buf[0] as u16) << 8) | buf[1] as u16) as i16;
+		// Shift to the right to make it 14 bits (this should be a signed shift)
+		// The die temp is is in 1/32 degrees C.
+		die_temp = die_temp >> 2;
+
+		// return
+		die_temp
 	}
 
 }

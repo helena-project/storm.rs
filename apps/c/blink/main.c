@@ -9,7 +9,7 @@ timer_fired() {
     println("That's 10 timer fires.");
   }
 
-  timer_subscribe(1 << 15, timer_fired);
+  timer_subscribe(1 << 14, timer_fired);
   wait();
 }
 
@@ -18,8 +18,8 @@ init() {
   toggle_led();
   println("Welcome to the C blink app!");
 
-  timer_subscribe(1 << 15, timer_fired);
+  timer_subscribe(1 << 14, timer_fired);
   wait();
 }
 
-REGISTER_APP(blink, init);
+//REGISTER_APP(blink, init);
