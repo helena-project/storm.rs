@@ -21,7 +21,7 @@ applications from each other and the kernel.
 
 ### Installing Requirements
 
-### Rust (02-03-2015 nightly)
+### Rust (1.0.0-alpha.2)
 
 Compiling Rust takes a long time, and while Rust is changing, you'll need to use
 a version that is known to compile Tock. We've linked binary distributions of
