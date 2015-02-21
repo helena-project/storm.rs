@@ -74,7 +74,7 @@ pub static mut TMP006:
 
 // bradjc: this should be temporary until we have a better app<->device driver
 //         interface
-pub fn tmp006_driver_read_svc(_: usize, _: usize) -> isize {
+pub fn tmp006_driver_read_svc(_: *mut (), _: usize, _: usize) -> isize {
     let mut tmp006 = unsafe {
         TMP006.as_mut().expect("TMP006 is None!")
     };

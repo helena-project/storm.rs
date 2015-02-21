@@ -37,6 +37,7 @@ impl <T> ArrayList<T> {
 }
 
 impl <T> Index<usize> for ArrayList<T> {
+
     type Output = T;
 
     fn index(&self, index: &usize) -> &T {
@@ -49,7 +50,6 @@ impl <T> Index<usize> for ArrayList<T> {
 }
 
 impl <T> IndexMut<usize> for ArrayList<T> {
-    type Output = T;
 
     fn index_mut(&mut self, index: &usize) -> &mut T {
         let idx = *index;
