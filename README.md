@@ -14,7 +14,7 @@ applications from each other and the kernel.
 
 ## Requirements
 
-1. [Rust](http://www.rust-lang.org/) 02-03-2015 nightly
+1. [Rust](http://www.rust-lang.org/) 1.0.0-alpha.2
 2. [arm-none-eabi toolchain](https://launchpad.net/gcc-arm-embedded/)
 3. stormloader (recommended) or JLinkExe for programming the storm
 4. Command line utilities: wget, sed, make
@@ -27,9 +27,9 @@ Compiling Rust takes a long time, and while Rust is changing, you'll need to use
 a version that is known to compile Tock. We've linked binary distributions of
 such a version for various OSs below:
 
-  * [Linux 64-bit](https://static.rust-lang.org/dist/2015-02-03/rust-nightly-x86_64-unknown-linux-gnu.tar.gz)
-  * [Mac 64-bit (.pkg)](https://static.rust-lang.org/dist/2015-02-03/rust-nightly-x86_64-apple-darwin.pkg)
-  * [Windows 64-bit](https://static.rust-lang.org/dist/2015-02-03/rust-nightly-x86_64-pc-windows-gnu.exe)
+  * [Linux 64-bit](https://static.rust-lang.org/dist/rust-1.0.0-alpha.2-x86_64-unknown-linux-gnu.tar.gz)
+  * [Mac 64-bit (.pkg)](https://static.rust-lang.org/dist/rust-1.0.0-alpha.2-x86_64-apple-darwin.pkg)
+  * [Windows 64-bit](https://static.rust-lang.org/dist/rust-1.0.0-alpha.2-x86_64-pc-windows-gnu.exe)
 
 #### `arm-none-eabi` toolchain
 
