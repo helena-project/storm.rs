@@ -27,8 +27,6 @@ mod ring_buffer;
 mod process;
 mod syscall;
 
-static mut PSTACKS: [[u8; 1024]; 8] = [[0; 1024]; 8];
-
 #[allow(improper_ctypes)]
 extern {
     static _sapps: fn();
