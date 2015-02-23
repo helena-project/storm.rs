@@ -1,4 +1,4 @@
-use core::intrinsics::{atomic_xadd, volatile_load, volatile_store, breakpoint};
+use core::intrinsics::{atomic_xadd, volatile_load, volatile_store};
 use core::mem;
 use core::prelude::*;
 use core::raw;
