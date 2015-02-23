@@ -15,7 +15,7 @@ C_OBJECTS=$(C_SOURCES:c/%.c=build/%.o)
 ASM_SOURCES=$(call rwildcard,src/support/,*.S)
 ASM_OBJECTS=$(ASM_SOURCES:S/%.c=build/%.o)
 
-RUST_SOURCES=$(wildcard src/*.rs)
+RUST_SOURCES=$(wildcard src/*.rs) $(call rwildcard,src/kernel/,*.rs) 
 BUILD_DIR=build
 
 SLOAD=sload

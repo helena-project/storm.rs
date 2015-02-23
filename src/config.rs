@@ -4,9 +4,9 @@ use core::intrinsics;
 use platform::sam4l::{usart, ast, gpio};
 use platform::sam4l;
 use hil::timer::AlarmHandler;
+use kernel::process;
+use kernel::irq::syscall;
 use drivers;
-use process;
-use syscall;
 
 pub static mut VirtualTimer:
     Option<drivers::timer::VirtualTimer<ast::Ast>> = None;

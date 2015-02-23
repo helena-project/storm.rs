@@ -13,19 +13,16 @@ extern crate support;
 
 use core::prelude::*;
 use core::intrinsics;
-
-use array_list::ArrayList;
-use process::Process;
+use kernel::lib::array_list::ArrayList;
+use kernel::process::{self, Process};
+use kernel::irq::syscall;
 
 mod std {
     pub use core::*;
 }
 
-mod array_list;
+mod kernel;
 pub mod config;
-mod ring_buffer;
-mod process;
-mod syscall;
 
 #[allow(improper_ctypes)]
 extern {
@@ -39,7 +36,7 @@ unsafe fn load_apps(proc_arr: &mut ArrayList<Process>) {
 
     let mut ptr = start_ptr;
     while ptr < end_ptr {
-        match process::Process::create(*ptr) {
+        match Process::create(*ptr) {
             Err(_) => { break; },
             Ok(process) => {
                 if !proc_arr.add(process) {

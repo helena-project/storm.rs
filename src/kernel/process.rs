@@ -3,8 +3,8 @@ use core::mem;
 use core::prelude::*;
 use core::raw;
 
-use ring_buffer::RingBuffer;
-use syscall;
+use kernel::lib::ring_buffer::RingBuffer;
+use kernel::irq::syscall;
 
 /// Size of each processes's memory region in bytes
 pub const PROC_MEMORY_SIZE : usize = 2048;
