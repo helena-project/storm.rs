@@ -12,10 +12,10 @@ pub struct FXOS8700CQParams {
 
 // Define the temperature sensor device. This is valid as long as we have
 // an I2C device that implements the I2C interface.
-pub struct FXOS8700CQ <'i2clifetime, I2C: 'i2clifetime> {
+pub struct FXOS8700CQ <I2C: 'static> {
 // bradjc: not sure why this doesn't work:
 // pub struct FXOS8700CQ <'i2clifetime, I2C: 'i2clifetime hil::i2c::I2C> {
-	i2c:  &'i2clifetime mut I2C,
+	i2c:  &'static mut I2C,
 	addr: u16 // I2C address
 }
 
@@ -140,7 +140,7 @@ enum FXOS8700CQRegisters {
 }
 
 
-impl <'i2clifetime, I2C: hil::i2c::I2C> FXOS8700CQ <'i2clifetime, I2C> {
+impl <I2C: hil::i2c::I2C> FXOS8700CQ <I2C> {
 
 	pub fn new (i2c_device: &mut I2C, params: FXOS8700CQParams) -> FXOS8700CQ <I2C> {
 		// return

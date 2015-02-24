@@ -224,9 +224,9 @@ fn init_tmp006(i2c_device: &sam4l::i2c::I2CDevice) -> drivers::i2c::tmp006::TMP0
     })
 }
 
-fn init_fxos8700cq <'i2clifetime> (i2c_device: &'i2clifetime mut sam4l::i2c::I2CDevice) -> drivers::i2c::fxos8700cq::FXOS8700CQ<sam4l::i2c::I2CDevice> {
+fn init_fxos8700cq (i2c_device: sam4l::i2c::I2CDevice) -> drivers::i2c::fxos8700cq::FXOS8700CQ<sam4l::i2c::I2CDevice> {
     // return
-    drivers::i2c::fxos8700cq::FXOS8700CQ::new( i2c_device, drivers::i2c::fxos8700cq::FXOS8700CQParams {
+    drivers::i2c::fxos8700cq::FXOS8700CQ::new(i2c_device, drivers::i2c::fxos8700cq::FXOS8700CQParams {
         addr: 0x1e
     })
 }
