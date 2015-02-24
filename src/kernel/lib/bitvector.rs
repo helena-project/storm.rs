@@ -1,15 +1,17 @@
 #[cfg(not(test))]
 use core::prelude::*;
 
-const BITS_PER_SLOT: usize = 32;
+// ALWAYS! change both of these at the same time (run the tests, too!)
+const BITS_PER_SLOT: usize = 8;
+pub type BitStore<'s> = &'s mut [u8];
 
 pub struct BitVector<'a> {
-    storage: &'a mut [u32],
+    storage: BitStore<'a>,
     num_bits: usize
 }
 
 impl<'a> BitVector<'a> {
-    pub fn new_from_raw(storage: &'a mut [u32], bit_len: usize) -> BitVector<'a> {
+    pub fn from_raw(storage: BitStore<'a>, bit_len: usize) -> BitVector<'a> {
         if bit_len > storage.len() * BITS_PER_SLOT {
             panic!("Requested length exceeds storage length!");
         }
@@ -60,7 +62,7 @@ mod tests {
         }};
     }
 
-    fn vec_for_bits(num_bits: usize) -> Vec<u32> {
+    fn vec_for_bits(num_bits: usize) -> Vec<u8> {
         let num_slots = (num_bits + BITS_PER_SLOT - 1) / BITS_PER_SLOT;
         let mut storage = Vec::with_capacity(num_slots);
         unsafe { storage.set_len(num_slots) }
@@ -78,7 +80,7 @@ mod tests {
 
         for i in 0..NUM_BITS {
             let mut storage = vec_for_bits(NUM_BITS);
-            let mut bitv = BitVector::new_from_raw(&mut storage, NUM_BITS);
+            let mut bitv = BitVector::from_raw(&mut storage, NUM_BITS);
 
             bitv.set(i, true);
             assert!(bitv.get(i).unwrap());
@@ -96,7 +98,7 @@ mod tests {
     #[should_fail]
     fn test_simple_failure() {
         let mut storage = vec_for_bits(10);
-        let mut bitv = BitVector::new_from_raw(&mut storage, 10);
+        let mut bitv = BitVector::from_raw(&mut storage, 10);
         bitv.set(11, false);
     }
 
@@ -104,7 +106,7 @@ mod tests {
     #[should_fail]
     fn test_simple_failure2() {
         let mut storage = vec_for_bits(10);
-        let bitv = BitVector::new_from_raw(&mut storage, 10);
+        let bitv = BitVector::from_raw(&mut storage, 10);
         bitv.get(11).unwrap();
     }
 
@@ -115,7 +117,7 @@ mod tests {
         for i in 0..NUM_BITS {
             for j in 0..NUM_BITS {
                 let mut storage = vec_for_bits(NUM_BITS);
-                let mut bitv = BitVector::new_from_raw(&mut storage, NUM_BITS);
+                let mut bitv = BitVector::from_raw(&mut storage, NUM_BITS);
 
                 bitv.set(i, true);
                 bitv.set(j, true);
@@ -148,7 +150,7 @@ mod tests {
     fn test_all_elements_and_clear() {
         const NUM_BITS: usize = 100;
         let mut storage = vec_for_bits(NUM_BITS);
-        let mut bitv = BitVector::new_from_raw(&mut storage, NUM_BITS);
+        let mut bitv = BitVector::from_raw(&mut storage, NUM_BITS);
 
         for i in 0..NUM_BITS {
             assert!(!bitv.get(i).unwrap());
@@ -174,7 +176,7 @@ mod tests {
     fn test_bad_get() {
         const NUM_BITS: usize = 100;
         let mut storage = vec_for_bits(NUM_BITS);
-        let bitv = BitVector::new_from_raw(&mut storage, NUM_BITS);
+        let bitv = BitVector::from_raw(&mut storage, NUM_BITS);
         assert_eq!(bitv.get(101), None);
         assert_eq!(bitv.get(102), None);
     }

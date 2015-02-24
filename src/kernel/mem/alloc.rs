@@ -1,3 +1,10 @@
+#[cfg(test)]
+extern crate core;
+
+use core::num::{Int, FromPrimitive, UnsignedInt};
+use core::mem;
+use core::ops::{Sub};
+
 /*
  * This is an implementation of a binary buddy allocator in Rust.
  *
@@ -55,12 +62,25 @@
  *      c) A is set to min(A, B) and m is set to m + 1; step 0 is repeated
  *   3) If the buddy has not been freed, A is added to its free list.
  */
-struct BuddyAllocator {
+pub struct BuddyAllocator {
     // Now, do we really need this? We'll see.
-    offset: usize,
+    offset: *mut u8,
 
     capacity: usize,
     allocated: usize
+}
+
+// x cannot be zero as that will result in 1 << 64 => overflow
+fn pow2_rndup<T: UnsignedInt + FromPrimitive>(x: T) -> T {
+    let lz = (x - Int::one()).leading_zeros();
+    let bits = mem::size_of::<T>() * 8;
+    FromPrimitive::from_uint(1 << (bits - lz)).unwrap()
+}
+
+fn pow2_rnddown<T: UnsignedInt + FromPrimitive>(x: T) -> T {
+    let lz = x.leading_zeros();
+    let bits = mem::size_of::<T>() * 8;
+    FromPrimitive::from_uint(1 << (bits - lz - 1)).unwrap()
 }
 
 impl BuddyAllocator {
@@ -68,11 +88,177 @@ impl BuddyAllocator {
      * @start: the address where free memory begins
      * @size: the number of bytes of free memory
      */
-    fn new(start: *const usize, size: usize) -> BuddyAllocator {
+    pub fn new(start: *mut u8, size: usize) -> BuddyAllocator {
         BuddyAllocator {
-            offset: start as usize,
+            offset: start,
             capacity: size,
             allocated: 0
         }
     }
+
+    pub fn allocate(&mut self, size: usize, align: usize) -> *mut u8 {
+        self.offset
+    }
+
+    pub fn deallocate(&mut self, ptr: *mut u8, old_size: usize, align: usize) {
+
+    }
+
+    pub fn reallocate(&mut self, ptr: *mut u8, old_size: usize, size: usize, align: usize)
+            -> *mut u8 {
+        self.offset
+    }
+
+    pub fn stats_print(&self) {
+
+    }
 }
+
+#[cfg(test)]
+mod tests {
+    /*
+     * We test the buddy allocator using the host OS allocator as a source of
+     * free memory (heap::allocate, heap::deallocate).
+     */
+    extern crate alloc;
+    extern crate core;
+
+    use super::BuddyAllocator;
+    use super::{pow2_rndup, pow2_rnddown};
+    use self::alloc::heap;
+    use self::core::intrinsics;
+    use std::default::Default;
+    use std::ops::{Deref, DerefMut};
+    use std::num::Int;
+
+    const ALIGN: usize = 4;
+
+    #[allow(raw_pointer_derive)]
+    #[derive(Debug)]
+    struct RawBox<T> {
+        ptr: *mut T
+    }
+
+    impl<T> RawBox<T> {
+        fn new(ptr: *mut T) -> RawBox<T> {
+            RawBox {
+                ptr: ptr
+            }
+        }
+    }
+
+    impl<T> Deref for RawBox<T> {
+        type Target = T;
+        fn deref(&self) -> &T {
+            unsafe { &*(self.ptr) }
+        }
+    }
+
+    impl<T> DerefMut for RawBox<T> {
+        fn deref_mut(&mut self) -> &mut T {
+            unsafe { &mut *(self.ptr) }
+        }
+    }
+
+    fn talloc<T: Default>(allocator: &mut BuddyAllocator) -> RawBox<T> {
+        unsafe {
+            let mem = allocator.allocate(intrinsics::size_of::<T>(), ALIGN);
+            let mut default: T = Default::default();
+
+            intrinsics::copy_memory(mem as *mut T, &mut default as *mut T, 1);
+            RawBox::new(mem as *mut T)
+        }
+    }
+
+    #[test]
+    fn test_rndup_pow_2() {
+        assert_eq!(pow2_rndup(0b1000u32), 0b1000u32);
+        assert_eq!(pow2_rndup(0b1001u32), 0b10000u32);
+        assert_eq!(pow2_rndup(0b1000u64), 0b1000u64);
+        assert_eq!(pow2_rndup(0b1001u64), 0b10000u64);
+
+        assert_eq!(pow2_rndup(0b1u8), 0b1u8);
+        assert_eq!(pow2_rndup(0b1u16), 0b1u16);
+        assert_eq!(pow2_rndup(0b1u32), 0b1u32);
+        assert_eq!(pow2_rndup(0b1u64), 0b1u64);
+        assert_eq!(pow2_rndup(0b11u32), 0b100u32);
+        assert_eq!(pow2_rndup(0b11u64), 0b100u64);
+        assert_eq!(pow2_rndup(!(1u64 << 63)), 1 << 63);
+
+        assert_eq!(pow2_rndup((1u32 << 20) | 1 << 19), 1 << 21);
+        assert_eq!(pow2_rndup((1u32 << 30) | 1 << 29), 1 << 31);
+        assert_eq!(pow2_rndup((1u64 << 62) | 1 << 32), 1 << 63);
+    }
+
+    #[test]
+    fn test_rnddown_pow_2() {
+        assert_eq!(pow2_rnddown(0b1000u8), 0b1000u8);
+        assert_eq!(pow2_rnddown(0b1000u32), 0b1000u32);
+        assert_eq!(pow2_rnddown(0b1001u32), 0b1000u32);
+        assert_eq!(pow2_rnddown(0b1001u64), 0b1000u64);
+
+        assert_eq!(pow2_rnddown(0b1u8), 0b1u8);
+        assert_eq!(pow2_rnddown(0b1u16), 0b1u16);
+        assert_eq!(pow2_rnddown(0b1u32), 0b1u32);
+        assert_eq!(pow2_rnddown(0b1u64), 0b1u64);
+        assert_eq!(pow2_rnddown(0b11u32), 0b10u32);
+        assert_eq!(pow2_rnddown(0b11u64), 0b10u64);
+        assert_eq!(pow2_rnddown(!(1u64 << 63)), 1 << 62);
+
+        assert_eq!(pow2_rnddown(-1u64), 1u64 << 63);
+        assert_eq!(pow2_rnddown(-500u64), 1u64 << 63);
+    }
+
+    #[test]
+    fn simple_alloc_dealloc() {
+        const MEM_SIZE: usize = 4096 * 4;
+        let free_mem = unsafe { heap::allocate(MEM_SIZE, ALIGN) };
+        let mut balloc = BuddyAllocator::new(free_mem, MEM_SIZE);
+
+        let mut x = talloc::<u32>(&mut balloc);
+        assert_eq!(*x, 0);
+
+        *x = 13373;
+        assert_eq!(*x, 13373);
+
+        *x = 0;
+        assert_eq!(*x, 0);
+
+        *x = Int::max_value();
+        assert_eq!(*x, Int::max_value());
+
+        unsafe { heap::deallocate(free_mem, MEM_SIZE, ALIGN); }
+    }
+
+    #[test]
+    fn two_alloc_dealloc() {
+        const MEM_SIZE: usize = 4096 * 4;
+        let free_mem = unsafe { heap::allocate(MEM_SIZE, ALIGN) };
+        let mut balloc = BuddyAllocator::new(free_mem, MEM_SIZE);
+
+        let mut x = talloc::<u32>(&mut balloc);
+        assert_eq!(*x, 0);
+
+        let mut y = talloc::<u32>(&mut balloc);
+        assert_eq!(*y, 0);
+
+        *x = 13373;
+        assert_eq!(*x, 13373);
+        assert_eq!(*y, 0);
+
+        *y = 221122;
+        assert_eq!(*y, 221122);
+        assert_eq!(*x, 13373);
+
+        *x = Int::max_value();
+        assert_eq!(*x, Int::max_value());
+        assert_eq!(*y, 221122);
+
+        *y = *x;
+        assert_eq!(*y, Int::max_value());
+        assert_eq!(*x, *y);
+
+        unsafe { heap::deallocate(free_mem, MEM_SIZE, ALIGN); }
+    }
+}
+
