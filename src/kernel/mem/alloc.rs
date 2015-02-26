@@ -4,6 +4,7 @@ extern crate core;
 use core::num::{Int, FromPrimitive, UnsignedInt};
 use core::mem;
 use core::ops::{Sub};
+use kernel::lib::bitvector::BitVector;
 
 /*
  * This is an implementation of a binary buddy allocator in Rust.
@@ -62,12 +63,15 @@ use core::ops::{Sub};
  *      c) A is set to min(A, B) and m is set to m + 1; step 0 is repeated
  *   3) If the buddy has not been freed, A is added to its free list.
  */
+const MIN_BLOCK_SIZE: usize = 512;
+// type FreeBlockList = ArrayList<BitVector<'static>>;
+
 pub struct BuddyAllocator {
     // Now, do we really need this? We'll see.
     offset: *mut u8,
-
     capacity: usize,
-    allocated: usize
+    allocated: usize,
+    // free_blocks: FreeBlockList
 }
 
 // x cannot be zero as that will result in 1 << 64 => overflow
@@ -83,17 +87,69 @@ fn pow2_rnddown<T: UnsignedInt + FromPrimitive>(x: T) -> T {
     FromPrimitive::from_uint(1 << (bits - lz - 1)).unwrap()
 }
 
+fn log2_floor<T: UnsignedInt + FromPrimitive>(x: T) -> T {
+    let lz = x.leading_zeros();
+    let bits = mem::size_of::<T>() * 8;
+    FromPrimitive::from_uint(bits - lz).unwrap()
+}
+
+fn log2_ceil<T: UnsignedInt + FromPrimitive>(x: T) -> T {
+    let lz = (x - Int::one()).leading_zeros();
+    let bits = mem::size_of::<T>() * 8;
+    FromPrimitive::from_uint(bits - lz).unwrap()
+}
+
+fn round_up<T: UnsignedInt + FromPrimitive>(x: T, k: T) -> T {
+     ((x + k - Int::one()) / k) * k
+}
+
 impl BuddyAllocator {
+    fn metadata_size(free_mem: usize) -> usize {
+        // Number of power of 2 bins we can have
+        let low_bin = log2_floor(MIN_BLOCK_SIZE);
+        let high_bin = log2_floor(free_mem);
+        let bins = high_bin - low_bin + 1;
+
+        // keep 1 bit per buddy pair, so at level i, i = M - k, for 2^k, need:
+        // (2^k / 2) / 8 bytes for vector storage == 2^(k - 4) bytes
+        // of course, need max(1, 2^(k - 4)) == 1 from [0, 4] else 2^(k - 4)
+        if bins < 5 {
+            return bins;
+        }
+
+        let mut size = 4;
+        for i in 0..(bins - 4) {
+            size += 1 << i;
+            size += mem::size_of::<BitVector>();
+        }
+
+        size
+    }
+
     /*
      * @start: the address where free memory begins
      * @size: the number of bytes of free memory
      */
     pub fn new(start: *mut u8, size: usize) -> BuddyAllocator {
-        BuddyAllocator {
-            offset: start,
-            capacity: size,
-            allocated: 0
+        const MEM_ALIGN: usize = 4;
+        let aligned_start = round_up(start as usize, MEM_ALIGN) as *mut u8;
+        let free_memory = size - (aligned_start as usize) - (start as usize);
+
+        let mut metadata_byte_len = BuddyAllocator::metadata_size(free_memory);
+        let mut usable_free_memory = log2_floor(free_memory);
+        if (free_memory - metadata_byte_len < usable_free_memory) {
+            usable_free_memory = log2_floor(usable_free_memory - 1);
+            metadata_byte_len = BuddyAllocator::metadata_size(usable_free_memory);
         }
+
+        BuddyAllocator {
+            offset: aligned_start,
+            capacity: usable_free_memory,
+            allocated: 0,
+            // free_blocks: free_list
+        }
+        // // What do we do with this?
+        // let unused_space = free_memory - metadata_byte_len - usable_free_memory;
     }
 
     pub fn allocate(&mut self, size: usize, align: usize) -> *mut u8 {
@@ -126,7 +182,7 @@ mod tests {
     use super::BuddyAllocator;
     use super::{pow2_rndup, pow2_rnddown};
     use self::alloc::heap;
-    use self::core::intrinsics;
+    use self::core::intrinsics::{transmute, size_of, copy_memory};
     use std::default::Default;
     use std::ops::{Deref, DerefMut};
     use std::num::Int;
@@ -160,13 +216,22 @@ mod tests {
         }
     }
 
-    fn talloc<T: Default>(allocator: &mut BuddyAllocator) -> RawBox<T> {
+    fn talloc<T: Default>(allocator: &mut BuddyAllocator, align: usize) -> RawBox<T> {
         unsafe {
-            let mem = allocator.allocate(intrinsics::size_of::<T>(), ALIGN);
+            let mem = allocator.allocate(size_of::<T>(), align);
             let mut default: T = Default::default();
 
-            intrinsics::copy_memory(mem as *mut T, &mut default as *mut T, 1);
+            // Check alignment for all allocations
+            assert_eq!((mem as usize) % align, 0);
+
+            copy_memory(mem as *mut T, &mut default as *mut T, 1);
             RawBox::new(mem as *mut T)
+        }
+    }
+
+    fn tdealloc<T>(allocator: &mut BuddyAllocator, ptr: &mut T, align: usize) {
+        unsafe {
+            allocator.deallocate(transmute(ptr), size_of::<T>(), align);
         }
     }
 
@@ -215,7 +280,7 @@ mod tests {
         let free_mem = unsafe { heap::allocate(MEM_SIZE, ALIGN) };
         let mut balloc = BuddyAllocator::new(free_mem, MEM_SIZE);
 
-        let mut x = talloc::<u32>(&mut balloc);
+        let mut x = talloc::<u32>(&mut balloc, ALIGN);
         assert_eq!(*x, 0);
 
         *x = 13373;
@@ -227,6 +292,7 @@ mod tests {
         *x = Int::max_value();
         assert_eq!(*x, Int::max_value());
 
+        tdealloc(&mut balloc, &mut x, ALIGN);
         unsafe { heap::deallocate(free_mem, MEM_SIZE, ALIGN); }
     }
 
@@ -236,10 +302,10 @@ mod tests {
         let free_mem = unsafe { heap::allocate(MEM_SIZE, ALIGN) };
         let mut balloc = BuddyAllocator::new(free_mem, MEM_SIZE);
 
-        let mut x = talloc::<u32>(&mut balloc);
+        let mut x = talloc::<u32>(&mut balloc, ALIGN);
         assert_eq!(*x, 0);
 
-        let mut y = talloc::<u32>(&mut balloc);
+        let mut y = talloc::<u32>(&mut balloc, ALIGN);
         assert_eq!(*y, 0);
 
         *x = 13373;
@@ -257,6 +323,26 @@ mod tests {
         *y = *x;
         assert_eq!(*y, Int::max_value());
         assert_eq!(*x, *y);
+
+        tdealloc(&mut balloc, &mut y, ALIGN);
+        tdealloc(&mut balloc, &mut y, ALIGN);
+        unsafe { heap::deallocate(free_mem, MEM_SIZE, ALIGN); }
+    }
+
+    #[test]
+    fn test_align() {
+        const MEM_SIZE: usize = 4096 * 4;
+        let free_mem = unsafe { heap::allocate(MEM_SIZE, ALIGN) };
+        let mut balloc = BuddyAllocator::new(free_mem, MEM_SIZE);
+
+        for i in 1..4096 {
+            // talloc will check alignment
+            let mut x = talloc::<u32>(&mut balloc, i);
+            assert_eq!(*x, 0);
+            *x = 13373;
+            assert_eq!(*x, 13373);
+            tdealloc(&mut balloc, &mut x, i);
+        }
 
         unsafe { heap::deallocate(free_mem, MEM_SIZE, ALIGN); }
     }

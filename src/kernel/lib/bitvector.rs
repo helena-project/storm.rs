@@ -3,19 +3,16 @@ use core::prelude::*;
 
 // ALWAYS! change both of these at the same time (run the tests, too!)
 const BITS_PER_SLOT: usize = 8;
-pub type BitStore<'s> = &'s mut [u8];
+pub type BitStore = *mut u8;
 
-pub struct BitVector<'a> {
-    storage: BitStore<'a>,
+#[repr(C, packed)]
+pub struct BitVector {
+    storage: BitStore,
     num_bits: usize
 }
 
-impl<'a> BitVector<'a> {
-    pub fn from_raw(storage: BitStore<'a>, bit_len: usize) -> BitVector<'a> {
-        if bit_len > storage.len() * BITS_PER_SLOT {
-            panic!("Requested length exceeds storage length!");
-        }
-
+impl BitVector {
+    pub unsafe fn from_raw(storage: BitStore, bit_len: usize) -> BitVector {
         BitVector {
             storage: storage,
             num_bits: bit_len
@@ -30,22 +27,29 @@ impl<'a> BitVector<'a> {
     pub fn get(&self, i: usize) -> Option<bool> {
         if i >= self.num_bits { return None }
         let (slot, bit) = BitVector::index_to_indexes(i);
-        Some((self.storage[slot] & (1 << bit)) > 0)
+
+        unsafe {
+            Some((*self.storage.offset(slot as isize) & (1 << bit)) > 0)
+        }
     }
 
     pub fn set(&mut self, i: usize, val: bool) {
         if i >= self.num_bits { panic!("OOB!") }
         let (slot, bit) = BitVector::index_to_indexes(i);
-        if val {
-            self.storage[slot] |= 1 << bit;
-        } else {
-            self.storage[slot] &= !(1 << bit);
+        unsafe {
+            if val {
+                *self.storage.offset(slot as isize) |= 1 << bit;
+            } else {
+                *self.storage.offset(slot as isize) &= !(1 << bit);
+            }
         }
     }
 
     pub fn clear(&mut self) {
-        for slot in self.storage.iter_mut() {
-            *slot = 0;
+        unsafe {
+            for i in 0..((self.num_bits + BITS_PER_SLOT - 1) / BITS_PER_SLOT) {
+                *self.storage.offset(i as isize) = 0;
+            }
         }
     }
 }
@@ -55,6 +59,7 @@ mod tests {
     use super::BitVector;
     use super::BITS_PER_SLOT;
     use std::cmp::{min, max};
+    use std::raw::{self, Repr};
 
     macro_rules! do_for_ranges {
         ($param:ident in $($range:expr),+ do $action:block) => {{
@@ -74,13 +79,19 @@ mod tests {
         storage
     }
 
+    fn vec2ptr(v: &mut Vec<u8>) -> *mut u8 {
+        let repr: raw::Slice<u8> = v.as_mut_slice().repr();
+        repr.data as *mut u8
+    }
+
     #[test]
     fn test_1_element() {
         const NUM_BITS: usize = 100;
 
         for i in 0..NUM_BITS {
             let mut storage = vec_for_bits(NUM_BITS);
-            let mut bitv = BitVector::from_raw(&mut storage, NUM_BITS);
+            let ptr = vec2ptr(&mut storage);
+            let mut bitv = unsafe { BitVector::from_raw(ptr, NUM_BITS) };
 
             bitv.set(i, true);
             assert!(bitv.get(i).unwrap());
@@ -97,27 +108,32 @@ mod tests {
     #[test]
     #[should_fail]
     fn test_simple_failure() {
-        let mut storage = vec_for_bits(10);
-        let mut bitv = BitVector::from_raw(&mut storage, 10);
-        bitv.set(11, false);
+        const NUM_BITS: usize = 10;
+        let mut storage = vec_for_bits(NUM_BITS);
+        let ptr = vec2ptr(&mut storage);
+        let mut bitv = unsafe { BitVector::from_raw(ptr, NUM_BITS) };
+        bitv.set(NUM_BITS, false);
     }
 
     #[test]
     #[should_fail]
     fn test_simple_failure2() {
-        let mut storage = vec_for_bits(10);
-        let bitv = BitVector::from_raw(&mut storage, 10);
-        bitv.get(11).unwrap();
+        const NUM_BITS: usize = 10;
+        let mut storage = vec_for_bits(NUM_BITS);
+        let ptr = vec2ptr(&mut storage);
+        let bitv = unsafe { BitVector::from_raw(ptr, NUM_BITS) };
+        bitv.get(NUM_BITS).unwrap();
     }
 
     #[test]
     fn test_2_elements() {
-        const NUM_BITS: usize = 100;
+        const NUM_BITS: usize = 93;
 
         for i in 0..NUM_BITS {
             for j in 0..NUM_BITS {
                 let mut storage = vec_for_bits(NUM_BITS);
-                let mut bitv = BitVector::from_raw(&mut storage, NUM_BITS);
+                let ptr = vec2ptr(&mut storage);
+                let mut bitv = unsafe { BitVector::from_raw(ptr, NUM_BITS) };
 
                 bitv.set(i, true);
                 bitv.set(j, true);
@@ -148,9 +164,10 @@ mod tests {
 
     #[test]
     fn test_all_elements_and_clear() {
-        const NUM_BITS: usize = 100;
+        const NUM_BITS: usize = 1037;
         let mut storage = vec_for_bits(NUM_BITS);
-        let mut bitv = BitVector::from_raw(&mut storage, NUM_BITS);
+        let ptr = vec2ptr(&mut storage);
+        let mut bitv = unsafe { BitVector::from_raw(ptr, NUM_BITS) };
 
         for i in 0..NUM_BITS {
             assert!(!bitv.get(i).unwrap());
@@ -176,9 +193,11 @@ mod tests {
     fn test_bad_get() {
         const NUM_BITS: usize = 100;
         let mut storage = vec_for_bits(NUM_BITS);
-        let bitv = BitVector::from_raw(&mut storage, NUM_BITS);
+        let ptr = vec2ptr(&mut storage);
+        let bitv = unsafe { BitVector::from_raw(ptr, NUM_BITS) };
         assert_eq!(bitv.get(101), None);
         assert_eq!(bitv.get(102), None);
+        assert_eq!(bitv.get(-1), None);
     }
 }
 
