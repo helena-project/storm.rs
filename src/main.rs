@@ -19,11 +19,14 @@ mod std {
 
 pub mod config;
 mod task;
+mod loader;
+mod util;
 mod ringbuf;
 pub mod syscall;
 
 static mut PSTACKS: [[usize; 256]; 16] = [[0; 256]; 16];
 
+/*
 extern {
     static _apps: u32;
     static _eapps: u32;
@@ -38,6 +41,7 @@ unsafe fn schedule_external_apps() {
         ptr = ptr.offset(1);
     }
 }
+*/
 
 fn launch_task(task: task::Task) {
     match task {
@@ -55,7 +59,11 @@ pub extern fn main() {
     unsafe {
         task::setup();
         config::config();
-        schedule_external_apps();
+        util::println("Code Started!");
+
+        loader::load_apps();
+
+        util::println("After code");
     }
 
     loop {

@@ -72,10 +72,12 @@ $(BUILD_DIR)/lib%.rlib: $$(call rwildcard,src/$$**/,*.rs) $(call libs,core) | $(
 $(BUILD_DIR)/%.o: c/%.c | $(BUILD_DIR)
 	@echo "Compiling $^"
 	@$(CC) $(CFLAGS) -c -o $@ $^
+	@$(OBJDUMP) $(OBJDUMP_FLAGS) $@ > $(basename $@).lst
 
 $(BUILD_DIR)/main.o: $(RUST_SOURCES) $(call libs,core support platform drivers)
 	@echo "Building $@"
 	@$(RUSTC) $(RUSTC_FLAGS) -C lto --emit obj -o $@ src/main.rs
+	@$(OBJDUMP) $(OBJDUMP_FLAGS) $@ > $(basename $@).lst
 
 $(BUILD_DIR)/main.elf: $(BUILD_DIR)/main.o $(APP_OBJECTS) $(C_OBJECTS) $(ASM_OBJECTS)
 	@echo "Linking $@"

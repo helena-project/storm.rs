@@ -2,7 +2,7 @@ APP_CFLAGS := -mcpu=cortex-m4 -mthumb -mlittle-endian
 APP_CFLAGS += -ffunction-sections -fdata-sections -fno-strict-aliasing
 APP_CFLAGS += -fno-builtin -ffreestanding -nodefaultlibs -nostdlib -nostartfiles
 APP_CFLAGS += -g -O3 -std=gnu99
-PIC_CFLAGS := -fPIC -msingle-pic-base -mpic-register=r6
+PIC_CFLAGS := -fpic -msingle-pic-base -mpic-register=r6
 PIC_CFLAGS += -mno-pic-data-is-text-relative
 APP_LDFLAGS := -Tconfig/user_app.ld
 
@@ -28,7 +28,7 @@ $(APP_OBJS): $(APP_SRCS)
 
 %.o: %.c
 	@echo "+ building app: $(dir $<)"
-	@$(CC) $(APP_CFLAGS) $(INC_FLAGS) $(APP_LDFLAGS) $< $(LIB_SRCS) -o $@
+	@$(CC) $(APP_CFLAGS) $(PIC_CFLAGS) $(INC_FLAGS) $(APP_LDFLAGS) $< $(LIB_SRCS) -o $@
 # debug info
 	@$(OBJDUMP) $(OBJDUMP_FLAGS) $@ > $(basename $@).lst
 

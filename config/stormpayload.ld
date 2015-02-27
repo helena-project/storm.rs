@@ -44,7 +44,7 @@ SECTIONS
         KEEP(*(.vectors .vectors.*))
         *(.text .text.* .gnu.linkonce.t.*)
         _apps = .;
-        KEEP(*(.app.*))
+        KEEP(*(.app*))
         _eapps = .;
         *(.glue_7t) *(.glue_7)
         *(.rodata .rodata* .gnu.linkonce.r.*)

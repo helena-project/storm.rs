@@ -1,11 +1,12 @@
 #include <tock.h>
 
-static uint32_t count = 0;
+uint32_t count = 0;
+uint32_t max = 10;
 
 static void
 timer_fired() {
   toggle_led();
-  if (!(++count % 10)) {
+  if (!(++count % max)) {
     println("That's 10 timer fires.");
   }
 
