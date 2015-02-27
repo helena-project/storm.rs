@@ -26,6 +26,7 @@ pub mod config;
 mod ring_buffer;
 mod process;
 mod syscall;
+mod util;
 
 #[allow(improper_ctypes)]
 extern {

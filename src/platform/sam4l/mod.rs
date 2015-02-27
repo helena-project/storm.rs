@@ -4,5 +4,6 @@ pub mod i2c;
 pub mod nvic;
 pub mod pm;
 pub mod spi;
+pub mod trng;
 pub mod usart;
 // pub mod adc;

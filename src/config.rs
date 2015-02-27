@@ -4,6 +4,8 @@ use core::intrinsics;
 use platform::sam4l::{usart, ast, gpio};
 use platform::sam4l;
 use hil::timer::AlarmHandler;
+use hil::rng::RNG;
+use util;
 use drivers;
 use process;
 use syscall;
@@ -105,6 +107,12 @@ pub unsafe fn config() {
     TMP006 = Some(init_tmp006());
     syscall::CMD_DRIVERS[2] = tmp006_driver_read_svc;
     syscall::NUM_CMD_DRIVERS += 1;
+
+    let trng_device = sam4l::trng::TRNGDevice::new(sam4l::trng::TRNGParams {
+        location:  sam4l::trng::TRNGLocation::TRNG
+    });
+
+    test_trng(trng_device);
 
     // In the near future, all config will be handled by a config_tree
     // similar to the one below.
@@ -208,6 +216,24 @@ fn init_tmp006() -> drivers::i2c::tmp006::TMP006<sam4l::i2c::I2CDevice> {
     drivers::i2c::tmp006::TMP006::new(i2c_device, drivers::i2c::tmp006::TMP006Params {
         addr: 0x40
     })
+}
+
+fn test_trng (mut trng_device: sam4l::trng::TRNGDevice) {
+    util::println("Testing the True Random Number Generator");
+    util::println("  Print 5 random numbers:");
+    for i in 0..5 {
+        let random_num = trng_device.read_sync();
+
+        util::print_num(random_num);
+    }
+
+    util::println("  Now generate 10 random numbers at once:");
+    let mut rand_arr: [u32; 10] = [0; 10];
+    trng_device.read_multiple_sync(10, &mut rand_arr);
+    for i in 0..10 {
+        util::print_num(rand_arr[i]);
+    }
+
 }
 
 #[no_mangle]
