@@ -14,22 +14,22 @@ applications from each other and the kernel.
 
 ## Requirements
 
-1. [Rust](http://www.rust-lang.org/) 02-03-2015 nightly
+1. [Rust](http://www.rust-lang.org/) 1.0.0-alpha.2
 2. [arm-none-eabi toolchain](https://launchpad.net/gcc-arm-embedded/)
 3. stormloader (recommended) or JLinkExe for programming the storm
 4. Command line utilities: wget, sed, make
 
 ### Installing Requirements
 
-### Rust (02-03-2015 nightly)
+### Rust (1.0.0-alpha.2)
 
 Compiling Rust takes a long time, and while Rust is changing, you'll need to use
 a version that is known to compile Tock. We've linked binary distributions of
 such a version for various OSs below:
 
-  * [Linux 64-bit](https://static.rust-lang.org/dist/2015-02-03/rust-nightly-x86_64-unknown-linux-gnu.tar.gz)
-  * [Mac 64-bit (.pkg)](https://static.rust-lang.org/dist/2015-02-03/rust-nightly-x86_64-apple-darwin.pkg)
-  * [Windows 64-bit](https://static.rust-lang.org/dist/2015-02-03/rust-nightly-x86_64-pc-windows-gnu.exe)
+  * [Linux 64-bit](https://static.rust-lang.org/dist/rust-1.0.0-alpha.2-x86_64-unknown-linux-gnu.tar.gz)
+  * [Mac 64-bit (.pkg)](https://static.rust-lang.org/dist/rust-1.0.0-alpha.2-x86_64-apple-darwin.pkg)
+  * [Windows 64-bit](https://static.rust-lang.org/dist/rust-1.0.0-alpha.2-x86_64-pc-windows-gnu.exe)
 
 #### `arm-none-eabi` toolchain
 
@@ -86,6 +86,13 @@ You can update stormloader via pip as well:
 sudo pip install -U stormloader
 ```
 
+Then add a udev rule (Ubuntu) for the FTDI chip:
+
+```bash
+sudo su
+echo 'ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6015", MODE="0666"' > /etc/udev/rules.d/99-storm.rules
+```
+
 ## Building
 
 If all the tools are in your `$PATH`, you should be good to go. Otherwise set the env variables:
@@ -115,4 +122,13 @@ directory:
 ```bash
 JLinkExe prog.jlink
 ```
+
+## Printf support
+
+To get the UART printf from firestorm:
+
+```bash
+sload tail
+```
+
 

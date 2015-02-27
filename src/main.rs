@@ -1,10 +1,10 @@
+#![feature(asm,core,core,plugin,no_std)]
+#![allow(dead_code)]
 #![no_main]
 #![no_std]
-#![allow(dead_code)]
-#![feature(asm,core,core,plugin)]
+#![plugin(plugins)]
 
-#[plugin] #[no_link]
-extern crate plugins;
+#[macro_use(panic)]
 extern crate core;
 extern crate drivers;
 extern crate platform;
@@ -12,68 +12,101 @@ extern crate hil;
 extern crate support;
 
 use core::prelude::*;
+use core::intrinsics;
+
+use array_list::ArrayList;
+use process::Process;
 
 mod std {
     pub use core::*;
 }
 
+mod array_list;
 pub mod config;
-mod task;
-mod loader;
-mod util;
-mod ringbuf;
-pub mod syscall;
+mod ring_buffer;
+mod process;
+mod syscall;
 
-static mut PSTACKS: [[usize; 256]; 16] = [[0; 256]; 16];
-
-/*
+#[allow(improper_ctypes)]
 extern {
-    static _apps: u32;
-    static _eapps: u32;
+    static _sapps: fn();
+    static _eapps: fn();
 }
 
-unsafe fn schedule_external_apps() {
-    let (start_ptr, end_ptr) = (&_apps as *const u32, &_eapps as *const u32);
+unsafe fn load_apps(proc_arr: &mut ArrayList<Process>) {
+
+    let (start_ptr, end_ptr) = (&_sapps as *const fn(), &_eapps as *const fn());
 
     let mut ptr = start_ptr;
     while ptr < end_ptr {
-        task::Task::UserTask(*ptr as usize).post();
-        ptr = ptr.offset(1);
-    }
-}
-*/
-
-fn launch_task(task: task::Task) {
-    match task {
-        task::Task::UserTask(task_addr) => unsafe {
-            syscall::switch_to_user(task_addr, &mut PSTACKS[0][255]);
-        },
-        task::Task::KernelTask(task) => {
-            task();
+        match process::Process::create(*ptr) {
+            Err(_) => { break; },
+            Ok(process) => {
+                if !proc_arr.add(process) {
+                    break;
+                }
+            }
         }
+        ptr = ptr.offset(1);
     }
 }
 
 #[no_mangle]
 pub extern fn main() {
-    unsafe {
-        task::setup();
+    let mut proc_list = unsafe {
         config::config();
-        util::println("Code Started!");
 
-        loader::load_apps();
+        let mut buf : [u8; 1024] = [0; 1024];
+        let mut list = ArrayList::new(8, intrinsics::transmute(&mut buf));
+        load_apps(&mut list);
+        list
+    };
 
-        util::println("After code");
-    }
+    let subscribe_drivers = unsafe { &syscall::SUBSCRIBE_DRIVERS };
+    let cmd_drivers = unsafe { &syscall::CMD_DRIVERS };
 
+    // Circular iterator is temporary. We actually want a run queue so we can
+    // sleep when there is no work to be done.
+    let mut iter = proc_list.circular_iterator();
+    let mut process = iter.next().unwrap();
     loop {
-        match unsafe { task::dequeue() } {
-            None => {
-                support::wfi(); // Sleep!
+        match process.state {
+            process::State::Running => {
+                unsafe { process.switch_to(); }
             },
-            Some(task) => {
-                launch_task(task);
+            process::State::Waiting => {
+                unsafe {
+                    match process.callbacks.dequeue() {
+                        None => {
+                            process = iter.next().unwrap();
+                            continue;
+                        },
+                        Some(cb) => {
+                            process.state = process::State::Running;
+                            process.switch_to_callback(cb);
+                        }
+                    }
+                };
             }
+        }
+        let process_ptr = process as *mut Process as *mut ();
+        match process.svc_number() {
+            Some(syscall::WAIT) => {
+                process.state = process::State::Waiting;
+                process.pop_syscall_stack();
+                process = iter.next().unwrap();
+            },
+            Some(syscall::SUBSCRIBE) => {
+                let driver = subscribe_drivers[process.r0()];
+                let res = driver(process_ptr, process.r1(),process.r2());
+                process.set_r0(res);
+            },
+            Some(syscall::COMMAND) => {
+                let driver = cmd_drivers[process.r0()];
+                let res = driver(process_ptr, process.r1(), process.r2());
+                process.set_r0(res);
+            },
+            _ => {}
         }
     }
 }

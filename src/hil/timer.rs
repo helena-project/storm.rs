@@ -7,5 +7,5 @@ pub trait Timer {
 }
 
 pub trait AlarmHandler {
-    fn fire_alarm<F: FnMut(usize)>(&mut self, F);
+    fn fire_alarm<F: FnMut(*mut (), usize, usize, usize, usize)>(&mut self, F);
 }

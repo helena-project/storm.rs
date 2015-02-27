@@ -4,7 +4,7 @@
 
 use rustc::plugin::Registry;
 
-#[macro_use(span_note,span_err,__diagnostic_used)]
+#[macro_use(span_note,span_err)]
 extern crate syntax;
 extern crate rustc;
 

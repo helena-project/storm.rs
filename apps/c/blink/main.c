@@ -11,7 +11,6 @@ timer_fired() {
   }
 
   timer_subscribe(1 << 15, timer_fired);
-  wait();
 }
 
 static void
@@ -20,7 +19,9 @@ init() {
   println("Welcome to the C blink app!");
 
   timer_subscribe(1 << 15, timer_fired);
-  wait();
+  while(1) {
+    wait();
+  }
 }
 
 REGISTER_APP(blink, init);

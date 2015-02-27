@@ -29,7 +29,15 @@ timer_subscribe(uint32_t time, void (*f)(void)) {
   __subscribe(SUB_TIMER, time, (uint32_t) f);
 }
 
-void
-wait() {
-  __wait(0, 0, 0);
+/* Doesn't work right now. See comment in commands.h.
+void wait() {
+  asm volatile(
+      "push {lr}\n\t"  \
+      "push {r4-r11}\n\t"  \
+      "add lr, pc, 3\n\t"  \
+      "svc 0\n\t"          \
+      "pop {r4-r11}\n\t"   \
+      "pop {lr}\n\t"   \
+  );
 }
+*/

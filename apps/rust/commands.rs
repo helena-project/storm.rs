@@ -3,6 +3,7 @@ use core::prelude::*;
 // List of commands
 const CMD_PRINTC: usize = 0;
 const CMD_TOGGLE_LED: usize = 1;
+const CMD_TMP006_READ: usize = 2;
 
 // List of subscriptions
 const SUB_TIMER: usize = 0;
@@ -39,5 +40,11 @@ pub fn timer_subscribe(time: usize, f: fn()) {
 pub fn wait() {
     unsafe {
         __wait(0, 0, 0);
+    }
+}
+
+pub fn tmp006_read_sync() {
+    unsafe {
+        __command(CMD_TMP006_READ, 0, 0);
     }
 }

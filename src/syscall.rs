@@ -1,29 +1,21 @@
-use core::intrinsics::*;
-
 #[allow(improper_ctypes)]
 extern {
-    fn __prepare_user_stack(start: usize, user_stack: *mut usize);
-    fn __ctx_to_master();
+    pub fn switch_to_user(user_stack: *mut u8) -> *mut u8;
 }
 
-fn noop(_: usize, _: usize) -> isize { -1 }
+pub type SyscallFunc = fn(*mut (), usize, usize) -> isize;
 
-pub static mut SUBSCRIBE_DRIVERS: [fn(usize, usize) -> isize; 10] = [noop; 10];
+fn noop(_: *mut (), _: usize, _: usize) -> isize { -1 }
+
+pub static mut SUBSCRIBE_DRIVERS: [SyscallFunc; 10] = [noop; 10];
 pub static mut NUM_SUBSCRIBE_DRIVERS: usize = 0;
 
-pub static mut CMD_DRIVERS: [fn(usize, usize) -> isize; 10] = [noop; 10];
+pub static mut CMD_DRIVERS: [SyscallFunc; 10] = [noop; 10];
 pub static mut NUM_CMD_DRIVERS: usize = 0;
 
-pub const WAIT: u16 = 0;
-pub const SUBSCRIBE: u16 = 1;
-pub const COMMAND: u16 = 2;
-
-#[no_mangle]
-pub unsafe extern fn switch_to_user(pc: usize, sp: *mut usize) {
-    __prepare_user_stack(pc, sp);
-    let icsr: *mut usize = 0xE000ED04 as *mut usize;
-    volatile_store(icsr, volatile_load(icsr as *const usize) | 1<<28);
-}
+pub const WAIT: u8 = 0;
+pub const SUBSCRIBE: u8 = 1;
+pub const COMMAND: u8 = 2;
 
 #[derive(Copy)]
 pub enum ReturnTo {
@@ -31,10 +23,10 @@ pub enum ReturnTo {
   Kernel = 1
 }
 
-#[no_mangle]
+/*#[no_mangle]
 #[allow(unused_assignments)]
 /// Called from the SVC handler.
-pub unsafe extern fn svc_rust_handler(psp: usize) -> ReturnTo {
+pub unsafe extern fn svc_rust_handler(psp: usize) -> u16 {
     use core::intrinsics::volatile_load;
 
     /* Find process PC on stack */
@@ -45,7 +37,9 @@ pub unsafe extern fn svc_rust_handler(psp: usize) -> ReturnTo {
 
     /* SVC is one instruction before current PC. The low byte is the opcode */
     let svc = volatile_load((user_pc - 2) as *const u16) & 0xff;
-    match svc {
+
+    return svc;
+    /*match svc {
         WAIT => {
             volatile_store(psp as *mut isize, 0);
         },
@@ -71,6 +65,6 @@ pub unsafe extern fn svc_rust_handler(psp: usize) -> ReturnTo {
             volatile_store(psp as *mut isize, -1);
         }
     }
-    return ReturnTo::Kernel;
+    return ReturnTo::Kernel;*/
 }
-
+*/
