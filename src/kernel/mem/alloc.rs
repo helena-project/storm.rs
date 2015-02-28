@@ -81,14 +81,14 @@ const MIN_BLOCK_SIZE: usize = 512;
 
 #[repr(C, packed)]
 struct Block {
-    prev: Option<&'static mut Block>,
-    next: Option<&'static mut Block>
+    pub prev: Option<&'static mut Block>,
+    pub next: Option<&'static mut Block>
 }
 
 #[repr(C, packed)]
 struct ZoneMetaData {
-    free_blocks: Option<&'static mut Block>,
-    block_status: BitVector
+    pub free_blocks: Option<&'static mut Block>,
+    pub block_status: BitVector
 }
 
 pub struct BuddyAllocator {
@@ -96,7 +96,7 @@ pub struct BuddyAllocator {
     offset: *mut u8,
     capacity: usize,
     allocated: usize,
-    metadata: &'static [ZoneMetaData]
+    metadata: &'static mut [ZoneMetaData]
 }
 
 // x cannot be zero as that will result in 1 << 64 => overflow
@@ -126,11 +126,6 @@ fn log2_ceil<T: UnsignedInt + FromPrimitive>(x: T) -> T {
 
 fn round_up<T: UnsignedInt + FromPrimitive>(x: T, k: T) -> T {
      ((x + k - Int::one()) / k) * k
-}
-
-#[inline]
-fn zone_to_size(bin: usize) {
-    1 << (bin + log2_floor(MIN_BLOCK_SIZE))
 }
 
 impl BuddyAllocator {
@@ -244,7 +239,7 @@ impl BuddyAllocator {
     }
 
     #[inline]
-    pub fn size_to_zone(&self, size: usize) -> isize {
+    pub fn size_to_zone(&self, size: usize) -> usize {
         let pow2_from_min = log2_ceil(size) - log2_floor(MIN_BLOCK_SIZE);
         if pow2_from_min >= self.metadata.len() {
             panic!("Size is greater than largest zone!");
@@ -268,8 +263,11 @@ impl BuddyAllocator {
     }
 
     fn remove_from_list(&mut self, md: &mut ZoneMetaData, block: &'static mut Block) {
-        if block == md.free_blocks {
-            md.free_blocks = block.next;
+        // TODO: Twiddle bit vector bits.
+        if let Some(free_block) = md.free_blocks {
+            if (free_block as *mut Block) == (block as *mut Block) {
+                md.free_blocks = block.next;
+            }
         }
 
         if let Some(prev) = block.prev {
@@ -286,45 +284,76 @@ impl BuddyAllocator {
 
     fn add_to_list(&mut self, md: &mut ZoneMetaData, block: &'static mut Block) {
         // TODO: Twiddle bit vector bits.
-        let free_blocks = zone_metadata.free_blocks.take();
-        if let Some(free_block) = free_blocks {
+        let free_blocks = md.free_blocks.take();
+        if free_blocks.is_some() {
+            let mut free_block = free_blocks.unwrap();
             free_block.prev = Some(block);
-            block.next = free_block;
+            block.next = Some(free_block);
         } else {
             block.next = None;
         }
 
         block.prev = None;
-        zone_metadata.free_blocks = Some(block);
+        md.free_blocks = Some(block);
     }
 
-    fn break_blocks(&mut self, zone: usize, target_zone: usize) {
+    /**
+     * Breaks up blocks beginning at `zone` so that `zone + 1` has at least two
+     * free blocks in its block list after the call. Panics if the allocator
+     * is out of memory.
+     */
+    fn break_blocks(&mut self, zone: usize) {
         if zone >= self.metadata.len() {
             panic!("Out of memory!");
         }
 
-        let zone_metadata = self.metadata[zone];
-        let free_block = zone_metadata.free_blocks.take();
-        if let Some(block) = free_block {
+        let ref mut zone_metadata = self.metadata[zone];
+        let mut free_blocks = zone_metadata.free_blocks.take();
+        if free_blocks.is_none() {
+            self.break_blocks(zone - 1);
+        }
+
+        free_blocks = self.metadata[zone].free_blocks.take();
+        if let Some(block) = free_blocks {
             self.remove_from_list(zone_metadata, block);
             let addr: usize = unsafe { transmute(block) };
             let (block1, block2) = (addr, addr + self.zone_to_size(zone + 1));
+
+            let ref mut smalller_zone_md = self.metadata[zone + 1];
+            unsafe {
+                self.add_to_list(smalller_zone_md, transmute(block1));
+                self.add_to_list(smalller_zone_md, transmute(block2));
+            }
+        } else {
+            panic!("Failed to correctly break blocks at larger level!");
         }
     }
 
     pub fn allocate(&mut self, size: usize, _align: usize) -> *mut u8 {
         // TODO: Use align
-        let real_size = size_of::<Block> + size;
+        let real_size = size_of::<Block>() + size;
         let zone = self.size_to_zone(real_size);
-        let zone_metadata = self.metadata[zone];
+        let ref mut zone_metadata = self.metadata[zone];
         let free_block = zone_metadata.free_blocks.take();
 
         // if there's a free block in the list, remove it and return it
         // otherwise, break up a higher level block until we have a free one
+        let mut alloced_block;
         if let Some(block) = free_block {
-            self.remove_from_list(zone_metadata, block)
-        } else {
-            break_blocks(zone - 1, zone)
+            self.remove_from_list(zone_metadata, block);
+            alloced_block = block;
+        }
+
+        self.break_blocks(zone - 1);
+        if let Some(new_free_block) = self.metadata[zone].free_blocks.take() {
+            self.remove_from_list(zone_metadata, new_free_block);
+            alloced_block = new_free_block;
+        }
+
+        unsafe {
+            let block_addr: usize = transmute(alloced_block as *mut Block);
+            let ptr: &mut u8 = transmute(block_addr + size_of::<Block>());
+            ptr
         }
     }
 
