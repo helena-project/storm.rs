@@ -1,5 +1,6 @@
 pub mod ast;
 pub mod chipid;
+pub mod dma;
 pub mod gpio;
 pub mod i2c;
 pub mod nvic;

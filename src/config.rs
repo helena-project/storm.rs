@@ -120,6 +120,10 @@ pub unsafe fn config() {
 
     print_chip_info(chipid_device);
 
+    let dma_device = sam4l::dma::DMADevice::new(sam4l::dma::DMAParams {
+        location: sam4l::dma::DMALocation::DMAChannel00
+    });
+
     // In the near future, all config will be handled by a config_tree
     // similar to the one below.
     // TODO(SergioBenitez): Sublocations?
