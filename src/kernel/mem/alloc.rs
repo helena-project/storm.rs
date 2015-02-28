@@ -1,10 +1,23 @@
 #[cfg(test)]
 extern crate core;
 
+#[path="../lib/bitvector.rs"]
+mod bitvector;
+
 use core::num::{Int, FromPrimitive, UnsignedInt};
-use core::mem;
+use core::mem::{size_of};
 use core::ops::{Sub};
+use core::raw::Slice;
+use core::cmp::{min, max};
+use core::slice;
+use core::ptr::PtrExt;
+use core::intrinsics::{transmute, set_memory};
+
+#[cfg(not(test))]
 use kernel::lib::bitvector::BitVector;
+
+#[cfg(test)]
+use bitvector::BitVector;
 
 /*
  * This is an implementation of a binary buddy allocator in Rust.
@@ -66,36 +79,48 @@ use kernel::lib::bitvector::BitVector;
 const MIN_BLOCK_SIZE: usize = 512;
 // type FreeBlockList = ArrayList<BitVector<'static>>;
 
+#[repr(C, packed)]
+struct Block {
+    prev: Option<&'static mut Block>,
+    next: Option<&'static mut Block>
+}
+
+#[repr(C, packed)]
+struct ZoneMetaData {
+    free_blocks: Option<&'static mut Block>,
+    block_status: BitVector
+}
+
 pub struct BuddyAllocator {
     // Now, do we really need this? We'll see.
     offset: *mut u8,
     capacity: usize,
     allocated: usize,
-    // free_blocks: FreeBlockList
+    metadata: &'static [ZoneMetaData]
 }
 
 // x cannot be zero as that will result in 1 << 64 => overflow
 fn pow2_rndup<T: UnsignedInt + FromPrimitive>(x: T) -> T {
     let lz = (x - Int::one()).leading_zeros();
-    let bits = mem::size_of::<T>() * 8;
+    let bits = size_of::<T>() * 8;
     FromPrimitive::from_uint(1 << (bits - lz)).unwrap()
 }
 
 fn pow2_rnddown<T: UnsignedInt + FromPrimitive>(x: T) -> T {
     let lz = x.leading_zeros();
-    let bits = mem::size_of::<T>() * 8;
+    let bits = size_of::<T>() * 8;
     FromPrimitive::from_uint(1 << (bits - lz - 1)).unwrap()
 }
 
 fn log2_floor<T: UnsignedInt + FromPrimitive>(x: T) -> T {
     let lz = x.leading_zeros();
-    let bits = mem::size_of::<T>() * 8;
+    let bits = size_of::<T>() * 8;
     FromPrimitive::from_uint(bits - lz).unwrap()
 }
 
 fn log2_ceil<T: UnsignedInt + FromPrimitive>(x: T) -> T {
     let lz = (x - Int::one()).leading_zeros();
-    let bits = mem::size_of::<T>() * 8;
+    let bits = size_of::<T>() * 8;
     FromPrimitive::from_uint(bits - lz).unwrap()
 }
 
@@ -103,27 +128,76 @@ fn round_up<T: UnsignedInt + FromPrimitive>(x: T, k: T) -> T {
      ((x + k - Int::one()) / k) * k
 }
 
+#[inline]
+fn zone_to_size(bin: usize) {
+    1 << (bin + log2_floor(MIN_BLOCK_SIZE))
+}
+
 impl BuddyAllocator {
+    /*
+     * Computes the size of the metadata, in bytes, needed to keep track of
+     * free_mem bytes of free memory. The tracking structure is an array (slice)
+     * of bit vectors, with one bit vector per block size and 1 bit being used
+     * for each pair of buddies. At least one byte must be allocated per bit
+     * vector.
+     */
     fn metadata_size(free_mem: usize) -> usize {
         // Number of power of 2 bins we can have
-        let low_bin = log2_floor(MIN_BLOCK_SIZE);
-        let high_bin = log2_floor(free_mem);
-        let bins = high_bin - low_bin + 1;
+        let bins = log2_floor(free_mem) - log2_floor(MIN_BLOCK_SIZE) + 1;
 
         // keep 1 bit per buddy pair, so at level i, i = M - k, for 2^k, need:
         // (2^k / 2) / 8 bytes for vector storage == 2^(k - 4) bytes
         // of course, need max(1, 2^(k - 4)) == 1 from [0, 4] else 2^(k - 4)
-        if bins < 5 {
-            return bins;
-        }
+        let small_bins = min(4, bins);
+        let big_bins = bins - small_bins;
 
-        let mut size = 4;
-        for i in 0..(bins - 4) {
+        let zone_size = size_of::<ZoneMetaData>();
+        let mut size = small_bins + zone_size * small_bins;
+        for i in 0..big_bins {
             size += 1 << i;
-            size += mem::size_of::<BitVector>();
+            size += zone_size;
         }
 
         size
+    }
+
+    /*
+     * Creates zone metadata at `at` using memory at `mem` for bit vector
+     * storage. Assumes bits > 0.
+     *
+     * Returns the address (some address above `mem`) after the bit vector
+     * storage.
+     */
+    fn mk_zone_md(at: *mut u8, mem: *mut u8, bits: usize) -> *mut u8 {
+        unsafe {
+            *(at as *mut ZoneMetaData) = ZoneMetaData {
+                free_blocks: None,
+                block_status: BitVector::from_raw(mem, bits)
+            };
+
+            let md: &mut ZoneMetaData = transmute(at);
+            md.block_status.clear();
+            mem.offset(((bits + 7) / 8) as isize)
+        }
+    }
+
+    unsafe fn allocate_metadata(mem: *mut u8, free_mem: usize) -> (&'static mut [ZoneMetaData], usize) {
+        // Number of power of 2 bins we can have
+        let bins = log2_floor(free_mem) - log2_floor(MIN_BLOCK_SIZE) + 1;
+
+        // Store slice of ZoneMetaData at `mem` and actual ZoneMetaData items at
+        // `mem` + bins * sizeof(ZoneMetaData)
+        let mut slice_mem = mem;
+        let mut store_mem = mem.offset((bins * size_of::<ZoneMetaData>()) as isize);
+
+        store_mem = BuddyAllocator::mk_zone_md(slice_mem, store_mem, 1);
+        slice_mem = slice_mem.offset(size_of::<ZoneMetaData>() as isize);
+        for i in 0..(bins - 1) {
+            store_mem = BuddyAllocator::mk_zone_md(slice_mem, store_mem, 1 << i);
+            slice_mem = slice_mem.offset(size_of::<ZoneMetaData>() as isize);
+        }
+
+        (slice::from_raw_parts_mut(mem as *mut ZoneMetaData, bins), store_mem as usize - mem as usize)
     }
 
     /*
@@ -133,41 +207,139 @@ impl BuddyAllocator {
     pub fn new(start: *mut u8, size: usize) -> BuddyAllocator {
         const MEM_ALIGN: usize = 4;
         let aligned_start = round_up(start as usize, MEM_ALIGN) as *mut u8;
-        let free_memory = size - (aligned_start as usize) - (start as usize);
+        let free_memory = size - ((aligned_start as usize) - (start as usize));
 
+        // TODO: Use math to precompute proper usable_free_memory without
+        // retrying.
         let mut metadata_byte_len = BuddyAllocator::metadata_size(free_memory);
-        let mut usable_free_memory = log2_floor(free_memory);
-        if (free_memory - metadata_byte_len < usable_free_memory) {
-            usable_free_memory = log2_floor(usable_free_memory - 1);
+        let mut usable_free_memory = pow2_rnddown(free_memory);
+        while free_memory - metadata_byte_len < usable_free_memory {
+            usable_free_memory = pow2_rnddown(usable_free_memory - 1);
             metadata_byte_len = BuddyAllocator::metadata_size(usable_free_memory);
+        }
+
+        let (metadata, len) = unsafe {
+            let metadata_start = aligned_start.offset(usable_free_memory as isize);
+            BuddyAllocator::allocate_metadata(metadata_start, usable_free_memory)
+        };
+
+        if len != metadata_byte_len {
+            panic!("Allocator invariant failed! {} != {} (size = {})",
+                    len, metadata_byte_len, usable_free_memory);
+        }
+
+        // Setup largest block as being free
+        unsafe {
+            set_memory::<Block>((aligned_start as *mut Block), 0, 1);
+            let mut top_block: &'static mut Block = transmute(aligned_start);
+            metadata[0].free_blocks = Some(top_block);
         }
 
         BuddyAllocator {
             offset: aligned_start,
             capacity: usable_free_memory,
             allocated: 0,
-            // free_blocks: free_list
+            metadata: metadata
         }
-        // // What do we do with this?
-        // let unused_space = free_memory - metadata_byte_len - usable_free_memory;
     }
 
-    pub fn allocate(&mut self, size: usize, align: usize) -> *mut u8 {
-        self.offset
+    #[inline]
+    pub fn size_to_zone(&self, size: usize) -> isize {
+        let pow2_from_min = log2_ceil(size) - log2_floor(MIN_BLOCK_SIZE);
+        if pow2_from_min >= self.metadata.len() {
+            panic!("Size is greater than largest zone!");
+        }
+
+        (self.metadata.len() - 1) - pow2_from_min
+    }
+
+    #[inline]
+    pub fn zone_to_pow2(&self, zone: usize) -> usize {
+        if zone >= self.metadata.len() {
+            panic!("Zone is out of range!");
+        }
+
+        (self.metadata.len() - 1) + (log2_floor(MIN_BLOCK_SIZE) - zone)
+    }
+
+    #[inline]
+    pub fn zone_to_size(&self, zone: usize) -> usize {
+        1 << self.zone_to_pow2(zone)
+    }
+
+    fn remove_from_list(&mut self, md: &mut ZoneMetaData, block: &'static mut Block) {
+        if block == md.free_blocks {
+            md.free_blocks = block.next;
+        }
+
+        if let Some(prev) = block.prev {
+            prev.next = block.next;
+        }
+
+        if let Some(next) = block.next {
+            next.prev = block.prev;
+        }
+
+        block.prev = None;
+        block.next = None;
+    }
+
+    fn add_to_list(&mut self, md: &mut ZoneMetaData, block: &'static mut Block) {
+        // TODO: Twiddle bit vector bits.
+        let free_blocks = zone_metadata.free_blocks.take();
+        if let Some(free_block) = free_blocks {
+            free_block.prev = Some(block);
+            block.next = free_block;
+        } else {
+            block.next = None;
+        }
+
+        block.prev = None;
+        zone_metadata.free_blocks = Some(block);
+    }
+
+    fn break_blocks(&mut self, zone: usize, target_zone: usize) {
+        if zone >= self.metadata.len() {
+            panic!("Out of memory!");
+        }
+
+        let zone_metadata = self.metadata[zone];
+        let free_block = zone_metadata.free_blocks.take();
+        if let Some(block) = free_block {
+            self.remove_from_list(zone_metadata, block);
+            let addr: usize = unsafe { transmute(block) };
+            let (block1, block2) = (addr, addr + self.zone_to_size(zone + 1));
+        }
+    }
+
+    pub fn allocate(&mut self, size: usize, _align: usize) -> *mut u8 {
+        // TODO: Use align
+        let real_size = size_of::<Block> + size;
+        let zone = self.size_to_zone(real_size);
+        let zone_metadata = self.metadata[zone];
+        let free_block = zone_metadata.free_blocks.take();
+
+        // if there's a free block in the list, remove it and return it
+        // otherwise, break up a higher level block until we have a free one
+        if let Some(block) = free_block {
+            self.remove_from_list(zone_metadata, block)
+        } else {
+            break_blocks(zone - 1, zone)
+        }
     }
 
     pub fn deallocate(&mut self, ptr: *mut u8, old_size: usize, align: usize) {
 
     }
 
-    pub fn reallocate(&mut self, ptr: *mut u8, old_size: usize, size: usize, align: usize)
-            -> *mut u8 {
-        self.offset
-    }
+    // pub fn reallocate(&mut self, ptr: *mut u8, old_size: usize, size: usize, align: usize)
+    //         -> *mut u8 {
+    //     self.offset
+    // }
 
-    pub fn stats_print(&self) {
+    // pub fn stats_print(&self) {
 
-    }
+    // }
 }
 
 #[cfg(test)]
@@ -335,9 +507,9 @@ mod tests {
         let free_mem = unsafe { heap::allocate(MEM_SIZE, ALIGN) };
         let mut balloc = BuddyAllocator::new(free_mem, MEM_SIZE);
 
-        for i in 1..4096 {
+        for i in 1..12 {
             // talloc will check alignment
-            let mut x = talloc::<u32>(&mut balloc, i);
+            let mut x = talloc::<u32>(&mut balloc, 1 << i);
             assert_eq!(*x, 0);
             *x = 13373;
             assert_eq!(*x, 13373);

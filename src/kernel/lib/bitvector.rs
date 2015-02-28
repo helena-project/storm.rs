@@ -13,10 +13,13 @@ pub struct BitVector {
 
 impl BitVector {
     pub unsafe fn from_raw(storage: BitStore, bit_len: usize) -> BitVector {
-        BitVector {
+        let mut bitv = BitVector {
             storage: storage,
             num_bits: bit_len
-        }
+        };
+
+        bitv.clear();
+        bitv
     }
 
     #[inline]
