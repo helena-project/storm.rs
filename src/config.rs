@@ -114,6 +114,12 @@ pub unsafe fn config() {
 
     test_trng(trng_device);
 
+    let chipid_device = sam4l::chipid::CHIPIDDevice::new(sam4l::chipid::CHIPIDParams {
+        location:  sam4l::chipid::CHIPIDLocation::CHIPID
+    });
+
+    print_chip_info(chipid_device);
+
     // In the near future, all config will be handled by a config_tree
     // similar to the one below.
     // TODO(SergioBenitez): Sublocations?
@@ -234,6 +240,117 @@ fn test_trng (mut trng_device: sam4l::trng::TRNGDevice) {
         util::print_num(rand_arr[i]);
     }
 
+}
+
+fn print_chip_info (mut chipid_device: sam4l::chipid::CHIPIDDevice) {
+    util::println("Information about this microcontroller:");
+
+    let (ver, ep, nv, nv2, sram, arch, nvp, ext, aes, usb, usbf, lcd, package) =
+        chipid_device.read();
+
+    if ver == 0 {
+        util::println("  Version: 0");
+    }
+
+    match ep {
+        1 => util::println("  Processor: ARM946ES"),
+        2 => util::println("  Processor: ARM7TDMI"),
+        3 => util::println("  Processor: Cortex-M3"),
+        4 => util::println("  Processor: ARM920T"),
+        5 => util::println("  Processor: ARM926EJS"),
+        6 => util::println("  Processor: Cortex-A5"),
+        7 => util::println("  Processor: Cortex-M4"),
+        default => util::println("  Processor: Unknown")
+    }
+
+    match nv {
+        0 => util::println("  Nonvolatile Memory: NONE"),
+        1 => util::println("  Nonvolatile Memory: 8K"),
+        2 => util::println("  Nonvolatile Memory: 16K"),
+        3 => util::println("  Nonvolatile Memory: 32K"),
+        5 => util::println("  Nonvolatile Memory: 64K"),
+        7 => util::println("  Nonvolatile Memory: 128K"),
+        9 => util::println("  Nonvolatile Memory: 256K"),
+        10 => util::println("  Nonvolatile Memory: 512K"),
+        12 => util::println("  Nonvolatile Memory: 1024K"),
+        14 => util::println("  Nonvolatile Memory: 2048K"),
+        default => util::println("  Nonvolatile Memory: Unknown")
+    }
+
+    match nv2 {
+        0 => util::println("  Second Nonvolatile Memory: NONE"),
+        1 => util::println("  Second Nonvolatile Memory: 8K"),
+        2 => util::println("  Second Nonvolatile Memory: 16K"),
+        3 => util::println("  Second Nonvolatile Memory: 32K"),
+        5 => util::println("  Second Second Nonvolatile Memory: 64K"),
+        7 => util::println("  Second Nonvolatile Memory: 128K"),
+        9 => util::println("  Second Nonvolatile Memory: 256K"),
+        10 => util::println("  Second Nonvolatile Memory: 512K"),
+        12 => util::println("  Second Nonvolatile Memory: 1024K"),
+        14 => util::println("  Second Nonvolatile Memory: 2048K"),
+        default => util::println("  Second Nonvolatile Memory: Unknown")
+    }
+
+    match sram {
+        0 => util::println("  SRAM: 48K"),
+        1 => util::println("  SRAM: 1K"),
+        2 => util::println("  SRAM: 2K"),
+        3 => util::println("  SRAM: 6K"),
+        4 => util::println("  SRAM: 24K"),
+        5 => util::println("  SRAM: 4K"),
+        6 => util::println("  SRAM: 80K"),
+        7 => util::println("  SRAM: 160K"),
+        8 => util::println("  SRAM: 8K"),
+        9 => util::println("  SRAM: 16K"),
+        10 => util::println("  SRAM: 32K"),
+        11 => util::println("  SRAM: 64K"),
+        12 => util::println("  SRAM: 128K"),
+        13 => util::println("  SRAM: 256K"),
+        14 => util::println("  SRAM: 96K"),
+        15 => util::println("  SRAM: 512K"),
+        default => util::println("  SRAM: Unknown")
+    }
+
+    // skipping arch...
+
+    match nvp {
+        0 => util::println("  Nonvolatile Memory Type: ROM"),
+        1 => util::println("  Nonvolatile Memory Type: ROMLESS"),
+        4 => util::println("  Nonvolatile Memory Type: SRAM"),
+        2 => util::println("  Nonvolatile Memory Type: FLASH"),
+        3 => util::println("  Nonvolatile Memory Type: ROM_FLASH"),
+        default => util::println("  Nonvolatile Memory Type: Unknown")
+    }
+
+    match aes {
+        false => util::println("  No AES"),
+        true  => util::println("  AES is implemented")
+    }
+
+    match usb {
+        false => util::println("  No USB"),
+        true  => util::println("  USB is implemented")
+    }
+
+    match usbf {
+        false => util::println("  USB is device only"),
+        true  => util::println("  USB is device and host")
+    }
+
+    match lcd {
+        false => util::println("  No LCD"),
+        true  => util::println("  LCD is implemented")
+    }
+
+    match package {
+        0 => util::println("  Package: 24 pin"),
+        1 => util::println("  Package: 32 pin"),
+        2 => util::println("  Package: 48 pin"),
+        3 => util::println("  Package: 64 pin"),
+        4 => util::println("  Package: 100 pin"),
+        5 => util::println("  Package: 144 pin"),
+        default => util::println("  Package: Unknown")
+    }
 }
 
 #[no_mangle]
