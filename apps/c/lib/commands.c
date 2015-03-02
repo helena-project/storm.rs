@@ -29,6 +29,10 @@ timer_subscribe(uint32_t time, void (*f)(void)) {
   __subscribe(SUB_TIMER, time, (uint32_t) f);
 }
 
+void wait() {
+
+}
+
 /* Doesn't work right now. See comment in commands.h.
 void wait() {
   asm volatile(

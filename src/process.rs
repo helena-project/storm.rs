@@ -38,6 +38,9 @@ pub struct Process<'a> {
     /// The offset in `memory` to use for the process stack.
     pub cur_stack: *mut u8,
 
+    /// The absolute memory location of this process's data segment
+    pub data_loc: *const u32,
+
     pub wait_pc: usize,
 
     pub state: State,
@@ -46,7 +49,7 @@ pub struct Process<'a> {
 }
 
 impl<'a> Process<'a> {
-    pub fn create(init_fn: fn()) -> Result<Process<'a>, ()> {
+    pub fn create(init_fn: fn(), data_loc: *const u32) -> Result<Process<'a>, ()> {
         unsafe {
             let cur_idx = atomic_xadd(&mut FREE_MEMORY_IDX, 1);
             if cur_idx > MEMORIES.len() {
@@ -74,6 +77,7 @@ impl<'a> Process<'a> {
                     memory: memory,
                     exposed_memory: &mut memory[callback_len * callback_size..],
                     cur_stack: stack_bottom as *mut u8,
+                    data_loc: data_loc,
                     wait_pc: 0,
                     state: State::Waiting,
                     callbacks: callbacks
@@ -116,7 +120,7 @@ impl<'a> Process<'a> {
         if self.cur_stack < (&mut self.exposed_memory[0] as *mut u8) {
             asm!("bkpt" :::: "volatile");
         }
-        let psp = syscall::switch_to_user(self.cur_stack);
+        let psp = syscall::switch_to_user(self.cur_stack, self.data_loc);
         self.cur_stack = psp;
     }
 

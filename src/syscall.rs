@@ -1,6 +1,6 @@
 #[allow(improper_ctypes)]
 extern {
-    pub fn switch_to_user(user_stack: *mut u8) -> *mut u8;
+    pub fn switch_to_user(user_stack: *mut u8, data_loc: *const u32) -> *mut u8;
 }
 
 pub type SyscallFunc = fn(*mut (), usize, usize) -> isize;

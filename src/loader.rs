@@ -2,6 +2,9 @@ use core::prelude::*;
 use core::intrinsics;
 
 use util;
+use process;
+use process::Process;
+use array_list::ArrayList;
 
 #[repr(C, packed)]
 #[allow(dead_code)]
@@ -23,7 +26,7 @@ extern {
     static _end: u32;
 }
 
-pub unsafe fn load_apps() {
+pub unsafe fn load_apps(proc_arr: &mut ArrayList<Process>) {
     util::println("In load apps");
 
     let start_ptr = &_apps as *const u32;
@@ -32,15 +35,15 @@ pub unsafe fn load_apps() {
     util::print_num(end_ptr as u32);
 
     // iterate through each pre-loaded app
-    let mut app_ptr = start_ptr;
+    let mut app_flash_ptr = start_ptr;
     let mut app_data_start = &_end as *const u32; //XXX: Needs to be allocated
     util::print_num(app_data_start as u32);
     util::println("\n");
-    while app_ptr < end_ptr {
-        let app_info: &'static Load_Info = intrinsics::transmute(app_ptr);
+    while app_flash_ptr < end_ptr {
+        let app_info: &'static Load_Info = intrinsics::transmute(app_flash_ptr);
 
         util::println("Load Info Struct");
-        util::print_num(app_ptr as u32);
+        util::print_num(app_flash_ptr as u32);
         util::print_num(app_info.entry_loc as u32);
         util::print_num(app_info.init_data_loc as u32);
         util::print_num(app_info.plt_end_offset as u32);
@@ -49,7 +52,7 @@ pub unsafe fn load_apps() {
 
         // copy data section from Flash to SRAM
         util::println("Data");
-        let init_data_src: *const u32 = (app_info.init_data_loc + (app_ptr as u32)) as *const u32;
+        let init_data_src: *const u32 = (app_info.init_data_loc + (app_flash_ptr as u32)) as *const u32;
         let init_data_end: *const u32 = ((init_data_src as u32) + app_info.init_data_size) as *const u32;
         let mut data_src: *mut u32 = init_data_src as *mut u32;
         let mut data_dst: *mut u32 = app_data_start as *mut u32;
@@ -83,7 +86,7 @@ pub unsafe fn load_apps() {
             if val >= 0x10000000 {
                 // fixup for const data in flash
                 val -= 0x10000000;
-                val += app_ptr as u32;
+                val += app_flash_ptr as u32;
             } else {
                 // fixup for data in sram
                 val += app_data_start as u32;
@@ -96,12 +99,26 @@ pub unsafe fn load_apps() {
 
         //TODO: fixup Procedure Linkage Table (PLT)
 
-        //TODO create task from app
+        // create process from app and add to process list
+        let init_fn: *const fn() = (app_info.entry_loc + (app_flash_ptr as u32)) as *const fn();
+        let data_loc: *const u32 = ((app_data_start as u32) + app_info.got_start_offset) as *const u32;
+        match process::Process::create(*init_fn, data_loc) {
+            Err(_) => {
+                util::println("Process creation failed!");
+                break;
+            },
+            Ok(process) => {
+                if !proc_arr.add(process) {
+                    util::println("Failed to add process!");
+                    break;
+                }
+            }
+        }
 
         // move to next app
-        app_ptr = init_data_end;
+        app_flash_ptr = init_data_end;
         app_data_start = bss_end; //XXX: Needs to be allocated
-        util::print_num(app_ptr as u32);
+        util::print_num(app_flash_ptr as u32);
         util::print_num(app_data_start as u32);
         util::println("");
     }

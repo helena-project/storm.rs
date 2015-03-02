@@ -31,13 +31,19 @@ to_kernel:
 
 
 .thumb_func
-/* r0 is start address and r1 is top of user stack */
+/* r0 is the bottom of the stack, r1 is the base register */
 switch_to_user:
     /* Load bottom of stack into Process Stack Pointer */
     msr psp, r0
 
     push {r4-r11}
+
+    /* set the base register for the user code
+    *   In order to enable position independent code, the assembly uses r6 as
+    *   the offset for the beginning of the data section */
+    mov r6, r1
     svc 0xff
+
     pop {r4-r11}
 
     bx lr
