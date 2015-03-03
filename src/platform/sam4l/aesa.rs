@@ -196,7 +196,7 @@ impl AESADevice {
         ((reg >> 16) == 0x1, reg == 0x1)
     }
 
-    fn _set_key (&mut self, key: [u32; 4]) {
+    fn _set_key (&mut self, key: &[u32; 4]) {
         // These registers must be written using 32-bit operations. If Rust
         // exposed llvm.memset.p0i32 or similar we could use that instead
 
@@ -227,7 +227,7 @@ str %4, [%1], #4\n\t"
         volatile!(self.registers.key3 = key[3]);
     }
 
-    fn _set_iv (&mut self, iv: [u32; 4]) {
+    fn _set_iv (&mut self, iv: &[u32; 4]) {
         // Like set_key, must use 32-bit ops
         volatile!(self.registers.iv0 = iv[0]);
         volatile!(self.registers.iv1 = iv[1]);
@@ -239,29 +239,10 @@ str %4, [%1], #4\n\t"
         // Like set_key, must use 32-bit ops
         volatile!(self.registers.drng_seed = seed);
     }
-
-    fn _validate_crypt_args(&mut self, from: &[u32], to: &[u32]) -> bool {
-        let len = if (from.len() % 4) != 0 {
-            return false
-            //require caller-padding for now
-            //from.len() + (4 - from.len() % 4)
-        } else {
-            from.len()
-        };
-        if len > to.len() {
-            // Input buffer > output buffer
-            return false;
-        }
-        true
-    }
 }
 
-impl hil::crypto::Symmetric for AESADevice {
-    fn set_mode (&mut self, mode: hil::crypto::SymmetricMode, block_size: usize) {
-        if block_size != 128 {
-            // TODO: Do something about this
-        }
-
+impl hil::crypto::Symmetric128 for AESADevice {
+    fn set_mode (&mut self, mode: hil::crypto::SymmetricMode) {
         self.enable();
 
         let mask = match mode {
@@ -277,63 +258,44 @@ impl hil::crypto::Symmetric for AESADevice {
         volatile!(self.registers.mode = mode);
     }
 
-    fn set_key (&mut self, key: &[u32]) {
-        if key.len() != 4 {
-            // TODO: Do something about this
-            return;
-        }
-
+    fn set_key (&mut self, key: &[u32; 4]) {
         self.enable();
-
-        let array = [key[0], key[1], key[2], key[3]];
-        self._set_key(array);
+        self._set_key(key);
     }
 
-    fn set_iv (&mut self, iv: &[u32]) {
-        if iv.len() != 4 {
-            // TODO: Do something about this
-            return;
-        }
-
+    fn set_iv (&mut self, iv: &[u32; 4]) {
         self.enable();
-
-        let array = [iv[0], iv[1], iv[2], iv[3]];
-        self._set_iv(array);
+        self._set_iv(iv);
     }
 
     fn encrypt_sync(&mut self, plaintext: &[u32], ciphertext: &mut[u32]) {
-        if !self._validate_crypt_args(plaintext, ciphertext) {
-            // TODO: Do something about this
-            return;
-        }
-
         self.enable();
 
         self.set_mode_encrypt();
         self.set_data_buffer_indicies(0, 0);
         self.new_message();
 
-        let mut idx = 0;
-        while idx < plaintext.len() {
+        let mut idx = 3;
+        while idx < plaintext.len() && idx < ciphertext.len() {
             while !self.get_status().0 {
                 // busy-wait
                 ;
             }
 
-            self.registers.input_data[0] = plaintext[idx+0];
-            self.registers.input_data[1] = plaintext[idx+1];
-            self.registers.input_data[2] = plaintext[idx+2];
-            self.registers.input_data[3] = plaintext[idx+3];
+            self.registers.input_data[0] = plaintext[idx-3];
+            self.registers.input_data[1] = plaintext[idx-2];
+            self.registers.input_data[2] = plaintext[idx-1];
+            self.registers.input_data[3] = plaintext[idx-0];
 
             while !self.get_status().1 {
                 // busy-wait
                 ;
             }
 
-            ciphertext[idx+0] = self.registers.output_data[0];
-            ciphertext[idx+1] = self.registers.output_data[1];
-            ciphertext[idx+2] = self.registers.output_data[2];
-            ciphertext[idx+3] = self.registers.output_data[3];
+            ciphertext[idx-3] = self.registers.output_data[0];
+            ciphertext[idx-2] = self.registers.output_data[1];
+            ciphertext[idx-1] = self.registers.output_data[2];
+            ciphertext[idx-0] = self.registers.output_data[3];
 
             idx += 4;
         }
@@ -342,38 +304,33 @@ impl hil::crypto::Symmetric for AESADevice {
     }
 
     fn decrypt_sync(&mut self, ciphertext: &[u32], plaintext: &mut[u32]) {
-        if !self._validate_crypt_args(plaintext, ciphertext) {
-            // TODO: Do something about this
-            return;
-        }
-
         self.enable();
 
         self.set_mode_decrypt();
         self.set_data_buffer_indicies(0, 0);
         self.new_message();
 
-        let mut idx = 0;
-        while idx < ciphertext.len() {
+        let mut idx = 3;
+        while idx < plaintext.len() && idx < ciphertext.len() {
             while !self.get_status().0 {
                 // busy-wait
                 ;
             }
 
-            self.registers.input_data[0] = ciphertext[idx+0];
-            self.registers.input_data[1] = ciphertext[idx+1];
-            self.registers.input_data[2] = ciphertext[idx+2];
-            self.registers.input_data[3] = ciphertext[idx+3];
+            self.registers.input_data[0] = ciphertext[idx-3];
+            self.registers.input_data[1] = ciphertext[idx-2];
+            self.registers.input_data[2] = ciphertext[idx-1];
+            self.registers.input_data[3] = ciphertext[idx-0];
 
             while !self.get_status().1 {
                 // busy-wait
                 ;
             }
 
-            plaintext[idx+0] = self.registers.output_data[0];
-            plaintext[idx+1] = self.registers.output_data[1];
-            plaintext[idx+2] = self.registers.output_data[2];
-            plaintext[idx+3] = self.registers.output_data[3];
+            plaintext[idx-3] = self.registers.output_data[0];
+            plaintext[idx-2] = self.registers.output_data[1];
+            plaintext[idx-1] = self.registers.output_data[2];
+            plaintext[idx-0] = self.registers.output_data[3];
 
             idx += 4;
         }
