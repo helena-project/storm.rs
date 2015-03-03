@@ -15,6 +15,7 @@ mod std {
 pub mod gpio;
 pub mod i2c;
 pub mod rng;
+pub mod crypto;
 pub mod spi;
 pub mod timer;
 pub mod uart;

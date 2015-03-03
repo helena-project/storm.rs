@@ -1,3 +1,4 @@
+pub mod aesa;
 pub mod ast;
 pub mod chipid;
 pub mod gpio;
