@@ -1,3 +1,5 @@
+#![cfg_attr(test, feature(core, alloc))]
+
 #[cfg(test)]
 extern crate core;
 
@@ -10,7 +12,7 @@ use core::ops::{Sub};
 use core::raw::Slice;
 use core::cmp::{min, max};
 use core::slice;
-use core::ptr::PtrExt;
+use core::ptr::{PtrExt, MutPtrExt};
 use core::intrinsics::{transmute, set_memory};
 
 #[cfg(not(test))]
@@ -77,17 +79,16 @@ use bitvector::BitVector;
  *   3) If the buddy has not been freed, A is added to its free list.
  */
 const MIN_BLOCK_SIZE: usize = 512;
-// type FreeBlockList = ArrayList<BitVector<'static>>;
 
 #[repr(C, packed)]
 struct Block {
-    pub prev: Option<&'static mut Block>,
-    pub next: Option<&'static mut Block>
+    pub prev: Option<*mut Block>,
+    pub next: Option<*mut Block>
 }
 
 #[repr(C, packed)]
 struct ZoneMetaData {
-    pub free_blocks: Option<&'static mut Block>,
+    pub free_blocks: Option<*mut Block>,
     pub block_status: BitVector
 }
 
@@ -96,36 +97,68 @@ pub struct BuddyAllocator {
     offset: *mut u8,
     capacity: usize,
     allocated: usize,
-    metadata: &'static mut [ZoneMetaData]
+    metadata: *mut [ZoneMetaData]
 }
 
 // x cannot be zero as that will result in 1 << 64 => overflow
 fn pow2_rndup<T: UnsignedInt + FromPrimitive>(x: T) -> T {
-    let lz = (x - Int::one()).leading_zeros();
+    let lz = (x - Int::one()).leading_zeros() as usize;
     let bits = size_of::<T>() * 8;
-    FromPrimitive::from_uint(1 << (bits - lz)).unwrap()
+    FromPrimitive::from_usize(1 << (bits - lz)).unwrap()
 }
 
 fn pow2_rnddown<T: UnsignedInt + FromPrimitive>(x: T) -> T {
-    let lz = x.leading_zeros();
+    let lz = x.leading_zeros() as usize;
     let bits = size_of::<T>() * 8;
-    FromPrimitive::from_uint(1 << (bits - lz - 1)).unwrap()
+    FromPrimitive::from_usize(1 << (bits - lz - 1)).unwrap()
 }
 
 fn log2_floor<T: UnsignedInt + FromPrimitive>(x: T) -> T {
-    let lz = x.leading_zeros();
+    let lz = x.leading_zeros() as usize;
     let bits = size_of::<T>() * 8;
-    FromPrimitive::from_uint(bits - lz).unwrap()
+    FromPrimitive::from_usize(bits - lz).unwrap()
 }
 
 fn log2_ceil<T: UnsignedInt + FromPrimitive>(x: T) -> T {
-    let lz = (x - Int::one()).leading_zeros();
+    let lz = (x - Int::one()).leading_zeros() as usize;
     let bits = size_of::<T>() * 8;
-    FromPrimitive::from_uint(bits - lz).unwrap()
+    FromPrimitive::from_usize(bits - lz).unwrap()
 }
 
 fn round_up<T: UnsignedInt + FromPrimitive>(x: T, k: T) -> T {
      ((x + k - Int::one()) / k) * k
+}
+
+macro_rules! ptr {
+    ($ptr:ident->$field:ident = $val:expr) => {
+        unsafe {
+            if let Some(reference) = $ptr.as_mut() {
+                reference.$field = $val;
+            } else {
+                panic!("Cannot set null pointer!");
+            }
+        }
+    };
+
+    ($ptr:ident->$field:ident) => {
+        unsafe {
+            if let Some(reference) = $ptr.as_ref() {
+                reference.$field
+            } else {
+                panic!("Cannot deref null pointer!");
+            }
+        }
+    };
+
+    ($ptr:expr) => {
+        unsafe {
+            if let Some(reference) = $ptr.as_mut() {
+                reference
+            } else {
+                panic!("Cannot deref null pointer!");
+            }
+        }
+    };
 }
 
 impl BuddyAllocator {
@@ -225,8 +258,8 @@ impl BuddyAllocator {
 
         // Setup largest block as being free
         unsafe {
-            set_memory::<Block>((aligned_start as *mut Block), 0, 1);
-            let mut top_block: &'static mut Block = transmute(aligned_start);
+            let top_block: *mut Block = transmute(aligned_start);
+            set_memory::<Block>(top_block, 0, 1);
             metadata[0].free_blocks = Some(top_block);
         }
 
@@ -241,20 +274,20 @@ impl BuddyAllocator {
     #[inline]
     pub fn size_to_zone(&self, size: usize) -> usize {
         let pow2_from_min = log2_ceil(size) - log2_floor(MIN_BLOCK_SIZE);
-        if pow2_from_min >= self.metadata.len() {
+        if pow2_from_min >= ptr!(self.metadata).len() {
             panic!("Size is greater than largest zone!");
         }
 
-        (self.metadata.len() - 1) - pow2_from_min
+        (ptr!(self.metadata).len() - 1) - pow2_from_min
     }
 
     #[inline]
     pub fn zone_to_pow2(&self, zone: usize) -> usize {
-        if zone >= self.metadata.len() {
+        if zone >= ptr!(self.metadata).len() {
             panic!("Zone is out of range!");
         }
 
-        (self.metadata.len() - 1) + (log2_floor(MIN_BLOCK_SIZE) - zone)
+        (ptr!(self.metadata).len() - 1) + (log2_floor(MIN_BLOCK_SIZE) - zone)
     }
 
     #[inline]
@@ -262,38 +295,38 @@ impl BuddyAllocator {
         1 << self.zone_to_pow2(zone)
     }
 
-    fn remove_from_list(&mut self, md: &mut ZoneMetaData, block: &'static mut Block) {
+    fn remove_from_list(&mut self, md: &mut ZoneMetaData, block: *mut Block) {
         // TODO: Twiddle bit vector bits.
         if let Some(free_block) = md.free_blocks {
-            if (free_block as *mut Block) == (block as *mut Block) {
-                md.free_blocks = block.next;
+            if free_block == block {
+                md.free_blocks = ptr!(block->next);
             }
         }
 
-        if let Some(prev) = block.prev {
-            prev.next = block.next;
+        if let Some(prev) = ptr!(block->prev) {
+            ptr!(prev->next = ptr!(block->next));
         }
 
-        if let Some(next) = block.next {
-            next.prev = block.prev;
+        if let Some(next) = ptr!(block->next) {
+            ptr!(next->prev = ptr!(block->prev));
         }
 
-        block.prev = None;
-        block.next = None;
+        ptr!(block->prev = None);
+        ptr!(block->next = None);
     }
 
-    fn add_to_list(&mut self, md: &mut ZoneMetaData, block: &'static mut Block) {
+    fn add_to_list(&mut self, md: &mut ZoneMetaData, block: *mut Block) {
         // TODO: Twiddle bit vector bits.
         let free_blocks = md.free_blocks.take();
         if free_blocks.is_some() {
-            let mut free_block = free_blocks.unwrap();
-            free_block.prev = Some(block);
-            block.next = Some(free_block);
+            let free_block = free_blocks.unwrap();
+            ptr!(free_block->prev = Some(block));
+            ptr!(block->next = Some(free_block));
         } else {
-            block.next = None;
+            ptr!(block->next = None);
         }
 
-        block.prev = None;
+        ptr!(block->prev = None);
         md.free_blocks = Some(block);
     }
 
@@ -303,23 +336,23 @@ impl BuddyAllocator {
      * is out of memory.
      */
     fn break_blocks(&mut self, zone: usize) {
-        if zone >= self.metadata.len() {
+        if zone >= ptr!(self.metadata).len() {
             panic!("Out of memory!");
         }
 
-        let ref mut zone_metadata = self.metadata[zone];
+        let ref mut zone_metadata = ptr!(self.metadata)[zone];
         let mut free_blocks = zone_metadata.free_blocks.take();
         if free_blocks.is_none() {
             self.break_blocks(zone - 1);
         }
 
-        free_blocks = self.metadata[zone].free_blocks.take();
+        free_blocks = ptr!(self.metadata)[zone].free_blocks.take();
         if let Some(block) = free_blocks {
             self.remove_from_list(zone_metadata, block);
             let addr: usize = unsafe { transmute(block) };
             let (block1, block2) = (addr, addr + self.zone_to_size(zone + 1));
 
-            let ref mut smalller_zone_md = self.metadata[zone + 1];
+            let ref mut smalller_zone_md = ptr!(self.metadata)[zone + 1];
             unsafe {
                 self.add_to_list(smalller_zone_md, transmute(block1));
                 self.add_to_list(smalller_zone_md, transmute(block2));
@@ -333,27 +366,24 @@ impl BuddyAllocator {
         // TODO: Use align
         let real_size = size_of::<Block>() + size;
         let zone = self.size_to_zone(real_size);
-        let ref mut zone_metadata = self.metadata[zone];
-        let free_block = zone_metadata.free_blocks.take();
 
         // if there's a free block in the list, remove it and return it
         // otherwise, break up a higher level block until we have a free one
         let mut alloced_block;
+        let ref mut zone_metadata = ptr!(self.metadata)[zone];
+        let free_block = zone_metadata.free_blocks.take();
         if let Some(block) = free_block {
             self.remove_from_list(zone_metadata, block);
             alloced_block = block;
-        }
-
-        self.break_blocks(zone - 1);
-        if let Some(new_free_block) = self.metadata[zone].free_blocks.take() {
+        } else {
+            self.break_blocks(zone - 1);
+            let new_free_block = ptr!(self.metadata)[zone].free_blocks.take().unwrap();
             self.remove_from_list(zone_metadata, new_free_block);
             alloced_block = new_free_block;
         }
 
         unsafe {
-            let block_addr: usize = transmute(alloced_block as *mut Block);
-            let ptr: &mut u8 = transmute(block_addr + size_of::<Block>());
-            ptr
+            alloced_block.offset(1) as *mut u8
         }
     }
 
