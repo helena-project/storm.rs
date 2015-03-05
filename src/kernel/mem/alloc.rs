@@ -159,6 +159,7 @@ impl<P: UnsizedMutPtrExt> UnsizedPtrExt for P {
     }
 }
 
+// TODO: File bug on this.
 impl<T> UnsizedMutPtrExt for *mut [T] {
     type Target = [T];
 
