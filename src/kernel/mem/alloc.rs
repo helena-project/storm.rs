@@ -12,7 +12,7 @@ use core::ops::{Sub};
 use core::raw::Slice;
 use core::cmp::{min, max};
 use core::slice;
-use core::ptr::{PtrExt, MutPtrExt};
+use core::ptr::{self, PtrExt, MutPtrExt};
 use core::intrinsics::{transmute, set_memory};
 
 #[cfg(not(test))]
@@ -88,17 +88,17 @@ macro_rules! debug {
  *      c) A is set to min(A, B) and m is set to m + 1; step 0 is repeated
  *   3) If the buddy has not been freed, A is added to its free list.
  */
-const MIN_BLOCK_SIZE: usize = 512;
+const MIN_BLOCK_SIZE: usize = 32;
 
 #[repr(C, packed)]
 struct Block {
-    pub prev: Option<*mut Block>,
-    pub next: Option<*mut Block>
+    pub prev: *mut Block,
+    pub next: *mut Block
 }
 
 #[repr(C, packed)]
 struct ZoneMetaData {
-    pub free_blocks: Option<*mut Block>,
+    pub free_blocks: *mut Block,
     pub block_status: BitVector
 }
 
@@ -243,7 +243,7 @@ impl BuddyAllocator {
     fn mk_zone_md(at: *mut u8, mem: *mut u8, bits: usize) -> *mut u8 {
         unsafe {
             *(at as *mut ZoneMetaData) = ZoneMetaData {
-                free_blocks: None,
+                free_blocks: ptr::null_mut(),
                 block_status: BitVector::from_raw(mem, bits)
             };
 
@@ -277,7 +277,7 @@ impl BuddyAllocator {
      * @size: the number of bytes of free memory
      */
     pub fn new(start: *mut u8, size: usize) -> BuddyAllocator {
-        const MEM_ALIGN: usize = 4;
+        const MEM_ALIGN: usize = 32; // Cache align
         let aligned_start = round_up(start as usize, MEM_ALIGN) as *mut u8;
         let free_memory = size - ((aligned_start as usize) - (start as usize));
 
@@ -304,7 +304,7 @@ impl BuddyAllocator {
         unsafe {
             let top_block: *mut Block = transmute(aligned_start);
             set_memory::<Block>(top_block, 0, 1);
-            metadata[0].free_blocks = Some(top_block);
+            metadata[0].free_blocks = top_block;
         }
 
         BuddyAllocator {
@@ -317,21 +317,36 @@ impl BuddyAllocator {
 
     #[inline]
     pub fn size_to_zone(&self, size: usize) -> usize {
-        let pow2_from_min = log2_ceil(size) - log2_floor(MIN_BLOCK_SIZE);
-        if pow2_from_min >= ptr!(self.metadata).len() {
+        let pow2_from_min = (log2_ceil(size) as isize)
+            - (log2_floor(MIN_BLOCK_SIZE) as isize);
+        let len = ptr!(self.metadata).len() as isize;
+
+        if pow2_from_min >= len {
             panic!("Size is greater than largest zone!");
         }
 
-        (ptr!(self.metadata).len() - 1) - pow2_from_min
+        let zone = (len - 1) - pow2_from_min;
+        if zone < 0 {
+            panic!("Arithmetic error in size_to_zone!");
+        }
+
+        zone as usize
     }
 
     #[inline]
     pub fn zone_to_pow2(&self, zone: usize) -> usize {
-        if zone >= ptr!(self.metadata).len() {
+        let len = ptr!(self.metadata).len() as isize;
+        let zi = zone as isize;
+        if zi >= len {
             panic!("Zone is out of range!");
         }
 
-        (ptr!(self.metadata).len() - 1) + (log2_floor(MIN_BLOCK_SIZE) - zone)
+        let pow2 = (len - 1) + (log2_floor(MIN_BLOCK_SIZE) as isize - zi);
+        if pow2 < 1 {
+            panic!("Arithmetic error in size_to_zone!");
+        }
+
+        pow2 as usize
     }
 
     #[inline]
@@ -342,42 +357,52 @@ impl BuddyAllocator {
     fn remove_from_list(&mut self, md: &mut ZoneMetaData, block: *mut Block) {
         debug!("Before removal: {} free blocks.", self.list_len(md));
 
+        if block.is_null() {
+            panic!("Attempted to remove a null block from list!");
+        }
+
         // TODO: Twiddle bit vector bits.
-        if let Some(free_block) = md.free_blocks {
-            if free_block == block {
+        let free_blocks = md.free_blocks;
+        if !free_blocks.is_null() {
+            if free_blocks == block {
                 md.free_blocks = ptr!(block->next);
             }
         }
 
-        if let Some(prev) = ptr!(block->prev) {
+        let prev = ptr!(block->prev);
+        if !prev.is_null() {
             ptr!(prev->next = ptr!(block->next));
         }
 
-        if let Some(next) = ptr!(block->next) {
+        let next = ptr!(block->next);
+        if !next.is_null() {
             ptr!(next->prev = ptr!(block->prev));
         }
 
-        ptr!(block->prev = None);
-        ptr!(block->next = None);
+        ptr!(block->prev = ptr::null_mut());
+        ptr!(block->next = ptr::null_mut());
 
         debug!("After removal: {} free blocks.", self.list_len(md));
     }
 
+    // TODO: Twiddle bit vector bits.
     fn add_to_list(&mut self, md: &mut ZoneMetaData, block: *mut Block) {
         debug!("Before add: {} free blocks.", self.list_len(md));
 
-        // TODO: Twiddle bit vector bits.
-        let free_blocks = md.free_blocks.take();
-        if free_blocks.is_some() {
-            let free_block = free_blocks.unwrap();
-            ptr!(free_block->prev = Some(block));
-            ptr!(block->next = Some(free_block));
-        } else {
-            ptr!(block->next = None);
+        if block.is_null() {
+            panic!("Attempted to add a null block to list!");
         }
 
-        ptr!(block->prev = None);
-        md.free_blocks = Some(block);
+        let free_blocks = md.free_blocks;
+        if !free_blocks.is_null() {
+            ptr!(free_blocks->prev = block);
+            ptr!(block->next = free_blocks);
+        } else {
+            ptr!(block->next = ptr::null_mut());
+        }
+
+        ptr!(block->prev = ptr::null_mut());
+        md.free_blocks = block;
 
         debug!("After add: {} free blocks.", self.list_len(md));
     }
@@ -386,9 +411,9 @@ impl BuddyAllocator {
         let mut count = 0;
         let mut block = md.free_blocks;
 
-        while let Some(free_block) = block {
+        while !block.is_null() {
             count += 1;
-            block = ptr!(free_block->next);
+            block = ptr!(block->next);
         }
 
         count
@@ -403,8 +428,8 @@ impl BuddyAllocator {
         debug!("Breaking blocks for zone {}", zone);
         self.stats_print();
         let mut zone_metadata = &mut ptr!(self.metadata)[zone];
-        let mut free_blocks = zone_metadata.free_blocks;
-        if free_blocks.is_none() {
+        let mut free_block = zone_metadata.free_blocks;
+        if free_block.is_null() {
             if zone == 0 {
                 panic!("Out of memory!");
             }
@@ -414,13 +439,13 @@ impl BuddyAllocator {
             debug!("Returned from zone {} breaking.", zone - 1);
             self.stats_print();
 
-            free_blocks = zone_metadata.free_blocks;
+            free_block = zone_metadata.free_blocks;
         }
 
-        if let Some(block) = free_blocks {
+        if !free_block.is_null() {
             zone_metadata = &mut ptr!(self.metadata)[zone];
-            self.remove_from_list(zone_metadata, block);
-            let addr: usize = unsafe { transmute(block) };
+            self.remove_from_list(zone_metadata, free_block);
+            let addr: usize = unsafe { transmute(free_block) };
             let (block1, block2) = (addr, addr + self.zone_to_size(zone + 1));
 
             debug!("Got 1 {} at zone {}, split to 2: {}, {} at zone {}",
@@ -443,7 +468,8 @@ impl BuddyAllocator {
         // TODO: Use align
         let real_size = max(MIN_BLOCK_SIZE, size_of::<Block>() + size);
         let zone = self.size_to_zone(real_size);
-        debug!("Allocating {} bytes (zone {})", real_size, zone);
+        debug!("Allocating {} bytes (req: {} + {}) (zone {})",
+            real_size, size, size_of::<Block>(), zone);
 
         // if there's a free block in the list, remove it and return it
         // otherwise, break up a higher level block until we have a free one
@@ -453,21 +479,20 @@ impl BuddyAllocator {
         self.stats_print();
 
         let free_block = zone_metadata.free_blocks;
-        if let Some(block) = free_block {
+        if !free_block.is_null() {
             debug!("Found free block in zone list.");
-            self.remove_from_list(zone_metadata, block);
-            alloced_block = block;
+            self.remove_from_list(zone_metadata, free_block);
+            alloced_block = free_block;
         } else {
             debug!("No free block in zone list found. Breaking blocks.");
             self.break_blocks(zone - 1);
             let new_free_block = ptr!(self.metadata)[zone].free_blocks;
-            if new_free_block.is_none() {
+            if new_free_block.is_null() {
                 panic!("Expected a free block, but found none!");
             }
 
-            let new_block = new_free_block.unwrap();
-            self.remove_from_list(zone_metadata, new_block);
-            alloced_block = new_block;
+            self.remove_from_list(zone_metadata, new_free_block);
+            alloced_block = new_free_block;
         }
 
         unsafe {
