@@ -116,7 +116,7 @@ fn pow2_rnddown<T: UnsignedInt + FromPrimitive>(x: T) -> T {
 fn log2_floor<T: UnsignedInt + FromPrimitive>(x: T) -> T {
     let lz = x.leading_zeros() as usize;
     let bits = size_of::<T>() * 8;
-    FromPrimitive::from_usize(bits - lz).unwrap()
+    FromPrimitive::from_usize(bits - lz - 1).unwrap()
 }
 
 fn log2_ceil<T: UnsignedInt + FromPrimitive>(x: T) -> T {
@@ -127,6 +127,39 @@ fn log2_ceil<T: UnsignedInt + FromPrimitive>(x: T) -> T {
 
 fn round_up<T: UnsignedInt + FromPrimitive>(x: T, k: T) -> T {
      ((x + k - Int::one()) / k) * k
+}
+
+pub trait UnsizedPtrExt {
+    type Target: ?Sized;
+
+    unsafe fn as_unz_ref<'a>(&self) -> Option<&'a Self::Target>;
+}
+
+pub trait UnsizedMutPtrExt {
+    type Target: ?Sized;
+
+    unsafe fn as_unz_mut<'a>(&self) -> Option<&'a mut Self::Target>;
+}
+
+impl<P: UnsizedMutPtrExt> UnsizedPtrExt for P {
+    type Target = P::Target;
+
+    unsafe fn as_unz_ref<'a>(&self) -> Option<&'a P::Target> {
+        transmute(self.as_unz_mut())
+    }
+}
+
+impl<T> UnsizedMutPtrExt for *mut [T] {
+    type Target = [T];
+
+    unsafe fn as_unz_mut<'a>(&self) -> Option<&'a mut [T]> {
+        let slice: Slice<T> = transmute(*self);
+        if slice.data.is_null() {
+            return None;
+        }
+
+        Some(transmute(*self))
+    }
 }
 
 macro_rules! ptr {
@@ -152,7 +185,7 @@ macro_rules! ptr {
 
     ($ptr:expr) => {
         unsafe {
-            if let Some(reference) = $ptr.as_mut() {
+            if let Some(reference) = $ptr.as_unz_mut() {
                 reference
             } else {
                 panic!("Cannot deref null pointer!");
@@ -267,7 +300,7 @@ impl BuddyAllocator {
             offset: aligned_start,
             capacity: usable_free_memory,
             allocated: 0,
-            metadata: unsafe { transmute(metadata) }
+            metadata: metadata
         }
     }
 
@@ -364,7 +397,7 @@ impl BuddyAllocator {
 
     pub fn allocate(&mut self, size: usize, _align: usize) -> *mut u8 {
         // TODO: Use align
-        let real_size = size_of::<Block>() + size;
+        let real_size = max(MIN_BLOCK_SIZE, size_of::<Block>() + size);
         let zone = self.size_to_zone(real_size);
 
         // if there's a free block in the list, remove it and return it
