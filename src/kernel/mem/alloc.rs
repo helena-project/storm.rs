@@ -267,7 +267,7 @@ impl BuddyAllocator {
             offset: aligned_start,
             capacity: usable_free_memory,
             allocated: 0,
-            metadata: metadata
+            metadata: unsafe { transmute(metadata) }
         }
     }
 
