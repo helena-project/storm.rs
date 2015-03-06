@@ -32,7 +32,8 @@ macro_rules! debug {
 }
 
 /*
- * This is an implementation of a binary buddy allocator in Rust.
+ * This is an implementation of a binary buddy allocator in Rust. The current
+ * implementation is NOT thread safe.
  *
  * @author Sergio Benitez <sbenitez@stanford.edu>
  *
@@ -89,6 +90,7 @@ macro_rules! debug {
  *   3) If the buddy has not been freed, A is added to its free list.
  */
 const MIN_BLOCK_SIZE: usize = 32;
+const MIN_ALIGN: usize = 32;
 
 #[repr(C, packed)]
 struct Block {
@@ -277,8 +279,7 @@ impl BuddyAllocator {
      * @size: the number of bytes of free memory
      */
     pub fn new(start: *mut u8, size: usize) -> BuddyAllocator {
-        const MEM_ALIGN: usize = 32; // Cache align
-        let aligned_start = round_up(start as usize, MEM_ALIGN) as *mut u8;
+        let aligned_start = round_up(start as usize, MIN_ALIGN) as *mut u8;
         let free_memory = size - ((aligned_start as usize) - (start as usize));
 
         // TODO: Use math to precompute proper usable_free_memory without
@@ -322,7 +323,7 @@ impl BuddyAllocator {
         let len = ptr!(self.metadata).len() as isize;
 
         if pow2_from_min >= len {
-            panic!("Size is greater than largest zone!");
+            panic!("Size {} is greater than largest zone {}!", size, len);
         }
 
         let zone = (len - 1) - pow2_from_min;
@@ -354,6 +355,7 @@ impl BuddyAllocator {
         1 << self.zone_to_pow2(zone)
     }
 
+    // TODO: Twiddle bit vector bits.
     fn remove_from_list(&mut self, md: &mut ZoneMetaData, block: *mut Block) {
         debug!("Before removal: {} free blocks.", self.list_len(md));
 
@@ -361,7 +363,6 @@ impl BuddyAllocator {
             panic!("Attempted to remove a null block from list!");
         }
 
-        // TODO: Twiddle bit vector bits.
         let free_blocks = md.free_blocks;
         if !free_blocks.is_null() {
             if free_blocks == block {
@@ -464,44 +465,60 @@ impl BuddyAllocator {
         self.stats_print();
     }
 
+    fn get_free_block(&mut self, zone: usize) -> *mut Block {
+        let mut zone_metadata = &mut ptr!(self.metadata)[zone];
+        let free_block = zone_metadata.free_blocks;
+
+        if free_block.is_null() && zone == 0 {
+            panic!("No free block large enough to satisy request.");
+        }
+
+        if free_block.is_null() {
+            debug!("No free block in zone list found. Breaking blocks.");
+            self.break_blocks(zone - 1);
+            let new_free_block = ptr!(self.metadata)[zone].free_blocks;
+            self.remove_from_list(zone_metadata, new_free_block);
+            new_free_block
+        } else {
+            debug!("Found free block in zone list.");
+            self.remove_from_list(zone_metadata, free_block);
+            free_block
+        }
+    }
+
     pub fn allocate(&mut self, size: usize, _align: usize) -> *mut u8 {
         // TODO: Use align
+        debug!("-- ALLOC {} bytes", size);
         let real_size = max(MIN_BLOCK_SIZE, size_of::<Block>() + size);
         let zone = self.size_to_zone(real_size);
-        debug!("Allocating {} bytes (req: {} + {}) (zone {})",
+        debug!("-- ALLOC {} bytes (req: {} + {}) (zone {})",
             real_size, size, size_of::<Block>(), zone);
 
         // if there's a free block in the list, remove it and return it
         // otherwise, break up a higher level block until we have a free one
-        let mut alloced_block;
         let ref mut zone_metadata = ptr!(self.metadata)[zone];
         debug!("Zone {} has {} free blocks.", zone, self.list_len(zone_metadata));
         self.stats_print();
 
-        let free_block = zone_metadata.free_blocks;
-        if !free_block.is_null() {
-            debug!("Found free block in zone list.");
-            self.remove_from_list(zone_metadata, free_block);
-            alloced_block = free_block;
-        } else {
-            debug!("No free block in zone list found. Breaking blocks.");
-            self.break_blocks(zone - 1);
-            let new_free_block = ptr!(self.metadata)[zone].free_blocks;
-            if new_free_block.is_null() {
-                panic!("Expected a free block, but found none!");
-            }
-
-            self.remove_from_list(zone_metadata, new_free_block);
-            alloced_block = new_free_block;
-        }
-
+        let free_block = self.get_free_block(zone);
         unsafe {
-            alloced_block.offset(1) as *mut u8
+            let ptr = free_block.offset(1) as *mut u8;
+            debug!("Returning new block {:?}: {:?}", free_block, ptr);
+            ptr
         }
     }
 
+    // TODO: Merge buddies: needs bit vector twiddling
     pub fn deallocate(&mut self, ptr: *mut u8, old_size: usize, align: usize) {
+        // TODO: Use align
+        let real_size = max(MIN_BLOCK_SIZE, size_of::<Block>() + old_size);
+        let zone = self.size_to_zone(real_size);
+        let block_ptr = unsafe { (ptr as *mut Block).offset(-1) };
 
+        debug!("-- DEALLOC {:?}: {:?}", ptr, block_ptr);
+
+        let ref mut zone_metadata = ptr!(self.metadata)[zone];
+        self.add_to_list(zone_metadata, block_ptr);
     }
 
     // pub fn reallocate(&mut self, ptr: *mut u8, old_size: usize, size: usize, align: usize)
@@ -530,13 +547,16 @@ mod tests {
     extern crate alloc;
     extern crate core;
 
-    use super::BuddyAllocator;
+    use super::{BuddyAllocator, MIN_BLOCK_SIZE};
     use super::{pow2_rndup, pow2_rnddown};
     use self::alloc::heap;
     use self::core::intrinsics::{transmute, size_of, copy_memory};
     use std::default::Default;
     use std::ops::{Deref, DerefMut};
     use std::num::Int;
+    use std::rand;
+    use std::rand::Rng;
+    use std::rand::distributions::{IndependentSample, Range};
 
     const ALIGN: usize = 4;
 
@@ -580,9 +600,9 @@ mod tests {
         }
     }
 
-    fn tdealloc<T>(allocator: &mut BuddyAllocator, ptr: &mut T, align: usize) {
+    fn tdealloc<T>(allocator: &mut BuddyAllocator, mut ptr: RawBox<T>, align: usize) {
         unsafe {
-            allocator.deallocate(transmute(ptr), size_of::<T>(), align);
+            allocator.deallocate(transmute(&mut *ptr), size_of::<T>(), align);
         }
     }
 
@@ -643,7 +663,7 @@ mod tests {
         *x = Int::max_value();
         assert_eq!(*x, Int::max_value());
 
-        tdealloc(&mut balloc, &mut x, ALIGN);
+        tdealloc(&mut balloc, x, ALIGN);
         unsafe { heap::deallocate(free_mem, MEM_SIZE, ALIGN); }
     }
 
@@ -675,27 +695,92 @@ mod tests {
         assert_eq!(*y, Int::max_value());
         assert_eq!(*x, *y);
 
-        tdealloc(&mut balloc, &mut y, ALIGN);
-        tdealloc(&mut balloc, &mut y, ALIGN);
+        tdealloc(&mut balloc, y, ALIGN);
+        tdealloc(&mut balloc, x, ALIGN);
         unsafe { heap::deallocate(free_mem, MEM_SIZE, ALIGN); }
     }
 
+    // Tests that memory is defragments after deallocation.
     #[test]
-    fn test_align() {
-        const MEM_SIZE: usize = 4096 * 4;
+    fn test_many_alloc_dealloc() {
+        const ALIGN: usize = 32;
+        const MEM_SIZE: usize = 4096 * 10;
+        const USABLE_MEM: usize = 4096 * 8;
         let free_mem = unsafe { heap::allocate(MEM_SIZE, ALIGN) };
         let mut balloc = BuddyAllocator::new(free_mem, MEM_SIZE);
 
-        for i in 1..12 {
-            // talloc will check alignment
-            let mut x = talloc::<u32>(&mut balloc, 1 << i);
-            assert_eq!(*x, 0);
-            *x = 13373;
-            assert_eq!(*x, 13373);
-            tdealloc(&mut balloc, &mut x, i);
+        // TODO: Use non deprecated RNG
+        let mut between = Range::new(0, USABLE_MEM);
+        let mut rng = rand::thread_rng();
+        for i in 0..1000 {
+            let size = between.ind_sample(&mut rng);
+
+            let ptr = balloc.allocate(size, ALIGN);
+            assert!(!ptr.is_null());
+
+            balloc.deallocate(ptr, size, ALIGN);
+        }
+    }
+
+    // Tests that blocks can be broken down fully.
+    #[test]
+    fn test_many_small_alloc_dealloc() {
+        const ALIGN: usize = 4;
+        const MEM_SIZE: usize = 4096 * 10;
+        const USABLE_MEM: usize = 4096 * 8;
+        let free_mem = unsafe { heap::allocate(MEM_SIZE, ALIGN) };
+        let mut balloc = BuddyAllocator::new(free_mem, MEM_SIZE);
+
+        let mut allocs: Vec<*mut u8> = vec![];
+        for i in 0..(USABLE_MEM / MIN_BLOCK_SIZE) {
+            let ptr = balloc.allocate(1, ALIGN);
+            assert!(!ptr.is_null());
+            allocs.push(ptr);
         }
 
-        unsafe { heap::deallocate(free_mem, MEM_SIZE, ALIGN); }
+        for ptr in allocs {
+            balloc.deallocate(ptr, 1, ALIGN);
+        }
     }
+
+    // Ensures that an OOM error occurs after too many allocations.
+    #[test]
+    #[should_fail]
+    fn test_too_many_small_alloc_dealloc() {
+        const ALIGN: usize = 4;
+        const MEM_SIZE: usize = 4096 * 10;
+        const USABLE_MEM: usize = 4096 * 8;
+        let free_mem = unsafe { heap::allocate(MEM_SIZE, ALIGN) };
+        let mut balloc = BuddyAllocator::new(free_mem, MEM_SIZE);
+
+        let mut allocs: Vec<*mut u8> = vec![];
+        for i in 0..(USABLE_MEM / MIN_BLOCK_SIZE + 1) {
+            let ptr = balloc.allocate(1, ALIGN);
+            assert!(!ptr.is_null());
+            allocs.push(ptr);
+        }
+
+        for ptr in allocs {
+            balloc.deallocate(ptr, 1, ALIGN);
+        }
+    }
+
+    // #[test]
+    // fn test_align() {
+    //     const MEM_SIZE: usize = 4096 * 4;
+    //     let free_mem = unsafe { heap::allocate(MEM_SIZE, ALIGN) };
+    //     let mut balloc = BuddyAllocator::new(free_mem, MEM_SIZE);
+
+    //     for i in 1..12 {
+    //         // talloc will check alignment
+    //         let mut x = talloc::<u32>(&mut balloc, 1 << i);
+    //         assert_eq!(*x, 0);
+    //         *x = 13373;
+    //         assert_eq!(*x, 13373);
+    //         tdealloc(&mut balloc, x, 1 << i);
+    //     }
+
+    //     unsafe { heap::deallocate(free_mem, MEM_SIZE, ALIGN); }
+    // }
 }
 
