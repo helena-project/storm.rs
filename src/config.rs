@@ -120,7 +120,7 @@ pub unsafe fn config() {
 
     print_chip_info(chipid_device);
 
-    let dma_device = sam4l::dma::DMADevice::new(sam4l::dma::DMAParams {
+    let _dma_device = sam4l::dma::DMADevice::new(sam4l::dma::DMAParams {
         location: sam4l::dma::DMALocation::DMAChannel00
     });
 
@@ -231,7 +231,7 @@ fn init_tmp006() -> drivers::i2c::tmp006::TMP006<sam4l::i2c::I2CDevice> {
 fn test_trng (mut trng_device: sam4l::trng::TRNGDevice) {
     util::println("Testing the True Random Number Generator");
     util::println("  Print 5 random numbers:");
-    for i in 0..5 {
+    for _ in 0..5 {
         let random_num = trng_device.read_sync();
 
         util::print_num(random_num);
@@ -249,7 +249,7 @@ fn test_trng (mut trng_device: sam4l::trng::TRNGDevice) {
 fn print_chip_info (mut chipid_device: sam4l::chipid::CHIPIDDevice) {
     util::println("Information about this microcontroller:");
 
-    let (ver, ep, nv, nv2, sram, arch, nvp, ext, aes, usb, usbf, lcd, package) =
+    let (ver, ep, nv, nv2, sram, _arch, nvp, _ext, aes, usb, usbf, lcd, package) =
         chipid_device.read();
 
     if ver == 0 {
@@ -264,7 +264,7 @@ fn print_chip_info (mut chipid_device: sam4l::chipid::CHIPIDDevice) {
         5 => util::println("  Processor: ARM926EJS"),
         6 => util::println("  Processor: Cortex-A5"),
         7 => util::println("  Processor: Cortex-M4"),
-        default => util::println("  Processor: Unknown")
+        _ => util::println("  Processor: Unknown")
     }
 
     match nv {
@@ -278,7 +278,7 @@ fn print_chip_info (mut chipid_device: sam4l::chipid::CHIPIDDevice) {
         10 => util::println("  Nonvolatile Memory: 512K"),
         12 => util::println("  Nonvolatile Memory: 1024K"),
         14 => util::println("  Nonvolatile Memory: 2048K"),
-        default => util::println("  Nonvolatile Memory: Unknown")
+        _ => util::println("  Nonvolatile Memory: Unknown")
     }
 
     match nv2 {
@@ -292,7 +292,7 @@ fn print_chip_info (mut chipid_device: sam4l::chipid::CHIPIDDevice) {
         10 => util::println("  Second Nonvolatile Memory: 512K"),
         12 => util::println("  Second Nonvolatile Memory: 1024K"),
         14 => util::println("  Second Nonvolatile Memory: 2048K"),
-        default => util::println("  Second Nonvolatile Memory: Unknown")
+        _ => util::println("  Second Nonvolatile Memory: Unknown")
     }
 
     match sram {
@@ -312,7 +312,7 @@ fn print_chip_info (mut chipid_device: sam4l::chipid::CHIPIDDevice) {
         13 => util::println("  SRAM: 256K"),
         14 => util::println("  SRAM: 96K"),
         15 => util::println("  SRAM: 512K"),
-        default => util::println("  SRAM: Unknown")
+        _ => util::println("  SRAM: Unknown")
     }
 
     // skipping arch...
@@ -323,7 +323,7 @@ fn print_chip_info (mut chipid_device: sam4l::chipid::CHIPIDDevice) {
         4 => util::println("  Nonvolatile Memory Type: SRAM"),
         2 => util::println("  Nonvolatile Memory Type: FLASH"),
         3 => util::println("  Nonvolatile Memory Type: ROM_FLASH"),
-        default => util::println("  Nonvolatile Memory Type: Unknown")
+        _ => util::println("  Nonvolatile Memory Type: Unknown")
     }
 
     match aes {
@@ -353,7 +353,7 @@ fn print_chip_info (mut chipid_device: sam4l::chipid::CHIPIDDevice) {
         3 => util::println("  Package: 64 pin"),
         4 => util::println("  Package: 100 pin"),
         5 => util::println("  Package: 144 pin"),
-        default => util::println("  Package: Unknown")
+        _ => util::println("  Package: Unknown")
     }
 }
 
