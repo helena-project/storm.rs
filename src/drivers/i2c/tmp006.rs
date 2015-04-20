@@ -64,7 +64,6 @@ impl <I2C: hil::i2c::I2C> TMP006 <I2C> {
 			}
 		}
 
-		let mut sensor_voltage: i16;
 		let mut die_temp: i16;
 
 		// Now set the correct register pointer value so we can issue a read
@@ -73,8 +72,9 @@ impl <I2C: hil::i2c::I2C> TMP006 <I2C> {
 		self.i2c.write_sync(self.addr, &buf[0..1]);
 
 		// Now read the sensor reading
+        // TODO(alevy): this is never used, do we need this?
 		self.i2c.read_sync(self.addr, &mut buf[0..2]);
-		sensor_voltage = (((buf[0] as u16) << 8) | buf[1] as u16) as i16;
+		let _ = (((buf[0] as u16) << 8) | buf[1] as u16) as i16;
 
 		// Now move the register pointer to the die temp register
 		buf[0] = TMP006Registers::LocalTemperature as u8;
