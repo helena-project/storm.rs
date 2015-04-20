@@ -1,6 +1,7 @@
 use core::prelude::*;
 use hil::timer::{AlarmHandler, Timer};
 
+#[derive(Copy)]
 struct Alarm {
     armed: bool,
     origin: u32,
@@ -8,8 +9,6 @@ struct Alarm {
     cb_ptr: *mut (),
     cb_addr: usize
 }
-
-impl Copy for Alarm {}
 
 pub struct VirtualTimer<T: Timer> {
     timer: T,
