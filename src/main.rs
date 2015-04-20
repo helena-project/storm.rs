@@ -6,6 +6,7 @@
 
 #[macro_use(panic)]
 extern crate core;
+extern crate collections;
 extern crate drivers;
 extern crate platform;
 extern crate hil;
@@ -14,14 +15,13 @@ extern crate support;
 use core::prelude::*;
 use core::intrinsics;
 
-use array_list::ArrayList;
+use collections::array_list::ArrayList;
 use process::Process;
 
 mod std {
     pub use core::*;
 }
 
-mod array_list;
 pub mod config;
 mod ring_buffer;
 mod process;

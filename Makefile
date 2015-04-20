@@ -75,7 +75,7 @@ $(BUILD_DIR)/%.o: c/%.c | $(BUILD_DIR)
 	@echo "Compiling $^"
 	@$(CC) $(CFLAGS) -c -o $@ $^
 
-$(BUILD_DIR)/main.o: $(RUST_SOURCES) $(call libs,core support platform drivers)
+$(BUILD_DIR)/main.o: $(RUST_SOURCES) $(call libs,core collections support platform drivers)
 	@echo "Building $@"
 	@$(RUSTC) $(RUSTC_FLAGS) -C lto --emit obj -o $@ src/main.rs
 
