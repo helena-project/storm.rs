@@ -6,4 +6,5 @@
 #[macro_use(panic)] extern crate core;
 
 pub mod array_list;
+pub mod linked_list;
 
