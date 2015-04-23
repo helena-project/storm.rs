@@ -4,6 +4,7 @@
 #![no_std]
 
 extern crate core;
+extern crate collections;
 extern crate hil;
 
 mod std {

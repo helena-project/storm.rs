@@ -1,4 +1,5 @@
 use core::prelude::*;
+use collections::linked_list::LinkedList;
 use hil::timer::{AlarmHandler, Timer};
 
 #[derive(Copy)]
@@ -13,41 +14,29 @@ struct Alarm {
 pub struct VirtualTimer<T: Timer> {
     timer: T,
     active: bool,
-    alarms: [Alarm; 10],
+    alarms: LinkedList<Alarm>
 }
 
 impl <T: Timer> AlarmHandler for VirtualTimer<T> {
-    fn fire_alarm<F: FnMut(*mut (), usize, usize, usize, usize)>(&mut self, mut post: F) {
-        //let now = self.timer.now();
+    fn fire_alarm<F>(&mut self, mut post: F) where
+            F: FnMut(*mut (), usize, usize, usize, usize) {
         self.timer.disable_alarm();
-        for i in range(0, 10) {
-            let cur = &mut self.alarms[i];
+        for cur in self.alarms.iter_mut() {
             if cur.armed {
                 cur.armed = false;
                 post(cur.cb_ptr, cur.cb_addr, 0, 0, 0);
             }
-            /*let remaining = cur.duration + cur.origin - now;
-            if remaining <= 0 {
-                cur.armed = false;
-                post(cur.cb_addr);
-            }*/
         }
     }
 }
 
 impl <T: Timer> VirtualTimer<T> {
     pub fn initialize(timer: T) -> VirtualTimer<T> {
-        let base_alarm = Alarm {
-            armed: false, 
-            origin: 0, 
-            duration: 0, 
-            cb_ptr: 0 as *mut (),
-            cb_addr: 0
-        };
-        VirtualTimer {timer: timer, active: false, alarms: [base_alarm; 10]}
+        VirtualTimer {timer: timer, active: false, alarms: LinkedList::new()}
     }
 
-    pub fn set_user_alarm(&mut self, cb_ptr: *mut (), duration: u32, cb: usize) -> isize {
+    pub fn set_user_alarm(&mut self, cb_ptr: *mut (), duration: u32, cb: usize)
+            -> isize {
         let now = self.timer.now();
         let alarm = Alarm { armed: true,
                             origin: now,
@@ -60,8 +49,7 @@ impl <T: Timer> VirtualTimer<T> {
         }
         if !self.active {
             let mut min_remaining = alarm.duration + alarm.origin - now;
-            for i in range(0, 10) {
-                let cur = self.alarms[i];
+            for cur in self.alarms.iter() {
                 let elapsed = now - cur.origin;
                 let remaining = cur.duration - elapsed;
                 if remaining < min_remaining {
@@ -75,13 +63,8 @@ impl <T: Timer> VirtualTimer<T> {
     }
 
     fn add_alarm(&mut self, alarm: Alarm) -> bool {
-        for i in range(0, 10) {
-            if !self.alarms[i].armed {
-                self.alarms[i] = alarm;
-                return true;
-            }
-        }
-        return false;
+        self.alarms.push_front(alarm);
+        return true;
     }
 }
 

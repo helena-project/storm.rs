@@ -29,11 +29,11 @@ pub struct Callback {
 
 pub struct Process<'a> {
     /// The process's memory.
-    pub memory: &'static mut [u8],
+    pub memory: &'a mut [u8],
 
     /// The process's memory exposed to the process (the rest is reserved for the
     /// kernel, drivers, etc).
-    pub exposed_memory: &'static mut [u8],
+    pub proc_mem_base: *mut u8,
 
     /// The offset in `memory` to use for the process stack.
     pub cur_stack: *mut u8,
@@ -70,9 +70,11 @@ impl<'a> Process<'a> {
                     pc: init_fn as usize, r0: 0, r1: 0, r2:0
                 });
 
+                let proc_mem_base =
+                    &mut memory[callback_len * callback_size] as *mut u8;
                 Ok(Process {
                     memory: memory,
-                    exposed_memory: &mut memory[callback_len * callback_size..],
+                    proc_mem_base: proc_mem_base,
                     cur_stack: stack_bottom as *mut u8,
                     wait_pc: 0,
                     state: State::Waiting,
@@ -113,7 +115,8 @@ impl<'a> Process<'a> {
     /// Context switch to the process.
     #[inline(never)]
     pub unsafe fn switch_to(&mut self) {
-        if self.cur_stack < (&mut self.exposed_memory[0] as *mut u8) {
+        if self.cur_stack < self.proc_mem_base {
+            // Stack overflow
             asm!("bkpt" :::: "volatile");
         }
         let psp = syscall::switch_to_user(self.cur_stack);
@@ -154,6 +157,13 @@ impl<'a> Process<'a> {
         let pspr = self.cur_stack as *const usize;
         unsafe { volatile_load(pspr.offset(2)) }
     }
+}
 
+// Process-specific allocator
+impl<'a> Process<'a> {
+    pub unsafe fn alloc<T>(&mut self) -> &mut [u8] {
+        let size = mem::size_of::<T>();
+        &mut self.memory[0..size]
+    }
 }
 
