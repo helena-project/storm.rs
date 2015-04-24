@@ -60,7 +60,7 @@ pub enum I2CSpeed {
 
 // These parameters are passed in from the platform's device tree.
 #[derive(Copy)]
-pub struct I2CParams {
+pub struct I2CDeviceParams {
     pub location: I2CLocation,
     pub bus_speed: I2CSpeed
 }
@@ -73,10 +73,20 @@ pub struct I2CDevice {
     clock: sam4l::pm::Clock
 }
 
+pub struct I2CVirtualDevice {
+    i2cdevice: I2CDevice,
+    address: u16
+}
+
+pub struct I2CVirtualDeviceParams {
+    pub i2cdevice: I2CDevice,
+    pub address: u16
+}
+
 // Need to implement the `new` function on the I2C device as a constructor.
 // This gets called from the device tree.
 impl I2CDevice {
-    pub fn new (params: I2CParams) -> I2CDevice {
+    pub fn new (params: I2CDeviceParams) -> I2CDevice {
         let address: usize = I2C_BASE_ADDRS[params.location as usize];
 
         // Create the actual device
@@ -119,8 +129,38 @@ impl I2CDevice {
     }
 }
 
+impl I2CVirtualDevice {
+    pub fn new (params: I2CVirtualDeviceParams) -> I2CVirtualDevice {
+        let mut virt_dev = I2CVirtualDevice {
+            i2cdevice: params.i2cdevice,
+            address: params.address
+        };
 
-impl hil::i2c::I2C for I2CDevice {
+        // return
+        virt_dev
+    }
+}
+
+
+impl hil::i2c::I2C for I2CVirtualDevice {
+
+    fn enable (&mut self) {
+        self.i2cdevice.enable();
+    }
+    fn disable (&mut self) {
+        self.i2cdevice.disable();
+    }
+    fn write_sync (&mut self, data: &[u8]) {
+        self.i2cdevice.write_sync(self.address, data);
+    }
+    fn read_sync (&mut self, buffer: &mut[u8]) {
+        self.i2cdevice.write_sync(self.address, buffer);
+    }
+
+}
+
+
+impl I2CDevice {
 
     /// This enables the entire I2C peripheral
     fn enable (&mut self) {

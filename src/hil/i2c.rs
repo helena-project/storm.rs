@@ -18,11 +18,11 @@ pub trait I2C {
 	fn disable (&mut self);
 
 
-    /// Write a slice of bytes to a particular slave (given by its address).
+    /// Write a slice of bytes to a particular slave.
     /// This call is synchronous and will block until all bytes have written
-    fn write_sync (&mut self, addr: u16, data: &[u8]);
+    fn write_sync (&mut self, data: &[u8]);
 
     // Issue a read transaction to fill the buffer slice with data.
     // This call is synchronous and will block until all bits have been read.
-    fn read_sync (&mut self, addr: u16, buffer: &mut[u8]);
+    fn read_sync (&mut self, buffer: &mut[u8]);
 }

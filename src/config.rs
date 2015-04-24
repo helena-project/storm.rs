@@ -71,7 +71,7 @@ pub fn led_driver_toggle_svc(_: *mut (), _: usize, _: usize) -> isize {
 }
 
 pub static mut TMP006:
-    Option<drivers::i2c::tmp006::TMP006<sam4l::i2c::I2CDevice>> = None;
+    Option<drivers::i2c::tmp006::TMP006<sam4l::i2c::I2CVirtualDevice>> = None;
 
 
 // bradjc: this should be temporary until we have a better app<->device driver
@@ -130,8 +130,8 @@ pub unsafe fn config() {
     // IE: gpiopin@1.[0..32], or gpiopin@[1..3][0..32];
     // TODO(SergioBenitez): Two Macro Split through structs? File Inlining?
     // #![allow(unused_variables)] // Can't do this per block YET
-    // config_tree!(
-    //     platform {sam4l,
+     // config_tree!(
+     //     platform {sam4l,
     //         gpiopin@[41..43]: gpio::GPIOPin {
     //             port: GPIOPort::GPIO1,
     //             function: ::Some(PeripheralFunction::A)
@@ -142,8 +142,27 @@ pub unsafe fn config() {
     //             function: ::None
     //         }
 
+
+                // i2cbus@[2]: sam4l::i2c::I2CDevice {
+                //     speed: sam4l::i2c::I2CSpeed::Fast400k
+
+                //     i2cVirtual@[0x40]: sam4l::i2c::I2CVirtualDevice {}
+                //     i2cVirtual@[0x1e]: sam4l::i2c::I2CVirtualDevice {}
+                // }
+
+                // trng@[0]: sam4l::trng::TRNGDevice {}
+                // chipid@[0]: sam4l::chipid::CHIPIDDevice {}
+
+
+
+
+
     //         uart@[0..4]: usart::USART;
-    //     }
+         // }
+
+
+
+
 
     //     devices {
     //         first_led: gpio::LED(GPIOPin@74) {
@@ -155,6 +174,9 @@ pub unsafe fn config() {
     //             data_bits: 8,
     //             parity: Parity::None
     //         }
+
+                // tmp006: i2c::TMP006(i2cVirtual@0x40) {}
+                // fxos8700cq: i2c::FXOS8700CQ(i2cVirtual@0x1e) {}
     //     }
     // );
 }
@@ -201,10 +223,10 @@ fn init_console() -> drivers::uart::Console<usart::USART> {
     )
 }
 
-fn init_tmp006() -> drivers::i2c::tmp006::TMP006<sam4l::i2c::I2CDevice> {
-
+fn init_tmp006() -> drivers::i2c::tmp006::TMP006<sam4l::i2c::I2CVirtualDevice> {
+// platform
     // Create the I2C device with the correct parameters for firestorm
-    let i2c_device = sam4l::i2c::I2CDevice::new(sam4l::i2c::I2CParams {
+    let i2c_device = sam4l::i2c::I2CDevice::new(sam4l::i2c::I2CDeviceParams {
         location:  sam4l::i2c::I2CLocation::I2CPeripheral02,
         bus_speed: sam4l::i2c::I2CSpeed::Fast400k
     });
@@ -222,10 +244,14 @@ fn init_tmp006() -> drivers::i2c::tmp006::TMP006<sam4l::i2c::I2CDevice> {
         function: Some(sam4l::gpio::PeripheralFunction::E)
     });
 
+    let i2c_virtual_device = sam4l::i2c::I2CVirtualDevice::new(sam4l::i2c::I2CVirtualDeviceParams {
+        i2cdevice: i2c_device,
+        address: 0x40
+    });
+
+//devices
     // return
-    drivers::i2c::tmp006::TMP006::new(i2c_device, drivers::i2c::tmp006::TMP006Params {
-        addr: 0x40
-    })
+    drivers::i2c::tmp006::TMP006::new(i2c_virtual_device, drivers::i2c::tmp006::TMP006Params)
 }
 
 fn test_trng (mut trng_device: sam4l::trng::TRNGDevice) {
