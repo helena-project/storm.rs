@@ -147,6 +147,10 @@ impl GPIOPin {
         // volatile!(self.port.pmr1.val = bit1 << n);
         // volatile!(self.port.pmr2.val = bit2 << n);
     }
+
+    pub fn set_ster(&mut self) {
+        volatile!(self.port.ster.set = 1 << self.number);
+    }
 }
 
 impl hil::GPIOPin for GPIOPin {

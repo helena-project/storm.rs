@@ -100,10 +100,23 @@ impl USART {
         }
     }
 
-    fn enable_rx_interrupts(&mut self) {
+    pub fn enable_rx_interrupts(&mut self) {
         self.enable_nvic();
         volatile!(self.regs.ier = 1 as u32);
     }
+
+    pub fn interrupt_fired(&mut self) {
+        if self.rx_ready() {
+            let c = volatile!(self.regs.rhr);
+            while !self.tx_ready() {}
+            volatile!(self.regs.thr = c);
+        }
+    }
+
+    pub fn reset_rx(&mut self) {
+        volatile!(self.regs.cr = 1 << 2);
+    }
+
 }
 
 impl uart::UART for USART {
@@ -127,17 +140,13 @@ impl uart::UART for USART {
     }
 
     fn read_byte(&self) -> u8 {
-        if self.rx_ready() {
-            volatile!(self.regs.rhr) as u8
-        } else {
-            '\0' as u8
-        }
+        while self.rx_ready() {}
+        volatile!(self.regs.rhr) as u8
     }
 
     fn toggle_rx(&mut self, enable: bool) {
         if enable {
             volatile!(self.regs.cr = 1 << 4);
-            self.enable_rx_interrupts();
         } else {
             volatile!(self.regs.cr = 1 << 5);
         }
@@ -151,3 +160,4 @@ impl uart::UART for USART {
         }
     }
 }
+

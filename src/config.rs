@@ -359,7 +359,7 @@ fn print_chip_info (mut chipid_device: sam4l::chipid::CHIPIDDevice) {
 
 #[no_mangle]
 #[allow(non_snake_case)]
-pub extern fn USART3_Handler() {
+pub extern fn SART3_Handler() {
     let mut console = unsafe {
         Console.as_mut().expect("Console is None!")
     };
