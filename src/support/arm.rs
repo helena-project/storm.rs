@@ -28,12 +28,12 @@ pub fn wfi() {
 
 pub unsafe fn atomic<F>(f: F) where F: FnOnce() {
     // Set PRIMASK
-    asm!("cpsid i");
+    asm!("cpsid i" :::: "volatile");
 
     f();
 
     // Unset PRIMASK
-    asm!("cpsie i");
+    asm!("cpsie i" :::: "volatile");
 }
 
 #[cfg(not(test))]
