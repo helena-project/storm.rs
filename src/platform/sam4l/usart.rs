@@ -100,13 +100,23 @@ impl USART {
         }
     }
 
+    fn disable_nvic(&self) {
+        use super::nvic;
+        match self.location {
+            Location::USART0 => nvic::disable(nvic::NvicIdx::USART0),
+            Location::USART1 => nvic::disable(nvic::NvicIdx::USART1),
+            Location::USART2 => nvic::disable(nvic::NvicIdx::USART2),
+            Location::USART3 => nvic::disable(nvic::NvicIdx::USART3)
+        }
+    }
+
     pub fn enable_rx_interrupts(&mut self) {
         self.enable_nvic();
         volatile!(self.regs.ier = 1 as u32);
     }
 
     pub fn disable_rx_interrupts(&mut self) {
-        self.enable_nvic();
+        self.disable_nvic();
         volatile!(self.regs.idr = 1 as u32);
     }
 

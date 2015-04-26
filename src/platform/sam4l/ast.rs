@@ -36,13 +36,8 @@ pub const AST_BASE: isize = 0x400F0800;
 #[allow(missing_copy_implementations)]
 pub struct Ast {
     addr: *mut AstRegisters,
-    callback: fn()
+    callback: Option<fn()>
 }
-
-pub static mut Ast0: Ast =
-    Ast {addr: AST_BASE as *mut AstRegisters, callback: noop };
-
-fn noop() {}
 
 #[repr(uint)]
 pub enum Clock {
@@ -56,9 +51,8 @@ pub enum Clock {
 impl Copy for Clock {}
 
 impl Ast {
-    pub unsafe fn new(callback: fn()) -> Ast {
-        Ast0.callback = callback;
-        Ast {addr: Ast0.addr, callback: Ast0.callback}
+    pub fn new() -> Ast {
+        Ast {addr: AST_BASE as *mut AstRegisters, callback: None}
     }
 
     pub fn setup(&mut self) {
@@ -200,6 +194,12 @@ impl Ast {
             intrinsics::volatile_store(&mut (*self.addr).cv, value);
         }
     }
+
+    pub fn interrupt_fired(&mut self) {
+        self.callback.map(|f| {
+            f()
+        });
+    }
 }
 
 impl Timer for Ast {
@@ -226,9 +226,9 @@ impl Timer for Ast {
     }
 }
 
-#[no_mangle]
+/*#[no_mangle]
 #[allow(non_snake_case)]
 pub extern fn AST_ALARM_Handler() {
     unsafe { let f = Ast0.callback; f() }
-}
+}*/
 

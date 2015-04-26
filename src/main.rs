@@ -39,28 +39,17 @@ mod conf {
 
         usart_3
     }
-}
 
-static mut USART_INT : bool = false;
-
-/*unsafe fn interrupts_empty() -> bool {
-    for interrupt_num in INTERRUPTS.iter() {
-        if *interrupt_num {
-            return false;
-        }
+    pub fn init_ast() -> ast::Ast {
+        ast::Ast::new()
     }
-    return true;
-}*/
-
-unsafe fn atomic_xchg<T>(dst: *mut T, src: T) -> T {
-    let res = intrinsics::volatile_load(dst);
-    intrinsics::volatile_store(dst, src);
-    return res;
 }
+
+static mut ASTALARM_INT : bool = false;
+static mut USART_INT : bool = false;
 
 #[no_mangle]
 pub extern fn main() {
-    use platform::sam4l::usart;
     use hil::uart::UART;
 
     let mut usart3 = conf::init_console();
@@ -80,21 +69,29 @@ pub extern fn main() {
 
 #[inline(never)]
 fn main_loop(mut usart3: platform::sam4l::usart::USART) {
-    use hil::uart::UART;
+    use platform::sam4l::*;
 
     loop {
 
         unsafe {
             if intrinsics::volatile_load(&USART_INT) {
-                //let c = usart3.read_byte();
-                //usart3.send_byte(c);
-                usart3.interrupt_fired(); 
+                usart3.interrupt_fired();
                 USART_INT = false;
+                nvic::enable(nvic::NvicIdx::USART3);
             }
 
-            /*asm!("cpsid i" :::: "volatile");
-            asm!("wfi" :::: "volatile");
-            asm!("cpsie i" :::: "volatile");*/
+            if intrinsics::volatile_load(&ASTALARM_INT) {
+                //usart3.interrupt_fired();
+                ASTALARM_INT = false;
+                nvic::enable(nvic::NvicIdx::ASTALARM);
+            }
+        }
+        unsafe {
+            support::atomic(|| {
+                if !intrinsics::volatile_load(&USART_INT) {
+                    support::wfi();
+                }
+            });
         }
     }
 }
@@ -102,16 +99,17 @@ fn main_loop(mut usart3: platform::sam4l::usart::USART) {
 #[no_mangle]
 #[allow(non_snake_case)]
 pub unsafe extern fn USART3_Handler() {
-    use platform::sam4l::*;
-    use hil::uart::UART;
-    let mut usart_3 = usart::USART::new(usart::USARTParams {
-        location: usart::Location::USART3
-    });
-    //let c = usart_3.read_byte();
-    //usart_3.send_byte(c);
-    if usart_3.rx_ready() {
-        USART_INT = true;
-        usart_3.disable_rx_interrupts();
-    }
+    use platform::sam4l::nvic;
+    USART_INT = true;
+    nvic::disable(nvic::NvicIdx::USART3);
+}
+
+
+#[no_mangle]
+#[allow(non_snake_case)]
+pub unsafe extern fn AST_ALARM_Handler() {
+    use platform::sam4l::nvic;
+    ASTALARM_INT = true;
+    nvic::disable(nvic::NvicIdx::ASTALARM);
 }
 
