@@ -34,9 +34,9 @@ struct AstRegisters {
 pub const AST_BASE: isize = 0x400F0800;
 
 #[allow(missing_copy_implementations)]
-pub struct Ast {
+pub struct Ast<F: Fn()> {
     addr: *mut AstRegisters,
-    callback: Option<fn()>
+    callback: Option<F>
 }
 
 #[repr(uint)]
@@ -50,8 +50,8 @@ pub enum Clock {
 
 impl Copy for Clock {}
 
-impl Ast {
-    pub fn new() -> Ast {
+impl<F: Fn()> Ast<F> {
+    pub fn new() -> Ast<F> {
         Ast {addr: AST_BASE as *mut AstRegisters, callback: None}
     }
 
@@ -196,13 +196,19 @@ impl Ast {
     }
 
     pub fn interrupt_fired(&mut self) {
-        self.callback.map(|f| {
+        self.clear_alarm();
+        self.callback.as_ref().map(|f| {
             f()
         });
     }
+
+    pub fn set_callback(&mut self, callback: F)
+            where F: Fn() {
+        self.callback = Some(callback);
+    }
 }
 
-impl Timer for Ast {
+impl<F: Fn()> Timer for Ast<F> {
     fn now(&self) -> u32 {
         unsafe {
             intrinsics::volatile_load(&(*self.addr).cv)
