@@ -4,12 +4,15 @@
 #![no_std]
 
 extern crate core;
+extern crate drivers;
 extern crate support;
 extern crate platform;
 extern crate hil;
 
 use core::prelude::*;
 use core::intrinsics;
+
+pub mod syscall;
 
 mod std {
     pub use core::*;
@@ -44,6 +47,23 @@ mod conf {
         let mut ast = ast::Ast::new();
         ast.setup();
         ast
+    }
+
+    pub fn config() {
+        use drivers;
+
+        let mut ast = init_ast();
+        let virtual_timer = drivers::timer::VirtualTimer::initialize(ast);
+
+        let console = init_console();
+
+        return [virtual_timer, console];
+
+        /*LED = Some(init_led());
+        cmd_drivers[1] = led_driver_toggle_svc;
+
+        TMP006 = Some(init_tmp006());
+        cmd_drivers[2] = tmp006_driver_read_svc;*/
     }
 }
 
