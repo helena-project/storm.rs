@@ -120,7 +120,6 @@ impl USART {
         volatile!(self.regs.idr = 1 as u32);
     }
 
-    #[inline(never)]
     pub fn interrupt_fired(&mut self) {
         if self.rx_ready() {
             let c = volatile!(self.regs.rhr);
