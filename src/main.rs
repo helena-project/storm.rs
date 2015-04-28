@@ -47,8 +47,7 @@ mod conf {
     }
 }
 
-static mut ASTALARM_INT : bool = false;
-static mut USART_INT : bool = false;
+static mut INTS : [bool; 100] = [false; 100];
 
 #[no_mangle]
 pub extern fn main() {
@@ -86,49 +85,43 @@ pub extern fn main() {
     main_loop(usart3, ast);
 }
 
-#[inline(never)]
 fn main_loop<F: Fn()>(mut usart3: platform::sam4l::usart::USART,
              mut ast: platform::sam4l::ast::Ast<F>) {
-    use platform::sam4l::*;
-    use hil::timer::Timer;
-    use hil::gpio::*;
 
-    let systick_csr : &mut u32 = unsafe { intrinsics::transmute(0xE000E010) };
-    let systick_rvr : &mut u32 = unsafe { intrinsics::transmute(0xE000E014) };
-    let systick_val : &mut u32 = unsafe { intrinsics::transmute(0xE000E018) };
-
-    unsafe {
-        intrinsics::volatile_store(systick_rvr, 0xffffff);
-        intrinsics::volatile_store(systick_csr, (1 << 2 | 1));
-    }
-
-    let mut start = 0;
-
+    let ints_len = unsafe { INTS.len() };
     loop {
 
-        unsafe {
-            if intrinsics::volatile_load(&USART_INT) {
-                usart3.interrupt_fired();
-                USART_INT = false;
-                nvic::enable(nvic::NvicIdx::USART3);
-            }
-
-            if intrinsics::volatile_load(&ASTALARM_INT) {
-                let end = intrinsics::volatile_load(systick_val);
-                let fin = start - end;
-                print_num(&mut usart3, fin);
-                start = intrinsics::volatile_load(systick_val);
-                ast.interrupt_fired();
-                ASTALARM_INT = false;
-                nvic::enable(nvic::NvicIdx::ASTALARM);
+        // Service interrupts
+        for i in range(0, ints_len) {
+            if unsafe { intrinsics::volatile_load(&INTS[i]) } {
+                use platform::sam4l::nvic;
+                let nvic = match i {
+                    0 => {
+                        usart3.interrupt_fired();
+                        Some(nvic::NvicIdx::USART3)
+                    }
+                    1 => {
+                        ast.interrupt_fired();
+                        Some(nvic::NvicIdx::ASTALARM)
+                    }
+                    _ => None
+                };
+                unsafe { INTS[i] = false };
+                nvic.map(|n| { nvic::enable(n) });
             }
         }
+
+        // Run tasks in task queue
+
+        // Sleep if nothing left to do
         unsafe {
             support::atomic(|| {
-                if !intrinsics::volatile_load(&USART_INT) {
-                    support::wfi();
-                    start = intrinsics::volatile_load(systick_val);
+                for i in INTS.iter() {
+                    if *i {
+                        return;
+                    }
                 }
+                support::wfi();
             });
         }
     }
@@ -138,7 +131,7 @@ fn main_loop<F: Fn()>(mut usart3: platform::sam4l::usart::USART,
 #[allow(non_snake_case)]
 pub unsafe extern fn USART3_Handler() {
     use platform::sam4l::nvic;
-    USART_INT = true;
+    INTS[0] = true;
     nvic::disable(nvic::NvicIdx::USART3);
 }
 
@@ -147,31 +140,7 @@ pub unsafe extern fn USART3_Handler() {
 #[allow(non_snake_case)]
 pub unsafe extern fn AST_ALARM_Handler() {
     use platform::sam4l::*;
-    ASTALARM_INT = true;
+    INTS[1] = true;
     nvic::disable(nvic::NvicIdx::ASTALARM);
 }
 
-pub fn print_num(console: &mut platform::sam4l::usart::USART, val: u32) {
-    use hil::uart::*;
-    let mut num = val;
-    let mut first = true;
-    let mut d = 1;
-    let base = 10;
-
-    while num/d >= base {
-        d *= base;
-    }
-
-    while d != 0 {
-        let digit = num / d;
-        num %= d;
-        d /= base;
-
-        if !first || digit > 0 || d==0 {
-            console.send_byte((digit + 0x30) as u8);
-            first = false;
-        }
-    }
-
-    console.send_byte('\n' as u8);
-}
