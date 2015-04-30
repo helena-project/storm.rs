@@ -1,7 +1,6 @@
 use hil::{UART, UARTParams, Parity};
 use core::prelude::*;
 
-#[derive(Copy)]
 pub struct ConsoleParams {
     pub baud_rate: u32,
     pub data_bits: u8,

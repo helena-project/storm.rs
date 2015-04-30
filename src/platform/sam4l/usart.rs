@@ -1,5 +1,4 @@
 use sam4l::pm::{self, Clock, PBAClock};
-use core::marker::Copy;
 use core::intrinsics;
 use hil::uart;
 
@@ -33,12 +32,12 @@ struct UsartRegisters {
 const SIZE: usize = 0x4000;
 const BASE_ADDRESS: usize = 0x40024000;
 
-repeated_enum!(
+#[derive(Copy,Clone)]
 pub enum Location {
-    USART * 4
-});
+    USART0, USART1, USART2, USART3
+}
 
-#[derive(Copy)]
+#[derive(Copy,Clone)]
 pub struct USARTParams {
     pub location: Location,
 }

@@ -1,11 +1,9 @@
 use hil::{GPIOPin};
 
-#[derive(Copy)]
 pub enum LEDStatus {
     Off, On
 }
 
-#[derive(Copy)]
 pub struct LEDParams {
     pub start_status: LEDStatus,
 }

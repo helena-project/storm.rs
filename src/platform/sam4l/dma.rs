@@ -7,7 +7,6 @@
 // use core::prelude::SliceExt;
 use core::intrinsics;
 
-use hil;
 use sam4l;
 
 // Listing of all registers for a particular DMA channel.
@@ -38,7 +37,7 @@ const SIZE: usize = 0x40;
 static mut NUM_ENABLED: isize = 0;
 
 // SAM4L has 16 DMA channels
-#[derive(Copy)]
+#[derive(Copy,Clone)]
 pub enum DMALocation {
     DMAChannel00,
     DMAChannel01,
@@ -111,7 +110,7 @@ pub enum DMATransferSize {
 }
 
 // These parameters are passed in from the platform's device tree.
-#[derive(Copy)]
+#[derive(Copy,Clone)]
 pub struct DMAParams {
     pub location: DMALocation
 }
@@ -183,7 +182,7 @@ impl DMADevice {
         volatile!(self.registers.mode = size as usize);
 
         // Configure where the data is going/coming from
-        volatile!(self.registers.memory_address = unsafe { intrinsics::transmute(destination) } );
+        volatile!(self.registers.memory_address = intrinsics::transmute(destination));
 
         // Configure how many data items we want to move.
         // This will cause the transfer to start.

@@ -1,6 +1,7 @@
 use core::prelude::*;
 use hil::timer::{AlarmHandler, Timer};
 
+#[derive(Copy,Clone)]
 struct Alarm {
     armed: bool,
     origin: u32,
@@ -8,8 +9,6 @@ struct Alarm {
     cb_ptr: *mut (),
     cb_addr: usize
 }
-
-impl Copy for Alarm {}
 
 pub struct VirtualTimer<T: Timer> {
     timer: T,
@@ -21,7 +20,7 @@ impl <T: Timer> AlarmHandler for VirtualTimer<T> {
     fn fire_alarm<F: FnMut(*mut (), usize, usize, usize, usize)>(&mut self, mut post: F) {
         //let now = self.timer.now();
         self.timer.disable_alarm();
-        for i in range(0, 10) {
+        for i in 0..10 {
             let cur = &mut self.alarms[i];
             if cur.armed {
                 cur.armed = false;
@@ -61,7 +60,7 @@ impl <T: Timer> VirtualTimer<T> {
         }
         if !self.active {
             let mut min_remaining = alarm.duration + alarm.origin - now;
-            for i in range(0, 10) {
+            for i in 0..10 {
                 let cur = self.alarms[i];
                 let elapsed = now - cur.origin;
                 let remaining = cur.duration - elapsed;
@@ -76,7 +75,7 @@ impl <T: Timer> VirtualTimer<T> {
     }
 
     fn add_alarm(&mut self, alarm: Alarm) -> bool {
-        for i in range(0, 10) {
+        for i in 0..10 {
             if !self.alarms[i].armed {
                 self.alarms[i] = alarm;
                 return true;

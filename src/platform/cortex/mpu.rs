@@ -42,7 +42,7 @@ impl MPU {
 }
 
 /// Regions 0-7 of the MPU
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub enum RegionNum {
     R0, R1, R2, R3, R4, R5, R6, R7
 }

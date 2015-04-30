@@ -39,7 +39,7 @@ pub struct Ast<F: Fn()> {
     callback: Option<F>
 }
 
-#[repr(uint)]
+#[repr(usize)]
 pub enum Clock {
     ClockRCSys = 0,
     ClockOsc32 = 1,
@@ -47,8 +47,6 @@ pub enum Clock {
     ClockGclk2 = 3,
     Clock1K = 4
 }
-
-impl Copy for Clock {}
 
 impl<F: Fn()> Ast<F> {
     pub fn new() -> Ast<F> {
@@ -76,6 +74,7 @@ impl<F: Fn()> Ast<F> {
 
     // Clears the alarm bit in the status register (indicating the alarm value
     // has been reached).
+    #[inline(never)]
     pub fn clear_alarm(&mut self) {
         while self.busy() {}
         unsafe {
@@ -195,11 +194,12 @@ impl<F: Fn()> Ast<F> {
         }
     }
 
+    #[inline(never)]
     pub fn interrupt_fired(&mut self) {
-        self.clear_alarm();
         self.callback.as_ref().map(|f| {
             f()
         });
+        self.clear_alarm();
     }
 
     pub fn set_callback(&mut self, callback: F)

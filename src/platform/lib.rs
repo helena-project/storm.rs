@@ -2,7 +2,6 @@
 #![crate_type = "rlib"]
 #![no_std]
 #![feature(asm,plugin,core,concat_idents,no_std)]
-#![plugin(plugins)]
 
 extern crate core;
 extern crate hil;

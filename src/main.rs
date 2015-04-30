@@ -13,6 +13,7 @@ use core::prelude::*;
 use core::intrinsics;
 
 pub mod syscall;
+mod resource;
 
 mod std {
     pub use core::*;
@@ -48,23 +49,6 @@ mod conf {
         ast.setup();
         ast
     }
-
-    pub fn config() {
-        use drivers;
-
-        let mut ast = init_ast();
-        let virtual_timer = drivers::timer::VirtualTimer::initialize(ast);
-
-        let console = init_console();
-
-        return [virtual_timer, console];
-
-        /*LED = Some(init_led());
-        cmd_drivers[1] = led_driver_toggle_svc;
-
-        TMP006 = Some(init_tmp006());
-        cmd_drivers[2] = tmp006_driver_read_svc;*/
-    }
 }
 
 static mut INTS : [bool; 100] = [false; 100];
@@ -74,46 +58,57 @@ pub extern fn main() {
     use hil::uart::UART;
     use hil::timer::Timer;
 
-    let mut usart3 = conf::init_console();
-    usart3.init(hil::uart::UARTParams {
-        baud_rate: 115200,
-        data_bits: 8,
-        parity: hil::uart::Parity::None
-    });
-
-    usart3.toggle_rx(true);
-    usart3.toggle_tx(true);
-
-    usart3.enable_rx_interrupts();
-
-    let mut ast = conf::init_ast();
-    ast.set_callback(|| {
-        use hil::gpio::GPIOPin;
-        use platform::sam4l::*;
-        let mut pin_10 = gpio::GPIOPin::new(gpio::GPIOPinParams {
-            location: gpio::Location::GPIOPin10,
-            port: gpio::GPIOPort::GPIO2,
-            function: None
+    let usart3 = resource::Resource::new(conf::init_console());
+    usart3.with(|u| {
+        u.init(hil::uart::UARTParams {
+            baud_rate: 115200,
+            data_bits: 8,
+            parity: hil::uart::Parity::None
         });
 
-        pin_10.enable_output();
-        pin_10.toggle();
-    });
-    let alm = ast.now() + (1<<15);
-    ast.set_alarm(alm);
+        u.toggle_rx(true);
+        u.toggle_tx(true);
 
-    main_loop(usart3, ast);
+        u.enable_rx_interrupts();
+    });
+
+
+    let ast = resource::Resource::new(conf::init_ast());
+    ast.with(|ast| {
+        ast.set_callback(|| {
+            use hil::gpio::GPIOPin;
+            use platform::sam4l::*;
+            let mut pin_10 = gpio::GPIOPin::new(gpio::GPIOPinParams {
+                location: gpio::Location::GPIOPin10,
+                port: gpio::GPIOPort::GPIO2,
+                function: None
+            });
+
+            pin_10.enable_output();
+            pin_10.toggle();
+        });
+        let alm = ast.now() + (1<<15);
+        ast.set_alarm(alm);
+    });
+
+
+    unsafe {
+        main_loop(usart3.borrow_mut(), ast.borrow_mut());
+    }
+
 }
 
-fn main_loop<F: Fn()>(mut usart3: platform::sam4l::usart::USART,
-             mut ast: platform::sam4l::ast::Ast<F>) {
+#[inline(never)]
+fn main_loop<F: Fn()>(usart3: &mut platform::sam4l::usart::USART,
+             ast: &mut platform::sam4l::ast::Ast<F>) {
 
     let ints_len = unsafe { INTS.len() };
     loop {
 
         // Service interrupts
-        for i in range(0, ints_len) {
-            if unsafe { intrinsics::volatile_load(&INTS[i]) } {
+        let mut i = 0;
+        while i < ints_len {
+            if unsafe { intrinsics::atomic_xchg(&mut INTS[i], false) } {
                 use platform::sam4l::nvic;
                 let nvic = match i {
                     0 => {
@@ -121,14 +116,16 @@ fn main_loop<F: Fn()>(mut usart3: platform::sam4l::usart::USART,
                         Some(nvic::NvicIdx::USART3)
                     }
                     1 => {
+                        use hil::uart::UART;
+                        usart3.send_byte('h' as u8);
                         ast.interrupt_fired();
                         Some(nvic::NvicIdx::ASTALARM)
                     }
                     _ => None
                 };
-                unsafe { INTS[i] = false };
                 nvic.map(|n| { nvic::enable(n) });
             }
+            i += 1;
         }
 
         // Run tasks in task queue

@@ -1,4 +1,4 @@
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub enum Mode { // Mode is encoded as CPOL in bit 0 and NCPHA in bit 1
     Mode0 = 2,  // CPOL == 0, NCPHA = 1
     Mode1 = 0,  // CPOL == 0, NCPHA = 0

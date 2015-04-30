@@ -42,7 +42,7 @@ const I2C_BASE_ADDRS: [usize; 4] = [0x40018000, 0x4001C000, 0x40078000, 0x4007C0
 // There are four TWIM (two wire master interface) peripherals on the SAM4L.
 // These likely won't all be used for I2C, but we let the platform decide
 // which one to use.
-#[derive(Copy)]
+#[derive(Copy,Clone)]
 pub enum I2CLocation {
     I2CPeripheral00,  // TWIMS0
     I2CPeripheral01,  // TWIMS1
@@ -51,7 +51,7 @@ pub enum I2CLocation {
 }
 
 // Three main I2C speeds
-#[derive(Copy)]
+#[derive(Copy,Clone)]
 pub enum I2CSpeed {
     Standard100k,
     Fast400k,
@@ -59,7 +59,7 @@ pub enum I2CSpeed {
 }
 
 // These parameters are passed in from the platform's device tree.
-#[derive(Copy)]
+#[derive(Copy,Clone)]
 pub struct I2CParams {
     pub location: I2CLocation,
     pub bus_speed: I2CSpeed
@@ -80,7 +80,7 @@ impl I2CDevice {
         let address: usize = I2C_BASE_ADDRS[params.location as usize];
 
         // Create the actual device
-        let mut device = I2CDevice {
+        let device = I2CDevice {
             registers: unsafe { intrinsics::transmute(address) },
             bus_speed: params.bus_speed,
             clock: match params.location {

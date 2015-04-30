@@ -5,7 +5,6 @@ use hil;
 ///
 
 // These are passed in from the device tree
-#[derive(Copy)]
 pub struct TMP006Params {
 	pub addr: u16
 }

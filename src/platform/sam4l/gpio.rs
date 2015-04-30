@@ -54,7 +54,7 @@ struct GPIOPortRegisters {
     version: u32,
 }
 
-#[derive(Copy)]
+#[derive(Copy,Clone)]
 pub enum PeripheralFunction {
     A, B, C, D, E, F, G, H
 }
@@ -63,18 +63,33 @@ pub enum PeripheralFunction {
 const BASE_ADDRESS: usize = 0x400E1000;
 const SIZE: usize = 0x200;
 
-repeated_enum!(
+#[derive(Copy,Clone)]
 pub enum GPIOPort {
-    GPIO * 3
-});
+    GPIO0,
+    GPIO1,
+    GPIO2
+}
 
 // TODO: Should probably rename to GPIOPinLocation or something.
-repeated_enum!(
+#[derive(Copy,Clone)]
 pub enum Location {
-    GPIOPin * 96
-});
+    GPIOPin0, GPIOPin1, GPIOPin2, GPIOPin3, GPIOPin4, GPIOPin5, GPIOPin6,
+    GPIOPin7, GPIOPin8, GPIOPin9, GPIOPin10, GPIOPin11, GPIOPin12, GPIOPin13,
+    GPIOPin14, GPIOPin15, GPIOPin16, GPIOPin17, GPIOPin18, GPIOPin19, GPIOPin20,
+    GPIOPin21, GPIOPin22, GPIOPin23, GPIOPin24, GPIOPin25, GPIOPin26, GPIOPin27,
+    GPIOPin28, GPIOPin29, GPIOPin30, GPIOPin31, GPIOPin32, GPIOPin33, GPIOPin34,
+    GPIOPin35, GPIOPin36, GPIOPin37, GPIOPin38, GPIOPin39, GPIOPin40, GPIOPin41,
+    GPIOPin42, GPIOPin43, GPIOPin44, GPIOPin45, GPIOPin46, GPIOPin47, GPIOPin48,
+    GPIOPin49, GPIOPin50, GPIOPin51, GPIOPin52, GPIOPin53, GPIOPin54, GPIOPin55,
+    GPIOPin56, GPIOPin57, GPIOPin58, GPIOPin59, GPIOPin60, GPIOPin61, GPIOPin62,
+    GPIOPin63, GPIOPin64, GPIOPin65, GPIOPin66, GPIOPin67, GPIOPin68, GPIOPin69,
+    GPIOPin70, GPIOPin71, GPIOPin72, GPIOPin73, GPIOPin74, GPIOPin75, GPIOPin76,
+    GPIOPin77, GPIOPin78, GPIOPin79, GPIOPin80, GPIOPin81, GPIOPin82, GPIOPin83,
+    GPIOPin84, GPIOPin85, GPIOPin86, GPIOPin87, GPIOPin88, GPIOPin89, GPIOPin90,
+    GPIOPin91, GPIOPin92, GPIOPin93, GPIOPin94, GPIOPin95
+}
 
-#[derive(Copy)]
+#[derive(Copy,Clone)]
 pub struct GPIOPinParams {
     pub location: Location,
     pub port: GPIOPort,

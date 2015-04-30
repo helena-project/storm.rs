@@ -34,25 +34,25 @@ pub struct SPI {
     enabled: bool
 }
 
-#[derive(Copy)]
+#[derive(Copy,Clone)]
 pub enum MSTR {
     Master = 1,
     Slave = 0
 }
 
-#[derive(Copy)]
+#[derive(Copy,Clone)]
 pub enum PS {
     Fixed = 0,
     Variable = 1
 }
 
-#[derive(Copy)]
+#[derive(Copy,Clone)]
 pub enum RXFIFO {
     Disable = 0,
     Enable = 1
 }
 
-#[derive(Copy)]
+#[derive(Copy,Clone)]
 pub enum MODFAULT {
     Enable = 0,
     Disable = 1

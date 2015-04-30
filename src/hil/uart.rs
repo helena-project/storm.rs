@@ -1,4 +1,4 @@
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub enum Parity {
     Even = 0,
     Odd = 1,
@@ -8,7 +8,7 @@ pub enum Parity {
     Multidrop = 6
 }
 
-#[derive(Copy)]
+#[derive(Copy, Clone)]
 pub struct UARTParams {
     // Parity and stop bits should both be enums.
     pub baud_rate: u32,
