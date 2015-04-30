@@ -51,7 +51,9 @@ mod conf {
     }
 }
 
-static mut INTS : [bool; 100] = [false; 100];
+//static mut INTS : [bool; 100] = [false; 100];
+static mut USART3_INT : bool = false;
+static mut AST_ALARM_INT : bool = false;
 
 #[no_mangle]
 pub extern fn main() {
@@ -102,41 +104,30 @@ pub extern fn main() {
 fn main_loop<F: Fn()>(usart3: &mut platform::sam4l::usart::USART,
              ast: &mut platform::sam4l::ast::Ast<F>) {
 
-    let ints_len = unsafe { INTS.len() };
     loop {
+        use platform::sam4l::nvic;
+        use hil::uart::UART;
 
         // Service interrupts
-        let mut i = 0;
-        while i < ints_len {
-            if unsafe { intrinsics::atomic_xchg(&mut INTS[i], false) } {
-                use platform::sam4l::nvic;
-                let nvic = match i {
-                    0 => {
-                        usart3.interrupt_fired();
-                        Some(nvic::NvicIdx::USART3)
-                    }
-                    1 => {
-                        use hil::uart::UART;
-                        usart3.send_byte('h' as u8);
-                        ast.interrupt_fired();
-                        Some(nvic::NvicIdx::ASTALARM)
-                    }
-                    _ => None
-                };
-                nvic.map(|n| { nvic::enable(n) });
-            }
-            i += 1;
+        if unsafe { intrinsics::volatile_load(&USART3_INT) } {
+            usart3.interrupt_fired();
+            nvic::enable(nvic::NvicIdx::USART3);
+        }
+
+        if unsafe { intrinsics::volatile_load(&AST_ALARM_INT) } {
+            ast.interrupt_fired();
+            usart3.send_byte('h' as u8);
+            nvic::enable(nvic::NvicIdx::ASTALARM);
         }
 
         // Run tasks in task queue
 
         // Sleep if nothing left to do
         unsafe {
+            use core::intrinsics::volatile_load;
             support::atomic(|| {
-                for i in INTS.iter() {
-                    if *i {
-                        return;
-                    }
+                if volatile_load(&USART3_INT) || volatile_load(&AST_ALARM_INT) {
+                    return
                 }
                 support::wfi();
             });
@@ -148,7 +139,7 @@ fn main_loop<F: Fn()>(usart3: &mut platform::sam4l::usart::USART,
 #[allow(non_snake_case)]
 pub unsafe extern fn USART3_Handler() {
     use platform::sam4l::nvic;
-    INTS[0] = true;
+    USART3_INT = true;
     nvic::disable(nvic::NvicIdx::USART3);
 }
 
@@ -157,7 +148,7 @@ pub unsafe extern fn USART3_Handler() {
 #[allow(non_snake_case)]
 pub unsafe extern fn AST_ALARM_Handler() {
     use platform::sam4l::*;
-    INTS[1] = true;
+    AST_ALARM_INT = true;
     nvic::disable(nvic::NvicIdx::ASTALARM);
 }
 
