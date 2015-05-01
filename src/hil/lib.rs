@@ -19,4 +19,4 @@ pub mod crypto;
 pub mod spi;
 pub mod timer;
 pub mod uart;
-// pub mod adc;
+pub mod adc;

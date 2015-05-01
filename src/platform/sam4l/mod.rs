@@ -9,4 +9,4 @@ pub mod pm;
 pub mod spi;
 pub mod trng;
 pub mod usart;
-// pub mod adc;
+pub mod adc;
