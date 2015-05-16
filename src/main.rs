@@ -13,19 +13,25 @@ use core::prelude::*;
 use core::intrinsics;
 
 pub mod syscall;
-mod resource;
+mod shared;
 
 mod std {
     pub use core::*;
 }
 
+
 mod conf {
     use core::prelude::*;
     use platform::sam4l::*;
+    use shared::Shared;
 
-    pub fn init_console() -> usart::USART {
+    pub static mut USART3 : Option<Shared<usart::USART>> = None;
+    pub static mut SHELL : Option<Shared<::EchoShell>> = None;
+
+    pub fn init() {
         let usart_3 = usart::USART::new(usart::USARTParams {
-            location: usart::Location::USART3
+            location: usart::Location::USART3,
+            client: None
         });
 
         let mut pin9 = gpio::GPIOPin::new(gpio::GPIOPinParams {
@@ -41,68 +47,82 @@ mod conf {
             function: Some(gpio::PeripheralFunction::A)
         });
 
-        usart_3
-    }
+        unsafe {
+            USART3 = Some(Shared::new(usart_3));
+            SHELL = Some(Shared::new(
+                    ::EchoShell::new(USART3.as_ref().unwrap().borrow_mut())));
+            USART3.as_ref().unwrap().borrow_mut().set_client(SHELL.as_ref().unwrap().borrow_mut());
+        }
 
-    pub fn init_ast<F: Fn()>() -> ast::Ast<F> {
-        let mut ast = ast::Ast::new();
-        ast.setup();
-        ast
     }
 }
 
-//static mut INTS : [bool; 100] = [false; 100];
 static mut USART3_INT : bool = false;
-static mut AST_ALARM_INT : bool = false;
+
+struct EchoShell {
+    uart: &'static mut platform::sam4l::usart::USART,
+    buf: [u8; 40],
+    cur: usize
+}
+
+impl EchoShell {
+    pub fn subscribe(&mut self) {
+    }
+}
+
+impl EchoShell {
+    fn new(uart: &'static mut platform::sam4l::usart::USART) -> EchoShell {
+        EchoShell {
+            uart: uart,
+            buf: [0; 40],
+            cur: 0
+        }
+    }
+}
+
+impl hil::uart::Reader for EchoShell {
+    fn read_done(&mut self, byte : u8) {
+        use hil::uart::UART;
+        if byte as char == '\n' {
+            self.uart.send_byte('\r' as u8);
+            self.uart.send_byte('\n' as u8);
+            let mut c = (self.cur / 10) % 10 + ('0' as usize);
+            self.uart.send_byte(c as u8);
+            let mut c = self.cur % 10 + ('0' as usize);
+            self.uart.send_byte(c as u8);
+            self.uart.send_byte('>' as u8);
+            self.cur = 0;
+        }
+        if (self.cur < self.buf.len()) {
+            self.buf[self.cur] = byte;
+            self.cur += 1;
+        }
+    }
+}
 
 #[no_mangle]
 pub extern fn main() {
     use hil::uart::UART;
-    use hil::timer::Timer;
+    use shared::Shared;
 
-    let usart3 = resource::Resource::new(conf::init_console());
-    usart3.with(|u| {
-        u.init(hil::uart::UARTParams {
+    conf::init();
+
+    let usart3r = unsafe { conf::USART3.as_ref().unwrap() };
+
+    let shell = {
+        let usart3 = usart3r.borrow_mut();
+        usart3.init(hil::uart::UARTParams {
             baud_rate: 115200,
             data_bits: 8,
             parity: hil::uart::Parity::None
         });
 
-        u.toggle_rx(true);
-        u.toggle_tx(true);
+        usart3.enable_rx();
+        usart3.enable_tx();
 
-        u.enable_rx_interrupts();
-    });
-
-
-    let ast = resource::Resource::new(conf::init_ast());
-    ast.with(|ast| {
-        ast.set_callback(|| {
-            use hil::gpio::GPIOPin;
-            use platform::sam4l::*;
-            let mut pin_10 = gpio::GPIOPin::new(gpio::GPIOPinParams {
-                location: gpio::Location::GPIOPin10,
-                port: gpio::GPIOPort::GPIO2,
-                function: None
-            });
-
-            pin_10.enable_output();
-            pin_10.toggle();
-        });
-        let alm = ast.now() + (1<<15);
-        ast.set_alarm(alm);
-    });
-
-
-    unsafe {
-        main_loop(usart3.borrow_mut(), ast.borrow_mut());
-    }
-
-}
-
-#[inline(never)]
-fn main_loop<F: Fn()>(usart3: &mut platform::sam4l::usart::USART,
-             ast: &mut platform::sam4l::ast::Ast<F>) {
+        usart3.enable_rx_interrupts();
+        Shared::new(EchoShell::new(usart3))
+    };
 
     loop {
         use platform::sam4l::nvic;
@@ -110,23 +130,18 @@ fn main_loop<F: Fn()>(usart3: &mut platform::sam4l::usart::USART,
 
         // Service interrupts
         if unsafe { intrinsics::volatile_load(&USART3_INT) } {
-            usart3.interrupt_fired();
+            usart3r.borrow_mut().interrupt_fired();
             nvic::enable(nvic::NvicIdx::USART3);
         }
 
-        if unsafe { intrinsics::volatile_load(&AST_ALARM_INT) } {
-            ast.interrupt_fired();
-            usart3.send_byte('h' as u8);
-            nvic::enable(nvic::NvicIdx::ASTALARM);
-        }
-
-        // Run tasks in task queue
+        // Let's pretend we just got a syscall from an app...
+        shell.borrow_mut().subscribe();
 
         // Sleep if nothing left to do
         unsafe {
             use core::intrinsics::volatile_load;
             support::atomic(|| {
-                if volatile_load(&USART3_INT) || volatile_load(&AST_ALARM_INT) {
+                if volatile_load(&USART3_INT) {
                     return
                 }
                 support::wfi();
@@ -141,14 +156,5 @@ pub unsafe extern fn USART3_Handler() {
     use platform::sam4l::nvic;
     USART3_INT = true;
     nvic::disable(nvic::NvicIdx::USART3);
-}
-
-
-#[no_mangle]
-#[allow(non_snake_case)]
-pub unsafe extern fn AST_ALARM_Handler() {
-    use platform::sam4l::*;
-    AST_ALARM_INT = true;
-    nvic::disable(nvic::NvicIdx::ASTALARM);
 }
 

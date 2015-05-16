@@ -1,4 +1,5 @@
 use hil::{UART, UARTParams, Parity};
+use hil::uart;
 use core::prelude::*;
 
 pub struct ConsoleParams {
@@ -20,19 +21,11 @@ impl<T: UART> Console<T> {
             parity: params.parity
         });
 
-        uart.toggle_tx(true);
+        uart.enable_tx();
         Console {
             uart: uart,
             read_callback: None
         }
-    }
-
-    pub fn uart_interrupt(&mut self) {
-        let byte = self.uart.read_byte();
-        self.putc(byte);
-        // if let Some(ref callback) = self.read_callback {
-        //     callback(self.uart.read_byte());
-        // }
     }
 
     pub fn putc(&mut self, byte: u8) {
@@ -41,7 +34,7 @@ impl<T: UART> Console<T> {
 
     pub fn read_subscribe(&mut self, callback: fn(u8)) {
         if self.read_callback.is_none() {
-            self.uart.toggle_rx(true);
+            self.uart.enable_tx();
         }
 
         self.read_callback = Some(callback);
@@ -56,5 +49,12 @@ impl<T: UART> Console<T> {
     pub fn writeln(&mut self, content: &str) {
         self.write(content);
         self.putc('\n' as u8);
+    }
+}
+
+impl<T: UART> uart::Reader for Console<T> {
+
+    fn read_done(&mut self, byte: u8) {
+        self.putc(byte);
     }
 }

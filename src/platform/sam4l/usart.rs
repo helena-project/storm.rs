@@ -1,3 +1,4 @@
+use core::prelude::*;
 use sam4l::pm::{self, Clock, PBAClock};
 use core::intrinsics;
 use hil::uart;
@@ -37,15 +38,18 @@ pub enum Location {
     USART0, USART1, USART2, USART3
 }
 
-#[derive(Copy,Clone)]
 pub struct USARTParams {
     pub location: Location,
+    pub client: Option<&'static mut uart::Reader>
 }
 
 pub struct USART {
     regs: &'static mut UsartRegisters,
+    client: Option<&'static mut uart::Reader>,
     location: Location
 }
+
+unsafe impl Sync for USART {}
 
 impl USART {
     pub fn new(params: USARTParams) -> USART {
@@ -53,8 +57,13 @@ impl USART {
 
         USART {
             regs: unsafe { intrinsics::transmute(address) },
+            client: params.client,
             location: params.location
         }
+    }
+
+    pub fn set_client(&mut self, client : &'static mut uart::Reader) {
+        self.client = Some(client);
     }
 
     fn set_baud_rate(&mut self, baud_rate: u32) {
@@ -121,9 +130,11 @@ impl USART {
 
     pub fn interrupt_fired(&mut self) {
         if self.rx_ready() {
-            let c = volatile!(self.regs.rhr);
-            while !self.tx_ready() {}
-            volatile!(self.regs.thr = c as u32);
+            let c = volatile!(self.regs.rhr) as u8;
+            match self.client {
+                Some(ref mut client) => {client.read_done(c)},
+                None => {}
+            }
         }
     }
 
@@ -160,20 +171,21 @@ impl uart::UART for USART {
         }
     }
 
-    fn toggle_rx(&mut self, enable: bool) {
-        if enable {
-            volatile!(self.regs.cr = 1 << 4);
-        } else {
-            volatile!(self.regs.cr = 1 << 5);
-        }
+    fn enable_rx(&mut self) {
+        volatile!(self.regs.cr = 1 << 4);
     }
 
-    fn toggle_tx(&mut self, enable: bool) {
-        if enable {
-            volatile!(self.regs.cr = 1 << 6);
-        } else {
-            volatile!(self.regs.cr = 1 << 7);
-        }
+    fn disable_rx(&mut self) {
+        volatile!(self.regs.cr = 1 << 5);
     }
+
+    fn enable_tx(&mut self) {
+        volatile!(self.regs.cr = 1 << 6);
+    }
+
+    fn disable_tx(&mut self) {
+        volatile!(self.regs.cr = 1 << 7);
+    }
+
 }
 

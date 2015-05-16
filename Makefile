@@ -62,7 +62,7 @@ $(BUILD_DIR)/libplugins.$(DYLIB): $(call rwildcard,src/plugins/,*.rs) | $(BUILD_
 
 $(BUILD_DIR)/libdrivers.rlib: $(call rwildcard,src/drivers/,*.rs) $(call libs,core hil)
 	@echo "Building $@"
-	@$(RUSTC) $(RUSTC_FLAGS) -F unsafe-code --out-dir $(BUILD_DIR) src/drivers/lib.rs
+	@$(RUSTC) $(RUSTC_FLAGS) -F unsafe-blocks --out-dir $(BUILD_DIR) src/drivers/lib.rs
 
 $(BUILD_DIR)/libplatform.rlib: $(call libs,core hil)
 
